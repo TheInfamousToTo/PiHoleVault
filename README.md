@@ -23,7 +23,7 @@ This script creates backups of your Pi-hole configuration and stores them in a s
    ```
 3. Make the script executable:
    ```sh
-   chmod +x pihole-backup.sh
+   chmod +x backup_pihole.sh
    ```
 4. Execute the script:
    ```sh
