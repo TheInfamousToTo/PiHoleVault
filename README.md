@@ -1,15 +1,15 @@
-# Pi-hole-Backup-Script
+# Pi-hole Backup Script
 
-This script creates backups of your Pi-hole configuration and stores them in a specified directory. It also manages old backups, keeping only a configurable number of the most recent backups.
+This script creates backups of your Pi-hole configuration using the Teleporter function and stores them in a specified directory. It also manages old backups, keeping only a configurable number of the most recent backups.
 
 ## Features
-- Automated Pi-hole configuration backups.
+- Automated Pi-hole configuration backups using Teleporter.
 - Configurable backup directory.
-- Timestamped backup files.
+- Timestamped backup files in `.zip` format.
 - Automatic removal of old backups, keeping only the most recent backups.
 
 ## Prerequisites
-- Pi-hole installed and running.
+- Pi-hole installed and running (version 5.x or 6.x).
 - Sufficient permissions to execute backup commands and write to the backup directory.
 
 ## Usage
@@ -31,48 +31,111 @@ This script creates backups of your Pi-hole configuration and stores them in a s
    ```
 
 ## Configuration
-- `BACKUP_DIR`: The directory where backups will be stored. Default is `/mnt/nfs/BACKUP/Pihole`.
-- `MAX_BACKUPS`: The maximum number of backups to keep. Default is 10.
+
+You'll need to adjust these variables within the `backup_pihole.sh` script to match your preferences:
+
+- **`BACKUP_DIR`**: Define the full path to the directory where you want Pi-hole backups to be saved. The default is `/mnt/nfs/BACKUP/Pihole`, which assumes you are using an NFS mount at that location. **Be sure to change this if your backup location is different.**
+
+- **`MAX_BACKUPS`**: Specify the maximum number of the most recent backup files you want to keep. Older backups beyond this limit will be automatically removed during each script execution. The default is `10`.
 
 ## Script Details
 ```bash
+## Script Details
+
+```bash
 #!/bin/bash
 
-# Variables
-BACKUP_DIR="/mnt/nfs/BACKUP/Pihole"  # *** CHANGE THIS to your desired backup directory ***
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-BACKUP_FILE="pihole_backup_$TIMESTAMP.tar.gz"
-SCRIPT_DIR="/path/to/script/pihole-backup" # *** Usually no need to change this, but it's good to define it ***
-MAX_BACKUPS=10  # *** CHANGE THIS to the number of backups you want to keep ***
+# ------------------------------------------------------------------------------
+# Script: backup_pihole.sh
+# Author: TheInfamousToTo
+# Date: April 21, 2025
+# Description: This script automates the backup of Pi-hole configurations
+#              using the Teleporter function, stores them in a specified
+#              directory, and manages old backups.
+# ------------------------------------------------------------------------------
 
-# Create backup directory if it doesn't exist
+# ---------------------------- Configuration ---------------------------------
+# Define the directory where Pi-hole backups will be stored.
+# Default is set to an NFS mount point. CHANGE THIS if needed.
+BACKUP_DIR="/mnt/nfs/BACKUP/Pihole"
+
+# Define the maximum number of backup files to keep.
+# Older backups exceeding this number will be automatically removed.
+MAX_BACKUPS=10
+# ------------------------------------------------------------------------------
+
+# Ensure the backup directory exists. The '-p' flag creates parent
+# directories if they don't exist without throwing an error.
 mkdir -p "$BACKUP_DIR"
 
-# Create Pi-hole backup
-echo "Creating Pi-hole backup..."
-pihole -a -t "$BACKUP_DIR/$BACKUP_FILE"
+# Output a starting message to the console.
+echo "Starting Pi-hole backup script..."
 
-# Check if backup was successful
-if [ $? -eq 0 ]; then
-    echo "Backup created successfully: $BACKUP_DIR/$BACKUP_FILE"
+# Generate the Pi-hole Teleporter backup. The '--teleporter' command
+# creates a .zip archive of the Pi-hole configuration. The output
+# (the filename of the created archive) is captured in the
+# 'backup_file' variable.
+backup_file=$(pihole-FTL --teleporter)
+
+# Check if the backup creation was successful. The '-n' flag checks
+# if the string has a non-zero length (i.e., the filename is not empty).
+if [ -n "$backup_file" ]; then
+  # If the backup was created successfully, inform the user.
+  echo "Successfully created backup: $backup_file"
+
+  # Move the generated backup file to the specified backup directory
+  # on the NFS share.
+  mv "$backup_file" "$BACKUP_DIR/"
+  echo "Moved backup to: $BACKUP_DIR"
+
+  # List the files in the backup directory before the cleanup process.
+  echo "Listing files before cleanup:"
+  ls -l "$BACKUP_DIR"
+
+  # ------------------------- Remove Old Backups -----------------------------
+  echo "Removing old backups (keeping the last $MAX_BACKUPS)..."
+  # Find files in the backup directory that match the Pi-hole Teleporter
+  # filename pattern (*.zip), are regular files ('-type f'), sort them in
+  # reverse order (newest first based on filename), skip the first
+  # '$MAX_BACKUPS' files (the newest ones), and then delete the remaining
+  # older files using 'xargs'. The '-d '\n'' option ensures that filenames
+  # with spaces are handled correctly.
+  find "$BACKUP_DIR" -name "pi-hole_pihole_teleporter_*.zip" -type f | sort -r | tail -n +$((MAX_BACKUPS + 1)) | xargs -d '\n' rm -f
+  echo "Finished cleanup."
+  # --------------------------------------------------------------------------
+
+  # List the files in the backup directory after the cleanup process.
+  echo "Listing files after cleanup:"
+  ls -l "$BACKUP_DIR"
 else
-    echo "Backup failed!"
-    exit 1
+  # If the backup creation failed, display an error message and exit
+  # the script with a non-zero exit code (indicating an error).
+  echo "Error creating Pi-hole teleporter backup."
+  exit 1
 fi
 
-# Remove old backups
-echo "Removing old backups (keeping the last $MAX_BACKUPS)..."
-find "$BACKUP_DIR" -name "pihole_backup_*.tar.gz" -type f | sort -r | tail -n +$((MAX_BACKUPS + 1)) | xargs rm -f
+# If the script reaches this point, the backup and cleanup process
+# were likely successful. Exit with a zero exit code.
+echo "Pi-hole backup script finished."
+exit 0
 
-echo "Backup process completed!"
+# ----------------------------- Important Notes -----------------------------
+# *** IMPORTANT: To automate this script, you need to set up a cron job.
+# *** Example (runs every day at 3:00 AM - adjust as needed):
+# *** 0 3 * * * /path/to/script/backup_pihole.sh
+# *** Replace '/path/to/script/backup_pihole.sh' with the actual path to
+# *** where you saved the script. Use `sudo crontab -e` to edit the root
+# *** crontab for system-wide scheduling.
 
-# *** IMPORTANT: Set up a cron job to run this script automatically.  Example (every 2 days at 2:00 AM):
-# *** 0 2 */2 * * /path/to/script/backup_pihole.sh  (Adjust path if needed)
-# *** Use `sudo crontab -e` to edit the root crontab.
+# *** Test the script thoroughly by running it manually first to ensure it
+# *** works as expected and that backups are created and old ones are removed.
 
-# *** Test the script thoroughly! Run it manually first to make sure it's working as expected. ***
-# *** Check the backups to ensure they are valid. ***
-# *** Make sure the script has the correct permissions to write to the backup directory and run the `pihole` command. ***
+# *** Always verify that the backup files are valid and can be used for
+# *** restoration if needed.
+
+# *** Ensure that the script has the necessary permissions to write to the
+# *** specified backup directory and to execute the `pihole-FTL` command.
+# --------------------------------------------------------------------------
 ```
 
 ## License
