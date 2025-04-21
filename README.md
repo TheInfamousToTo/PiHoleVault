@@ -50,7 +50,7 @@ mkdir -p "$BACKUP_DIR"
 
 # Create Pi-hole backup
 echo "Creating Pi-hole backup..."
-pihole -a -t "$BACKUP_DIR/$BACKUP_FILE"
+pihole -t "$BACKUP_DIR/$BACKUP_FILE"
 
 # Check if backup was successful
 if [ $? -eq 0 ]; then
