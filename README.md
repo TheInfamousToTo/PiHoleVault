@@ -68,8 +68,14 @@ MAX_BACKUPS=10
 # directories if they don't exist without throwing an error.
 mkdir -p "$BACKUP_DIR"
 
+<<<<<<< HEAD
 # Output a starting message to the console.
 echo "Starting Pi-hole backup script..."
+=======
+# Create Pi-hole backup
+echo "Creating Pi-hole backup..."
+pihole -t "$BACKUP_DIR/$BACKUP_FILE"
+>>>>>>> d9eac8a187737df674745bdd42cb7b779a451925
 
 # Generate the Pi-hole Teleporter backup. The '--teleporter' command
 # creates a .zip archive of the Pi-hole configuration. The output
