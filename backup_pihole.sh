@@ -23,16 +23,50 @@ MAX_BACKUPS=10
 # directories if they don't exist without throwing an error.
 mkdir -p "$BACKUP_DIR"
 
-# Create Pi-hole backup
-echo "Creating Pi-hole backup..."
-pihole -a -t "$BACKUP_DIR/$BACKUP_FILE"
+# Output a starting message to the console.
+echo "Starting Pi-hole backup script..."
 
-# Check if backup was successful
-if [ $? -eq 0 ]; then
-    echo "Backup created successfully: $BACKUP_DIR/$BACKUP_FILE"
+# Generate the Pi-hole Teleporter backup. The '--teleporter' command
+# creates a .zip archive of the Pi-hole configuration. The output
+# (the filename of the created archive) is captured in the
+# 'backup_file' variable.
+backup_file=$(pihole-FTL --teleporter)
+
+# Check if the backup creation was successful. The '-n' flag checks
+# if the string has a non-zero length (i.e., the filename is not empty).
+if [ -n "$backup_file" ]; then
+  # If the backup was created successfully, inform the user.
+  echo "Successfully created backup: $backup_file"
+
+  # Move the generated backup file to the specified backup directory
+  # on the NFS share.
+  mv "$backup_file" "$BACKUP_DIR/"
+  echo "Moved backup to: $BACKUP_DIR"
+
+  # List the files in the backup directory before the cleanup process.
+  echo "Listing files before cleanup:"
+  ls -l "$BACKUP_DIR"
+
+  # ------------------------- Remove Old Backups -----------------------------
+  echo "Removing old backups (keeping the last $MAX_BACKUPS)..."
+  # Find files in the backup directory that match the Pi-hole Teleporter
+  # filename pattern (*.zip), are regular files ('-type f'), sort them in
+  # reverse order (newest first based on filename), skip the first
+  # '$MAX_BACKUPS' files (the newest ones), and then delete the remaining
+  # older files using 'xargs'. The '-d '\n'' option ensures that filenames
+  # with spaces are handled correctly.
+  find "$BACKUP_DIR" -name "pi-hole_pihole_teleporter_*.zip" -type f | sort -r | tail -n +$((MAX_BACKUPS + 1)) | xargs -d '\n' rm -f
+  echo "Finished cleanup."
+  # --------------------------------------------------------------------------
+
+  # List the files in the backup directory after the cleanup process.
+  echo "Listing files after cleanup:"
+  ls -l "$BACKUP_DIR"
 else
-    echo "Backup failed!"
-    exit 1
+  # If the backup creation failed, display an error message and exit
+  # the script with a non-zero exit code (indicating an error).
+  echo "Error creating Pi-hole teleporter backup."
+  exit 1
 fi
 
 # If the script reaches this point, the backup and cleanup process
