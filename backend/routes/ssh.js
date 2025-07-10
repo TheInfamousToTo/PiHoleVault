@@ -402,6 +402,93 @@ router.post('/test-key', async (req, res) => {
   }
 });
 
+// Test SSH connection with password (for initial setup)
+router.post('/test', async (req, res) => {
+  const { host, username, password, port = 22 } = req.body;
+  
+  if (!host || !username || !password) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Missing required connection parameters' 
+    });
+  }
+
+  const ssh = new NodeSSH();
+  
+  try {
+    req.app.locals.logger.info('Testing SSH connection', { host, username, port });
+    
+    await ssh.connect({
+      host,
+      username,
+      password,
+      port,
+      readyTimeout: 10000,
+    });
+
+    // Test if pihole-FTL command exists
+    const result = await ssh.execCommand('which pihole-FTL');
+    
+    if (result.code !== 0) {
+      await ssh.dispose();
+      return res.json({ 
+        success: false, 
+        error: 'Pi-hole not found on the target server. Please ensure Pi-hole is installed.' 
+      });
+    }
+
+    // Test pihole-FTL teleporter command
+    const teleporterTest = await ssh.execCommand('pihole-FTL --help | grep -i teleporter');
+    
+    if (teleporterTest.code !== 0) {
+      await ssh.dispose();
+      return res.json({ 
+        success: false, 
+        error: 'Pi-hole teleporter command not available. Please update Pi-hole to a newer version.' 
+      });
+    }
+
+    await ssh.dispose();
+    
+    req.app.locals.logger.info('SSH connection test successful', { host });
+    res.json({ success: true, message: 'Connection successful! Pi-hole found and ready for backup.' });
+    
+  } catch (error) {
+    if (ssh) {
+      try {
+        await ssh.dispose();
+      } catch (e) {
+        // Ignore disposal errors
+      }
+    }
+    
+    req.app.locals.logger.error('SSH connection test failed', { 
+      host, 
+      error: error.message 
+    });
+    
+    let errorMessage = error.message;
+    
+    // Provide better error messages for common issues
+    if (error.level === 'client-authentication') {
+      errorMessage = 'Authentication failed. Please check your username and password.';
+    } else if (error.level === 'client-timeout') {
+      errorMessage = 'Connection timeout. Please check the server address and port.';
+    } else if (error.code === 'ENOTFOUND') {
+      errorMessage = 'Server not found. Please check the hostname/IP address.';
+    } else if (error.code === 'ECONNREFUSED') {
+      errorMessage = 'Connection refused. Please check if SSH service is running on the server.';
+    } else if (error.code === 'EHOSTUNREACH') {
+      errorMessage = 'Host unreachable. Please check the network connection.';
+    }
+    
+    res.json({ 
+      success: false, 
+      error: `Connection failed: ${errorMessage}` 
+    });
+  }
+});
+
 // Get SSH key status
 router.get('/status', async (req, res) => {
   try {
