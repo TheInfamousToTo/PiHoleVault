@@ -13,41 +13,53 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
         
       - name: Login to DockerHub
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v1
+        uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v3
+      - name: Extract metadata for Frontend
+        id: meta-frontend
+        uses: docker/metadata-action@v5
         with:
-          images: |
-            theinfamoustoto/holesafe-frontend
-            theinfamoustoto/holesafe-backend
+          images: theinfamoustoto/holesafe-frontend
           tags: |
             type=semver,pattern={{version}}
             type=ref,event=branch
             type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+            
+      - name: Extract metadata for Backend
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: theinfamoustoto/holesafe-backend
+          tags: |
+            type=semver,pattern={{version}}
+            type=ref,event=branch
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
             
       - name: Build and push Frontend image
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v5
         with:
           context: ./frontend
           push: ${{ github.event_name != 'pull_request' }}
-          tags: theinfamoustoto/holesafe-frontend:latest,theinfamoustoto/holesafe-frontend:${{ steps.meta.outputs.version }}
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
           target: production
           
       - name: Build and push Backend image
-        uses: docker/build-push-action@v2
+        uses: docker/build-push-action@v5
         with:
           context: ./backend
           push: ${{ github.event_name != 'pull_request' }}
-          tags: theinfamoustoto/holesafe-backend:latest,theinfamoustoto/holesafe-backend:${{ steps.meta.outputs.version }}
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
