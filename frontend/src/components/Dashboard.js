@@ -201,9 +201,19 @@ const Dashboard = () => {
     <>
       <AppBar position="static">
         <Toolbar>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Pi-hole Backup Manager
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+            <img 
+              src="/logo.png" 
+              alt="HoleSafe Logo" 
+              style={{ height: '32px', marginRight: '12px' }}
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+            <Typography variant="h6" component="div">
+              HoleSafe
+            </Typography>
+          </Box>
           <IconButton color="inherit" onClick={loadDashboardData}>
             <Refresh />
           </IconButton>

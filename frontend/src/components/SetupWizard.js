@@ -423,7 +423,7 @@ const SetupWizard = ({ onComplete }) => {
     <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
       <Paper elevation={3} sx={{ p: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom align="center">
-          Pi-hole Backup Setup
+          HoleSafe Setup
         </Typography>
         
         <Stepper activeStep={activeStep} sx={{ pt: 3, pb: 5 }}>

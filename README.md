@@ -1,18 +1,24 @@
-# Pi-hole Backup Manager v0.1
+# HoleSafe v0.1
 
 A comprehensive web-based solution for managing Pi-hole backups with automated scheduling, SSH key management, and a modern React frontend.
 
-![Pi-hole Backup Manager Dashboard](https://raw.githubusercontent.com/TheInfamousToTo/Pi-hole-Backup-Script/main/frontend/public/dashboard-preview.png)
+<div align="center">
+  <img src="https://raw.githubusercontent.com/TheInfamousToTo/Pi-hole-Backup-Script/main/frontend/public/logo.png" alt="HoleSafe Logo" width="200"/>
+</div>
+
+![HoleSafe Dashboard](https://raw.githubusercontent.com/TheInfamousToTo/Pi-hole-Backup-Script/main/frontend/public/dashboard-preview.png)
 
 ## 🚀 Features
 
-- **Web-based Interface**: Modern React frontend with Material-UI components
+- **Modern Web Interface**: Clean, responsive React frontend inspired by Pi-hole's design
+- **HoleSafe Branding**: Professional interface with matching Pi-hole color scheme
 - **Setup Wizard**: Step-by-step configuration for first-time users
 - **SSH Key Management**: Automatic generation and deployment of SSH keys for passwordless authentication
 - **Backup Scheduling**: Configurable cron-based scheduling with validation
 - **Backup Management**: Download, delete, and view backup files through the web interface
-- **Job History**: Track backup job status and history
+- **Job History**: Track backup job status and history with real-time updates
 - **Docker Deployment**: Complete containerized solution with Docker Compose
+- **Health Monitoring**: Built-in health checks and status monitoring
 
 ## 📁 Project Structure
 
@@ -60,7 +66,7 @@ version: '3.8'
 
 services:
   frontend:
-    image: theinfamoustoto/pihole-backup-frontend:0.1
+    image: theinfamoustoto/holesafe-frontend:0.1
     ports:
       - "3000:80"
     depends_on:
@@ -68,7 +74,7 @@ services:
     restart: unless-stopped
 
   backend:
-    image: theinfamoustoto/pihole-backup-backend:0.1
+    image: theinfamoustoto/holesafe-backend:0.1
     ports:
       - "3001:3001"
     volumes:
@@ -91,17 +97,19 @@ mkdir -p data backups
 docker-compose up -d
 ```
 
-3. **Access the web interface** at http://localhost:3000
+3. **Access the web interface** at <http://localhost:3000>
 
 #### Option 2: Build from Source
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/TheInfamousToTo/Pi-hole-Backup-Script.git
    cd Pi-hole-Backup-Script
    ```
 
 2. **Start the application**:
+
    ```bash
    docker-compose up -d
    ```
@@ -115,6 +123,7 @@ docker-compose up -d
 If you prefer to run without Docker:
 
 1. **Backend Setup**:
+
    ```bash
    cd backend
    npm install
@@ -122,6 +131,7 @@ If you prefer to run without Docker:
    ```
 
 2. **Frontend Setup**:
+
    ```bash
    cd frontend
    npm install
@@ -204,32 +214,38 @@ Configuration is stored in `/data/config.json`:
 ## 🔍 API Endpoints
 
 ### Configuration
+
 - `GET /api/config/status` - Check configuration status
 - `GET /api/config` - Get current configuration
 - `POST /api/config/save` - Save new configuration
 - `PUT /api/config` - Update existing configuration
 
 ### Pi-hole Management
+
 - `POST /api/pihole/test-connection` - Test Pi-hole connection
 - `GET /api/pihole/status` - Get Pi-hole server status
 
 ### Backup Operations
+
 - `POST /api/backup/run` - Run backup manually
 - `GET /api/backup` - List backup files
 - `GET /api/backup/:filename/download` - Download backup file
 - `DELETE /api/backup/:filename` - Delete backup file
 
 ### SSH Management
+
 - `POST /api/ssh/setup-key` - Setup SSH key authentication
 - `POST /api/ssh/test-key` - Test SSH key authentication
 - `GET /api/ssh/status` - Get SSH key status
 
 ### Scheduling
+
 - `POST /api/schedule/validate` - Validate cron expression
 - `GET /api/schedule/next-runs` - Get next scheduled runs
 - `POST /api/schedule/toggle` - Enable/disable scheduling
 
 ### Job Management
+
 - `GET /api/jobs` - Get job history
 - `DELETE /api/jobs` - Clear job history
 - `GET /api/jobs/stats` - Get job statistics
@@ -239,13 +255,15 @@ Configuration is stored in `/data/config.json`:
 ### Environment Variables
 
 Backend environment variables:
+
 - `NODE_ENV` - Application environment (development/production)
 - `PORT` - Server port (default: 3001)
 - `DATA_DIR` - Data directory path (default: ./data)
 - `BACKUP_DIR` - Backup directory path (default: ./backups)
 
 Frontend environment variables:
-- `REACT_APP_API_URL` - Backend API URL (default: http://localhost:3001)
+
+- `REACT_APP_API_URL` - Backend API URL (default: <http://localhost:3001>)
 
 ### Building for Production
 

@@ -12,13 +12,57 @@ import api from './services/api';
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#96060c',
+      main: '#96060c', // Pi-hole red
+      light: '#c9302c',
+      dark: '#5d0004',
     },
     secondary: {
-      main: '#f50057',
+      main: '#007cba', // Pi-hole blue
+      light: '#42a5f5',
+      dark: '#0056b3',
+    },
+    success: {
+      main: '#5cb85c', // Pi-hole green
+      light: '#7dc17d',
+      dark: '#449d44',
     },
     background: {
-      default: '#f5f5f5',
+      default: '#f8f9fa',
+      paper: '#ffffff',
+    },
+    text: {
+      primary: '#333333',
+      secondary: '#666666',
+    },
+  },
+  typography: {
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    h4: {
+      fontWeight: 600,
+      color: '#333333',
+    },
+    h6: {
+      fontWeight: 600,
+      color: '#333333',
+    },
+  },
+  components: {
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          borderRadius: '8px',
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: '6px',
+          textTransform: 'none',
+          fontWeight: 500,
+        },
+      },
     },
   },
 });

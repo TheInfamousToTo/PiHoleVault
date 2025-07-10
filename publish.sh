@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# Script to build and publish Docker images for Pi-hole Backup Manager
+# Script to build and publish Docker images for HoleSafe
 
 VERSION=$(cat version)
 DOCKER_USER="theinfamoustoto"
-FRONTEND_IMAGE="pihole-backup-frontend"
-BACKEND_IMAGE="pihole-backup-backend"
+FRONTEND_IMAGE="holesafe-frontend"
+BACKEND_IMAGE="holesafe-backend"
 
-echo "Building and publishing version: $VERSION"
+echo "Building and publishing HoleSafe version: $VERSION"
 
 # Build frontend image
 echo "Building frontend image..."

@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Script to set up GitHub repository for Pi-hole Backup Manager
+# Script to set up GitHub repository for HoleSafe
 
-echo "Setting up GitHub repository..."
+echo "Setting up GitHub repository for HoleSafe..."
 
 # Initialize Git repository if not already initialized
 if [ ! -d ".git" ]; then
@@ -19,7 +19,7 @@ git remote add origin https://github.com/TheInfamousToTo/Pi-hole-Backup-Script.g
 git add .
 
 # Initial commit
-git commit -m "Initial commit of Pi-hole Backup Manager v0.1"
+git commit -m "Initial commit of HoleSafe v0.1 - Pi-hole Backup Manager"
 
 echo "Repository is ready to push to GitHub."
 echo "Run the following command to push to GitHub:"

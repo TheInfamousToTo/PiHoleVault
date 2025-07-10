@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   frontend:
-    image: theinfamoustoto/pihole-backup-frontend:0.1
+    image: theinfamoustoto/holesafe-frontend:0.1
     ports:
       - "80:80"
     environment:
@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
 
   backend:
-    image: theinfamoustoto/pihole-backup-backend:0.1
+    image: theinfamoustoto/holesafe-backend:0.1
     ports:
       - "3001:3001"
     volumes:
