@@ -45,62 +45,58 @@ RUN chmod 700 /root/.ssh && \
     chmod 600 /root/.ssh/id_rsa
 
 # Configure nginx
-RUN echo 'server {' > /etc/nginx/conf.d/default.conf && \
-    echo '    listen 80;' >> /etc/nginx/conf.d/default.conf && \
-    echo '    server_name localhost;' >> /etc/nginx/conf.d/default.conf && \
-    echo '    ' >> /etc/nginx/conf.d/default.conf && \
-    echo '    # Enable gzip compression' >> /etc/nginx/conf.d/default.conf && \
-    echo '    gzip on;' >> /etc/nginx/conf.d/default.conf && \
-    echo '    gzip_vary on;' >> /etc/nginx/conf.d/default.conf && \
-    echo '    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;' >> /etc/nginx/conf.d/default.conf && \
-    echo '    ' >> /etc/nginx/conf.d/default.conf && \
-    echo '    # Serve React frontend' >> /etc/nginx/conf.d/default.conf && \
-    echo '    location / {' >> /etc/nginx/conf.d/default.conf && \
-    echo '        root /usr/share/nginx/html;' >> /etc/nginx/conf.d/default.conf && \
-    echo '        index index.html index.htm;' >> /etc/nginx/conf.d/default.conf && \
-    echo '        try_files $uri $uri/ /index.html;' >> /etc/nginx/conf.d/default.conf && \
-    echo '    }' >> /etc/nginx/conf.d/default.conf && \
-    echo '    ' >> /etc/nginx/conf.d/default.conf && \
-    echo '    # Proxy API requests to backend' >> /etc/nginx/conf.d/default.conf && \
-    echo '    location /api/ {' >> /etc/nginx/conf.d/default.conf && \
-    echo '        proxy_pass http://localhost:3001;' >> /etc/nginx/conf.d/default.conf && \
-    echo '        proxy_http_version 1.1;' >> /etc/nginx/conf.d/default.conf && \
-    echo '        proxy_set_header Host $host;' >> /etc/nginx/conf.d/default.conf && \
-    echo '        proxy_set_header X-Real-IP $remote_addr;' >> /etc/nginx/conf.d/default.conf && \
-    echo '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' >> /etc/nginx/conf.d/default.conf && \
-    echo '        proxy_set_header X-Forwarded-Proto $scheme;' >> /etc/nginx/conf.d/default.conf && \
-    echo '    }' >> /etc/nginx/conf.d/default.conf && \
-    echo '    ' >> /etc/nginx/conf.d/default.conf && \
-    echo '    # Health check endpoint' >> /etc/nginx/conf.d/default.conf && \
-    echo '    location /health {' >> /etc/nginx/conf.d/default.conf && \
-    echo '        proxy_pass http://localhost:3001/health;' >> /etc/nginx/conf.d/default.conf && \
-    echo '        proxy_http_version 1.1;' >> /etc/nginx/conf.d/default.conf && \
-    echo '        proxy_set_header Host $host;' >> /etc/nginx/conf.d/default.conf && \
-    echo '    }' >> /etc/nginx/conf.d/default.conf && \
-    echo '}' >> /etc/nginx/conf.d/default.conf
+RUN printf 'server {\n\
+    listen 80;\n\
+    server_name localhost;\n\
+    \n\
+    gzip on;\n\
+    gzip_vary on;\n\
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;\n\
+    \n\
+    location / {\n\
+        root /usr/share/nginx/html;\n\
+        index index.html index.htm;\n\
+        try_files $uri $uri/ /index.html;\n\
+    }\n\
+    \n\
+    location /api/ {\n\
+        proxy_pass http://localhost:3001;\n\
+        proxy_http_version 1.1;\n\
+        proxy_set_header Host $host;\n\
+        proxy_set_header X-Real-IP $remote_addr;\n\
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n\
+        proxy_set_header X-Forwarded-Proto $scheme;\n\
+    }\n\
+    \n\
+    location /health {\n\
+        proxy_pass http://localhost:3001/health;\n\
+        proxy_http_version 1.1;\n\
+        proxy_set_header Host $host;\n\
+    }\n\
+}\n' > /etc/nginx/conf.d/default.conf
 
 # Configure supervisor to manage both nginx and node
-RUN echo '[supervisord]' > /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'nodaemon=true' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'user=root' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'logfile=/var/log/supervisor/supervisord.log' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'pidfile=/var/run/supervisord.pid' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo '' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo '[program:nginx]' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'command=nginx -g "daemon off;"' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'stderr_logfile=/var/log/supervisor/nginx.err.log' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'stdout_logfile=/var/log/supervisor/nginx.out.log' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo '' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo '[program:backend]' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'command=npm start' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'directory=/app' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'autostart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'autorestart=true' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'stderr_logfile=/var/log/supervisor/backend.err.log' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'stdout_logfile=/var/log/supervisor/backend.out.log' >> /etc/supervisor/conf.d/supervisord.conf && \
-    echo 'environment=NODE_ENV=production,DATA_DIR=/app/data,BACKUP_DIR=/app/backups' >> /etc/supervisor/conf.d/supervisord.conf
+RUN printf '[supervisord]\n\
+nodaemon=true\n\
+user=root\n\
+logfile=/var/log/supervisor/supervisord.log\n\
+pidfile=/var/run/supervisord.pid\n\
+\n\
+[program:nginx]\n\
+command=nginx -g "daemon off;"\n\
+autostart=true\n\
+autorestart=true\n\
+stderr_logfile=/var/log/supervisor/nginx.err.log\n\
+stdout_logfile=/var/log/supervisor/nginx.out.log\n\
+\n\
+[program:backend]\n\
+command=npm start\n\
+directory=/app\n\
+autostart=true\n\
+autorestart=true\n\
+stderr_logfile=/var/log/supervisor/backend.err.log\n\
+stdout_logfile=/var/log/supervisor/backend.out.log\n\
+environment=NODE_ENV=production,DATA_DIR=/app/data,BACKUP_DIR=/app/backups\n' > /etc/supervisor/conf.d/supervisord.conf
 
 # Expose port 80 (nginx will handle both frontend and backend routing)
 EXPOSE 80
