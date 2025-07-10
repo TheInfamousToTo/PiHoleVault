@@ -2,6 +2,9 @@ version: '3.8'
 
 services:
   holesafe:
+    build:
+      context: .
+      dockerfile: Dockerfile.combined
     image: theinfamoustoto/holesafe-combined:latest
     ports:
       - "3000:80"  # Single port for both frontend and backend

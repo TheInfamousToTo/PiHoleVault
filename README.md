@@ -11,7 +11,7 @@ A comprehensive web-based solution for managing Pi-hole backups with automated s
 ## 📦 Quick Links
 
 - **GitHub Repository**: [TheInfamousToTo/HoleSafe](https://github.com/TheInfamousToTo/HoleSafe)
-- **Docker Hub**: [theinfamoustoto/holesafe-frontend](https://hub.docker.com/r/theinfamoustoto/holesafe-frontend) | [theinfamoustoto/holesafe-backend](https://hub.docker.com/r/theinfamoustoto/holesafe-backend)
+- **Docker Hub**: [theinfamoustoto/holesafe-combined](https://hub.docker.com/r/theinfamoustoto/holesafe-combined)
 - **Latest Release**: [v1.0.0](https://github.com/TheInfamousToTo/HoleSafe/releases/tag/v1.0.0)
 
 ## 🚀 Features
@@ -82,18 +82,10 @@ This is the first stable release of HoleSafe with the following highlights:
 version: '3.8'
 
 services:
-  frontend:
-    image: theinfamoustoto/holesafe-frontend:1.0.0
+  holesafe:
+    image: theinfamoustoto/holesafe-combined:latest
     ports:
-      - "3000:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-
-  backend:
-    image: theinfamoustoto/holesafe-backend:1.0.0
-    ports:
-      - "3001:3001"
+      - "3000:80"  # Single port for both frontend and backend
     volumes:
       - ./data:/app/data
       - ./backups:/app/backups
@@ -103,12 +95,17 @@ services:
       - DATA_DIR=/app/data
       - BACKUP_DIR=/app/backups
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
   ssh_keys:
 ```
 
-2. **Start the containers**:
+2. **Start the container**:
 
 ```bash
 mkdir -p data backups
@@ -126,21 +123,10 @@ docker-compose up -d
    cd HoleSafe
    ```
 
-2. **For development with live reload**, modify the docker-compose.yml to build from source:
-
-   ```yaml
-   # Replace 'image:' lines with 'build:' for development
-   frontend:
-     build: ./frontend
-     # ... rest of configuration
-   backend:
-     build: ./backend
-     # ... rest of configuration
-   ```
-
-3. **Start the application**:
+2. **Build and run the combined container**:
 
    ```bash
+   docker build -f Dockerfile.combined -t theinfamoustoto/holesafe-combined:latest .
    docker-compose up -d
    ```
 

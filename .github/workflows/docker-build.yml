@@ -32,41 +32,25 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           
-      - name: Extract metadata for Frontend
-        id: meta-frontend
+      - name: Extract metadata for Combined Image
+        id: meta-combined
         uses: docker/metadata-action@v5
         with:
-          images: theinfamoustoto/holesafe-frontend
+          images: theinfamoustoto/holesafe-combined
           tags: |
             type=ref,event=branch
             type=ref,event=pr
             type=raw,value=${{ steps.version.outputs.version }}
             type=raw,value=latest,enable={{is_default_branch}}
             
-      - name: Extract metadata for Backend
-        id: meta-backend
-        uses: docker/metadata-action@v5
-        with:
-          images: theinfamoustoto/holesafe-backend
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=raw,value=${{ steps.version.outputs.version }}
-            type=raw,value=latest,enable={{is_default_branch}}
-            
-      - name: Build and push Frontend image
+      - name: Build and push Combined image
         uses: docker/build-push-action@v5
         with:
-          context: ./frontend
+          context: .
+          file: ./Dockerfile.combined
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta-frontend.outputs.tags }}
-          labels: ${{ steps.meta-frontend.outputs.labels }}
-          target: production
-          
-      - name: Build and push Backend image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
+          tags: ${{ steps.meta-combined.outputs.tags }}
+          labels: ${{ steps.meta-combined.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
