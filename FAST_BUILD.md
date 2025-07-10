@@ -42,8 +42,8 @@ The `npm install` step was taking too long during Docker builds. We've implement
 
 ### Option 2: Development Mode
 ```bash
-# Uses development-specific docker-compose
-docker-compose -f docker-compose.dev.yml up -d --build
+# For development with live reload, modify docker-compose.yml to build from source
+docker-compose up -d --build
 ```
 
 ### Option 3: Production Build
@@ -70,7 +70,7 @@ docker-compose up -d --build
 
 ## 📁 New Files Created
 
-- `docker-compose.dev.yml` - Development-optimized compose file
+- `docker-compose.yml` - Production-ready compose file with Docker Hub images
 - `backend/Dockerfile.dev` - Development-specific backend Dockerfile
 - `frontend/.dockerignore` - Frontend-specific ignore rules
 - `backend/.dockerignore` - Backend-specific ignore rules
@@ -108,6 +108,6 @@ COPY . .                   # Copy code (separate layer)
 1. **Use the fast build**: `./fast-build.sh`
 2. **Test your SSH connection**: Web UI at http://localhost:3000
 3. **Debug SSH issues**: Use the new debug endpoint
-4. **Development workflow**: Use `docker-compose.dev.yml` for daily development
+4. **Development workflow**: Use `docker-compose.yml` modified for development builds
 
 The build should now be 5-10x faster for subsequent builds! 🎊

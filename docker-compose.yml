@@ -1,40 +1,32 @@
 version: '3.8'
 
 services:
-  holesafe-frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: development
+  frontend:
+    image: theinfamoustoto/holesafe-frontend:1.0.0
     ports:
-      - "3000:3000"
-    environment:
-      - REACT_APP_API_URL=http://localhost:3001
+      - "3000:80"
     depends_on:
-      - holesafe-backend
-    volumes:
-      - ./frontend:/app
-      - node_modules_frontend:/app/node_modules
+      - backend
+    restart: unless-stopped
 
-  holesafe-backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+  backend:
+    image: theinfamoustoto/holesafe-backend:1.0.0
     ports:
       - "3001:3001"
     volumes:
-      - ./backend:/app
-      - node_modules_backend:/app/node_modules
       - ./data:/app/data
-      - /mnt/nfs/BACKUP/TestPI:/app/backups
+      - ./backups:/app/backups
       - ssh_keys:/root/.ssh
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - DATA_DIR=/app/data
       - BACKUP_DIR=/app/backups
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
-  node_modules_frontend:
-  node_modules_backend:
   ssh_keys:

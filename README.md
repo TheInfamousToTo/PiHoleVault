@@ -74,9 +74,7 @@ This is the first stable release of HoleSafe with the following highlights:
 
 ### Quick Start
 
-There are two ways to get started with Pi-hole Backup Manager:
-
-#### Option 1: Using Docker Hub Images
+#### Using Docker Hub Images (Recommended)
 
 1. **Create a docker-compose.yml file**:
 
@@ -101,6 +99,7 @@ services:
       - ./backups:/app/backups
       - ssh_keys:/root/.ssh
     environment:
+      - NODE_ENV=production
       - DATA_DIR=/app/data
       - BACKUP_DIR=/app/backups
     restart: unless-stopped
@@ -118,7 +117,7 @@ docker-compose up -d
 
 3. **Access the web interface** at <http://localhost:3000>
 
-#### Option 2: Build from Source
+#### Build from Source (Development)
 
 1. **Clone the repository**:
 
@@ -127,15 +126,23 @@ docker-compose up -d
    cd HoleSafe
    ```
 
-2. **Start the application**:
+2. **For development with live reload**, modify the docker-compose.yml to build from source:
+
+   ```yaml
+   # Replace 'image:' lines with 'build:' for development
+   frontend:
+     build: ./frontend
+     # ... rest of configuration
+   backend:
+     build: ./backend
+     # ... rest of configuration
+   ```
+
+3. **Start the application**:
 
    ```bash
    docker-compose up -d
    ```
-
-3. **Access the web interface**:
-   - Open your browser and navigate to `http://localhost:3000`
-   - Follow the setup wizard to configure your Pi-hole connection
 
 ### Manual Installation
 
@@ -293,10 +300,10 @@ Frontend environment variables:
    npm run build
    ```
 
-2. **Production deployment**:
+2. **Production deployment** (using pre-built images):
 
    ```bash
-   docker-compose -f docker-compose.prod.yml up -d
+   docker-compose up -d
    ```
 
 ## 📋 Backup Process
