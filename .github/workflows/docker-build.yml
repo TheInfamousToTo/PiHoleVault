@@ -32,21 +32,19 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           
-      - name: Extract metadata for Combined Image
+      - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: theinfamoustoto/holesafe-combined
+          images: theinfamoustoto/holesafe
           tags: |
-            type=ref,event=pr
             type=raw,value=${{ steps.version.outputs.version }}
             type=raw,value=latest,enable={{is_default_branch}}
             
-      - name: Build and push Combined image
+      - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
