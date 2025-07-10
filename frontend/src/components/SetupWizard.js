@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   Container,
-  Paper,
   Stepper,
   Step,
   StepLabel,
@@ -25,22 +24,16 @@ import {
   Chip,
   useTheme,
   useMediaQuery,
-  Divider,
 } from '@mui/material';
 import {
   Visibility,
   VisibilityOff,
   Storage,
   Schedule,
-  Security,
-  Settings,
   Shield,
-  Cloud,
-  Timeline,
   CheckCircle,
   ArrowForward,
   ArrowBack,
-  PlayArrow,
   Computer,
   Key,
 } from '@mui/icons-material';
@@ -440,10 +433,6 @@ const SetupWizard = ({ onComplete }) => {
       default:
         return 'Unknown step';
     }
-  };
-
-  const isStepOptional = (step) => {
-    return false;
   };
 
   const isStepValid = (step) => {

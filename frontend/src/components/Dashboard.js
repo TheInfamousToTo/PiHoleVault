@@ -2,12 +2,10 @@ import React, { useState, useEffect, useCallback, memo } from 'react';
 import {
   Container,
   Grid,
-  Paper,
   Typography,
   Button,
   Card,
   CardContent,
-  CardActions,
   Box,
   Chip,
   List,
@@ -20,25 +18,14 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   CircularProgress,
-  Alert,
-  Divider,
   AppBar,
   Toolbar,
-  Badge,
   Avatar,
-  LinearProgress,
-  Fade,
-  Skeleton,
   Stack,
   useTheme,
   useMediaQuery,
   Tooltip,
-  Link,
 } from '@mui/material';
 import {
   PlayArrow,
@@ -47,26 +34,19 @@ import {
   Settings,
   Download,
   Delete,
-  Edit,
   Refresh,
   CheckCircle,
   Error,
-  Warning,
   Info,
   Shield,
   Cloud,
   Timeline,
   Speed,
   Security,
-  Notifications,
-  Dashboard as DashboardIcon,
-  Analytics,
   GitHub,
   Coffee,
   Favorite,
   Star,
-  Menu,
-  Close,
   LaunchOutlined,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
@@ -201,8 +181,6 @@ const SponsorshipBar = memo(() => {
 
 // Stats Card Component
 const StatsCard = memo(({ title, value, icon, color, subtitle, trend }) => {
-  const theme = useTheme();
-  
   return (
     <Card
       sx={{
@@ -252,8 +230,6 @@ const StatsCard = memo(({ title, value, icon, color, subtitle, trend }) => {
 
 // Hero Section Component
 const HeroSection = memo(() => {
-  const theme = useTheme();
-  
   return (
     <Box
       sx={{

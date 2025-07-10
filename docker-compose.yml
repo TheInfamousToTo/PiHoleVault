@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   frontend:
-    image: theinfamoustoto/holesafe-frontend:1.0.0
+    image: theinfamoustoto/holesafe-frontend:latest
     ports:
       - "3000:80"
     depends_on:
@@ -10,7 +10,7 @@ services:
     restart: unless-stopped
 
   backend:
-    image: theinfamoustoto/holesafe-backend:1.0.0
+    image: theinfamoustoto/holesafe-backend:latest
     ports:
       - "3001:3001"
     volumes:
