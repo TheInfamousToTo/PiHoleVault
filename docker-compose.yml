@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   holesafe:
-    image: theinfamoustoto/holesafe-combined:latest
+    image: theinfamoustoto/holesafe:latest
     ports:
       - "3000:80"  # Single port for both frontend and backend
     volumes:
