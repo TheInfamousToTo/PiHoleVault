@@ -45,62 +45,10 @@ RUN chmod 700 /root/.ssh && \
     chmod 600 /root/.ssh/id_rsa
 
 # Configure nginx
-RUN { \
-    echo 'server {'; \
-    echo '    listen 80;'; \
-    echo '    server_name localhost;'; \
-    echo ''; \
-    echo '    gzip on;'; \
-    echo '    gzip_vary on;'; \
-    echo '    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;'; \
-    echo ''; \
-    echo '    location / {'; \
-    echo '        root /usr/share/nginx/html;'; \
-    echo '        index index.html index.htm;'; \
-    echo '        try_files $uri $uri/ /index.html;'; \
-    echo '    }'; \
-    echo ''; \
-    echo '    location /api/ {'; \
-    echo '        proxy_pass http://localhost:3001;'; \
-    echo '        proxy_http_version 1.1;'; \
-    echo '        proxy_set_header Host $host;'; \
-    echo '        proxy_set_header X-Real-IP $remote_addr;'; \
-    echo '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;'; \
-    echo '        proxy_set_header X-Forwarded-Proto $scheme;'; \
-    echo '    }'; \
-    echo ''; \
-    echo '    location /health {'; \
-    echo '        proxy_pass http://localhost:3001/health;'; \
-    echo '        proxy_http_version 1.1;'; \
-    echo '        proxy_set_header Host $host;'; \
-    echo '    }'; \
-    echo '}'; \
-} > /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Configure supervisor to manage both nginx and node
-RUN { \
-    echo '[supervisord]'; \
-    echo 'nodaemon=true'; \
-    echo 'user=root'; \
-    echo 'logfile=/var/log/supervisor/supervisord.log'; \
-    echo 'pidfile=/var/run/supervisord.pid'; \
-    echo ''; \
-    echo '[program:nginx]'; \
-    echo 'command=nginx -g "daemon off;"'; \
-    echo 'autostart=true'; \
-    echo 'autorestart=true'; \
-    echo 'stderr_logfile=/var/log/supervisor/nginx.err.log'; \
-    echo 'stdout_logfile=/var/log/supervisor/nginx.out.log'; \
-    echo ''; \
-    echo '[program:backend]'; \
-    echo 'command=npm start'; \
-    echo 'directory=/app'; \
-    echo 'autostart=true'; \
-    echo 'autorestart=true'; \
-    echo 'stderr_logfile=/var/log/supervisor/backend.err.log'; \
-    echo 'stdout_logfile=/var/log/supervisor/backend.out.log'; \
-    echo 'environment=NODE_ENV=production,DATA_DIR=/app/data,BACKUP_DIR=/app/backups'; \
-} > /etc/supervisor/conf.d/supervisord.conf
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Expose port 80 (nginx will handle both frontend and backend routing)
 EXPOSE 80
