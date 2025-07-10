@@ -8,6 +8,12 @@ A comprehensive web-based solution for managing Pi-hole backups with automated s
 
 ![HoleSafe Dashboard](https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/dashboard-preview.png)
 
+## 📦 Quick Links
+
+- **GitHub Repository**: [TheInfamousToTo/HoleSafe](https://github.com/TheInfamousToTo/HoleSafe)
+- **Docker Hub**: [theinfamoustoto/holesafe-frontend](https://hub.docker.com/r/theinfamoustoto/holesafe-frontend) | [theinfamoustoto/holesafe-backend](https://hub.docker.com/r/theinfamoustoto/holesafe-backend)
+- **Latest Release**: [v1.0.0](https://github.com/TheInfamousToTo/HoleSafe/releases/tag/v1.0.0)
+
 ## 🚀 Features
 
 - **Modern Web Interface**: Clean, responsive React frontend inspired by Pi-hole's design
