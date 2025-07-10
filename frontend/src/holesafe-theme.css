@@ -1,0 +1,134 @@
+/* HoleSafe - Pi-hole themed custom styles */
+
+/* Global background */
+body {
+  background-color: #f8f9fa !important;
+  font-family: "Roboto", "Helvetica", "Arial", sans-serif !important;
+}
+
+/* Custom scrollbar styling similar to Pi-hole */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #96060c;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #7a0509;
+}
+
+/* Pi-hole inspired gradient backgrounds */
+.holesafe-gradient-primary {
+  background: linear-gradient(135deg, #96060c 0%, #7a0509 100%);
+}
+
+.holesafe-gradient-secondary {
+  background: linear-gradient(135deg, #007cba 0%, #0056b3 100%);
+}
+
+/* Status indicators with Pi-hole colors */
+.status-success {
+  color: #5cb85c;
+}
+
+.status-error {
+  color: #e74c3c;
+}
+
+.status-warning {
+  color: #f39c12;
+}
+
+.status-info {
+  color: #007cba;
+}
+
+/* Custom card hover effects */
+.MuiCard-root {
+  transition: all 0.3s ease !important;
+}
+
+.MuiCard-root:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15) !important;
+}
+
+/* Button enhancements */
+.MuiButton-containedPrimary {
+  background: linear-gradient(145deg, #96060c, #7a0509) !important;
+  box-shadow: 0 3px 6px rgba(150, 6, 12, 0.3) !important;
+}
+
+.MuiButton-containedPrimary:hover {
+  background: linear-gradient(145deg, #7a0509, #96060c) !important;
+  box-shadow: 0 4px 8px rgba(150, 6, 12, 0.4) !important;
+}
+
+/* Stepper customization */
+.MuiStepIcon-root.Mui-active {
+  color: #96060c !important;
+}
+
+.MuiStepIcon-root.Mui-completed {
+  color: #5cb85c !important;
+}
+
+/* Toast customization */
+.Toastify__toast--success {
+  background: linear-gradient(135deg, #5cb85c, #449d44);
+}
+
+.Toastify__toast--error {
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+.Toastify__toast--warning {
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+}
+
+.Toastify__toast--info {
+  background: linear-gradient(135deg, #007cba, #0056b3);
+}
+
+/* AppBar enhancement */
+.MuiAppBar-root {
+  background: linear-gradient(135deg, #96060c 0%, #7a0509 100%) !important;
+}
+
+/* Loading spinner customization */
+.MuiCircularProgress-colorPrimary {
+  color: #96060c !important;
+}
+
+/* Table enhancements */
+.MuiTableRow-root:hover {
+  background-color: rgba(150, 6, 12, 0.04) !important;
+}
+
+/* Alert customization */
+.MuiAlert-standardSuccess {
+  background-color: rgba(92, 184, 92, 0.1) !important;
+  border: 1px solid rgba(92, 184, 92, 0.3) !important;
+}
+
+.MuiAlert-standardError {
+  background-color: rgba(231, 76, 60, 0.1) !important;
+  border: 1px solid rgba(231, 76, 60, 0.3) !important;
+}
+
+.MuiAlert-standardWarning {
+  background-color: rgba(243, 156, 18, 0.1) !important;
+  border: 1px solid rgba(243, 156, 18, 0.3) !important;
+}
+
+.MuiAlert-standardInfo {
+  background-color: rgba(0, 124, 186, 0.1) !important;
+  border: 1px solid rgba(0, 124, 186, 0.3) !important;
+}

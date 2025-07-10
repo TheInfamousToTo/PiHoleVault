@@ -1,12 +1,12 @@
-# HoleSafe v0.1
+# HoleSafe v1.0.0
 
 A comprehensive web-based solution for managing Pi-hole backups with automated scheduling, SSH key management, and a modern React frontend.
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/TheInfamousToTo/Pi-hole-Backup-Script/main/frontend/public/logo.png" alt="HoleSafe Logo" width="200"/>
+  <img src="https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/logo.png" alt="HoleSafe Logo" width="200"/>
 </div>
 
-![HoleSafe Dashboard](https://raw.githubusercontent.com/TheInfamousToTo/Pi-hole-Backup-Script/main/frontend/public/dashboard-preview.png)
+![HoleSafe Dashboard](https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/dashboard-preview.png)
 
 ## 🚀 Features
 
@@ -19,6 +19,19 @@ A comprehensive web-based solution for managing Pi-hole backups with automated s
 - **Job History**: Track backup job status and history with real-time updates
 - **Docker Deployment**: Complete containerized solution with Docker Compose
 - **Health Monitoring**: Built-in health checks and status monitoring
+- **Production Ready**: Optimized for production deployment with proper error handling
+- **Multi-Platform**: Docker images available for AMD64 and ARM64 architectures
+
+## 🎯 Version 1.0.0 Release
+
+This is the first stable release of HoleSafe with the following highlights:
+
+- **Complete Web Interface**: Full-featured dashboard for managing Pi-hole backups
+- **Docker Hub Images**: Pre-built Docker images for easy deployment
+- **Comprehensive API**: REST API for all backup operations
+- **Production Testing**: Thoroughly tested in production environments
+- **Documentation**: Complete setup and usage documentation
+- **Security Features**: SSH key management and secure authentication
 
 ## 📁 Project Structure
 
@@ -66,7 +79,7 @@ version: '3.8'
 
 services:
   frontend:
-    image: theinfamoustoto/holesafe-frontend:0.1
+    image: theinfamoustoto/holesafe-frontend:1.0.0
     ports:
       - "3000:80"
     depends_on:
@@ -74,7 +87,7 @@ services:
     restart: unless-stopped
 
   backend:
-    image: theinfamoustoto/holesafe-backend:0.1
+    image: theinfamoustoto/holesafe-backend:1.0.0
     ports:
       - "3001:3001"
     volumes:
@@ -104,8 +117,8 @@ docker-compose up -d
 1. **Clone the repository**:
 
    ```bash
-   git clone https://github.com/TheInfamousToTo/Pi-hole-Backup-Script.git
-   cd Pi-hole-Backup-Script
+   git clone https://github.com/TheInfamousToTo/HoleSafe.git
+   cd HoleSafe
    ```
 
 2. **Start the application**:

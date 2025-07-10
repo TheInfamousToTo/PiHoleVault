@@ -13,7 +13,7 @@ else
 fi
 
 # Add remote
-git remote add origin https://github.com/TheInfamousToTo/Pi-hole-Backup-Script.git
+git remote add origin https://github.com/TheInfamousToTo/HoleSafe.git
 
 # Add all files
 git add .

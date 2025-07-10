@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  frontend:
+  holesafe-frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -11,12 +11,12 @@ services:
     environment:
       - REACT_APP_API_URL=http://localhost:3001
     depends_on:
-      - backend
+      - holesafe-backend
     volumes:
       - ./frontend:/app
       - node_modules_frontend:/app/node_modules
 
-  backend:
+  holesafe-backend:
     build:
       context: ./backend
       dockerfile: Dockerfile

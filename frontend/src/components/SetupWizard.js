@@ -20,6 +20,12 @@ import {
   CardContent,
   IconButton,
   InputAdornment,
+  Stack,
+  Avatar,
+  Chip,
+  useTheme,
+  useMediaQuery,
+  Divider,
 } from '@mui/material';
 import {
   Visibility,
@@ -28,6 +34,15 @@ import {
   Schedule,
   Security,
   Settings,
+  Shield,
+  Cloud,
+  Timeline,
+  CheckCircle,
+  ArrowForward,
+  ArrowBack,
+  PlayArrow,
+  Computer,
+  Key,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import api from '../services/api';
@@ -43,6 +58,9 @@ const SetupWizard = ({ onComplete }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   
   // Form data
   const [formData, setFormData] = useState({
@@ -88,41 +106,40 @@ const SetupWizard = ({ onComplete }) => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
-  const handleInputChange = (section, field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [field]: value
-      }
-    }));
-  };
-
   const testConnection = async () => {
     setLoading(true);
     try {
-      const response = await api.post('/pihole/test-connection', formData.pihole);
+      const response = await api.post('/ssh/test', formData.pihole);
       if (response.data.success) {
+        setSshStatus(prev => ({ ...prev, connected: true }));
         toast.success('Connection successful!');
         setActiveStep((prevActiveStep) => prevActiveStep + 1);
       } else {
         toast.error('Connection failed: ' + response.data.error);
       }
     } catch (error) {
-      toast.error('Connection failed: ' + error.message);
+      toast.error('Connection test failed: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
   const validateSchedule = async () => {
+    if (!formData.schedule.cronExpression) {
+      toast.error('Please enter a valid cron expression');
+      return;
+    }
+    
     try {
-      const response = await api.post('/schedule/validate', formData.schedule);
+      const response = await api.post('/schedule/validate', {
+        cronExpression: formData.schedule.cronExpression
+      });
+      
       if (response.data.valid) {
-        toast.success('Schedule is valid!');
+        toast.success('Schedule configuration is valid!');
         setActiveStep((prevActiveStep) => prevActiveStep + 1);
       } else {
-        toast.error('Invalid schedule: ' + response.data.error);
+        toast.error('Invalid cron expression: ' + response.data.error);
       }
     } catch (error) {
       toast.error('Schedule validation failed: ' + error.message);
@@ -130,9 +147,12 @@ const SetupWizard = ({ onComplete }) => {
   };
 
   const setupSSHKey = async () => {
+    setLoading(true);
     setSshStatus(prev => ({ ...prev, testing: true }));
+    
     try {
-      const response = await api.post('/ssh/setup-key', formData.pihole);
+      const response = await api.post('/ssh/setup', formData.pihole);
+      
       if (response.data.success) {
         setSshStatus({
           connected: true,
@@ -140,7 +160,6 @@ const SetupWizard = ({ onComplete }) => {
           testing: false,
         });
         toast.success('SSH key deployed successfully!');
-        // Since this is the last step, call handleFinish directly instead of going to the next step
         handleFinish();
       } else {
         toast.error('SSH key deployment failed: ' + response.data.error);
@@ -150,33 +169,8 @@ const SetupWizard = ({ onComplete }) => {
       console.error('SSH key deployment error:', error);
       toast.error('SSH key deployment failed: ' + error.message);
       setSshStatus(prev => ({ ...prev, testing: false }));
-    }
-  };
-
-  const debugSSH = async () => {
-    try {
-      const response = await api.post('/ssh/debug', formData.pihole);
-      console.log('SSH Debug Results:', response.data);
-      
-      if (response.data.success) {
-        const debug = response.data.debug;
-        let message = 'SSH Debug Results:\n';
-        
-        Object.entries(debug.tests).forEach(([test, result]) => {
-          message += `${test}: ${result.success ? 'PASS' : 'FAIL'}`;
-          if (!result.success) {
-            message += ` (${result.error})`;
-          }
-          message += '\n';
-        });
-        
-        alert(message);
-      } else {
-        alert('Debug failed: ' + JSON.stringify(response.data.debug, null, 2));
-      }
-    } catch (error) {
-      console.error('SSH debug error:', error);
-      alert('Debug request failed: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -184,6 +178,7 @@ const SetupWizard = ({ onComplete }) => {
     setLoading(true);
     try {
       const response = await api.post('/config/save', formData);
+      
       if (response.data.success) {
         toast.success('Configuration saved successfully!');
         onComplete();
@@ -197,204 +192,251 @@ const SetupWizard = ({ onComplete }) => {
     }
   };
 
-  const renderStepContent = (step) => {
+  const handleInputChange = (section, field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [field]: value
+      }
+    }));
+  };
+
+  const getStepContent = (step) => {
     switch (step) {
       case 0:
         return (
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom>
-                Pi-hole Server Connection Details
-              </Typography>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Pi-hole Server IP/Hostname"
-                value={formData.pihole.host}
-                onChange={(e) => handleInputChange('pihole', 'host', e.target.value)}
-                required
-                helperText="Enter the IP address or hostname of your Pi-hole server"
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="SSH Port"
-                type="number"
-                value={formData.pihole.port}
-                onChange={(e) => handleInputChange('pihole', 'port', parseInt(e.target.value))}
-                required
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Username"
-                value={formData.pihole.username}
-                onChange={(e) => handleInputChange('pihole', 'username', e.target.value)}
-                required
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Password"
-                type={showPassword ? 'text' : 'password'}
-                value={formData.pihole.password}
-                onChange={(e) => handleInputChange('pihole', 'password', e.target.value)}
-                required
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            </Grid>
-          </Grid>
+          <Card sx={{ mt: 3 }}>
+            <CardContent sx={{ p: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
+                  <Computer />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6" fontWeight="bold">
+                    Pi-hole Server Configuration
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Configure connection to your Pi-hole server
+                  </Typography>
+                </Box>
+              </Box>
+              
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Pi-hole Host IP"
+                    value={formData.pihole.host}
+                    onChange={(e) => handleInputChange('pihole', 'host', e.target.value)}
+                    placeholder="192.168.1.100"
+                    helperText="IP address of your Pi-hole server"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="SSH Port"
+                    type="number"
+                    value={formData.pihole.port}
+                    onChange={(e) => handleInputChange('pihole', 'port', parseInt(e.target.value))}
+                    helperText="Default SSH port is 22"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Username"
+                    value={formData.pihole.username}
+                    onChange={(e) => handleInputChange('pihole', 'username', e.target.value)}
+                    placeholder="pi"
+                    helperText="SSH username for Pi-hole server"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={formData.pihole.password}
+                    onChange={(e) => handleInputChange('pihole', 'password', e.target.value)}
+                    helperText="SSH password for the user"
+                    InputProps={{
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            onClick={() => setShowPassword(!showPassword)}
+                            edge="end"
+                          >
+                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
         );
-
       case 1:
         return (
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom>
-                Backup Configuration
-              </Typography>
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Backup Destination Path"
-                value={formData.backup.destinationPath}
-                onChange={(e) => handleInputChange('backup', 'destinationPath', e.target.value)}
-                required
-                helperText="Local path where backups will be stored"
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Maximum Backups to Keep"
-                type="number"
-                value={formData.backup.maxBackups}
-                onChange={(e) => handleInputChange('backup', 'maxBackups', parseInt(e.target.value))}
-                required
-                inputProps={{ min: 1, max: 100 }}
-                helperText="Number of backup files to retain"
-              />
-            </Grid>
-          </Grid>
+          <Card sx={{ mt: 3 }}>
+            <CardContent sx={{ p: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Avatar sx={{ bgcolor: 'secondary.main', mr: 2 }}>
+                  <Storage />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6" fontWeight="bold">
+                    Backup Settings
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Configure backup storage and retention
+                  </Typography>
+                </Box>
+              </Box>
+              
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Backup Destination Path"
+                    value={formData.backup.destinationPath}
+                    onChange={(e) => handleInputChange('backup', 'destinationPath', e.target.value)}
+                    helperText="Path where backups will be stored"
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Maximum Backups"
+                    type="number"
+                    value={formData.backup.maxBackups}
+                    onChange={(e) => handleInputChange('backup', 'maxBackups', parseInt(e.target.value))}
+                    helperText="Number of backups to retain"
+                    inputProps={{ min: 1, max: 100 }}
+                  />
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
         );
-
       case 2:
         return (
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom>
-                Backup Schedule
-              </Typography>
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Cron Expression"
-                value={formData.schedule.cronExpression}
-                onChange={(e) => handleInputChange('schedule', 'cronExpression', e.target.value)}
-                required
-                helperText="Use cron syntax (e.g., '0 3 * * *' for daily at 3 AM)"
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth>
-                <InputLabel>Timezone</InputLabel>
-                <Select
-                  value={formData.schedule.timezone}
-                  onChange={(e) => handleInputChange('schedule', 'timezone', e.target.value)}
-                  label="Timezone"
-                >
-                  <MenuItem value="UTC">UTC</MenuItem>
-                  <MenuItem value="America/New_York">Eastern Time</MenuItem>
-                  <MenuItem value="America/Chicago">Central Time</MenuItem>
-                  <MenuItem value="America/Denver">Mountain Time</MenuItem>
-                  <MenuItem value="America/Los_Angeles">Pacific Time</MenuItem>
-                  <MenuItem value="Europe/London">London</MenuItem>
-                  <MenuItem value="Europe/Paris">Paris</MenuItem>
-                  <MenuItem value="Asia/Tokyo">Tokyo</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
+          <Card sx={{ mt: 3 }}>
+            <CardContent sx={{ p: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Avatar sx={{ bgcolor: 'success.main', mr: 2 }}>
+                  <Schedule />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6" fontWeight="bold">
+                    Schedule Configuration
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Set up automated backup schedule
+                  </Typography>
+                </Box>
+              </Box>
+              
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <FormControl fullWidth>
+                    <InputLabel>Schedule Enabled</InputLabel>
+                    <Select
+                      value={formData.schedule.enabled}
+                      onChange={(e) => handleInputChange('schedule', 'enabled', e.target.value)}
+                    >
+                      <MenuItem value={true}>Enabled</MenuItem>
+                      <MenuItem value={false}>Disabled</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} md={8}>
+                  <TextField
+                    fullWidth
+                    label="Cron Expression"
+                    value={formData.schedule.cronExpression}
+                    onChange={(e) => handleInputChange('schedule', 'cronExpression', e.target.value)}
+                    helperText="Example: 0 3 * * * (daily at 3 AM)"
+                    disabled={!formData.schedule.enabled}
+                  />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    label="Timezone"
+                    value={formData.schedule.timezone}
+                    onChange={(e) => handleInputChange('schedule', 'timezone', e.target.value)}
+                    helperText="Server timezone"
+                  />
+                </Grid>
+              </Grid>
+              
+              <Box sx={{ mt: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Common Cron Expressions:
+                </Typography>
+                <Stack spacing={1}>
+                  <Chip label="0 3 * * * - Daily at 3 AM" variant="outlined" size="small" />
+                  <Chip label="0 2 * * 0 - Weekly on Sunday at 2 AM" variant="outlined" size="small" />
+                  <Chip label="0 1 1 * * - Monthly on 1st at 1 AM" variant="outlined" size="small" />
+                </Stack>
+              </Box>
+            </CardContent>
+          </Card>
         );
-
       case 3:
         return (
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <Typography variant="h6" gutterBottom>
-                SSH Key Setup
-              </Typography>
-              <Typography variant="body2" color="textSecondary" gutterBottom>
-                This step will generate and deploy an SSH key to your Pi-hole server for passwordless authentication.
-              </Typography>
-            </Grid>
-            <Grid item xs={12}>
-              <Card>
-                <CardContent>
-                  <Box display="flex" alignItems="center" mb={2}>
-                    <Security color={sshStatus.connected ? 'success' : 'disabled'} />
-                    <Typography variant="body1" ml={1}>
-                      SSH Connection: {sshStatus.connected ? 'Connected' : 'Not Connected'}
-                    </Typography>
-                  </Box>
-                  <Box display="flex" alignItems="center">
-                    <Settings color={sshStatus.keyDeployed ? 'success' : 'disabled'} />
-                    <Typography variant="body1" ml={1}>
-                      SSH Key: {sshStatus.keyDeployed ? 'Deployed' : 'Not Deployed'}
-                    </Typography>
-                  </Box>
-                  {sshStatus.testing && (
-                    <Box display="flex" alignItems="center" mt={2}>
-                      <CircularProgress size={20} />
-                      <Typography variant="body2" ml={1}>
-                        Setting up SSH key...
-                      </Typography>
-                    </Box>
-                  )}
-                  {!sshStatus.testing && !sshStatus.connected && (
-                    <Box mt={2}>
-                      <Button
-                        variant="outlined"
-                        color="primary"
-                        onClick={debugSSH}
-                        size="small"
-                        sx={{ mr: 1 }}
-                      >
-                        Debug Connection
-                      </Button>
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={setupSSHKey}
-                        size="small"
-                      >
-                        Deploy SSH Key
-                      </Button>
-                    </Box>
-                  )}
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
+          <Card sx={{ mt: 3 }}>
+            <CardContent sx={{ p: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Avatar sx={{ bgcolor: 'warning.main', mr: 2 }}>
+                  <Key />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6" fontWeight="bold">
+                    SSH Key Setup
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Deploy SSH key for secure authentication
+                  </Typography>
+                </Box>
+              </Box>
+              
+              <Alert severity="info" sx={{ mb: 3 }}>
+                This step will generate and deploy an SSH key to your Pi-hole server for secure, 
+                password-less authentication.
+              </Alert>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                <Typography variant="body2">Connection Status:</Typography>
+                <Chip
+                  label={sshStatus.connected ? 'Connected' : 'Not Connected'}
+                  color={sshStatus.connected ? 'success' : 'error'}
+                  size="small"
+                />
+              </Box>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="body2">SSH Key Status:</Typography>
+                <Chip
+                  label={sshStatus.keyDeployed ? 'Deployed' : 'Not Deployed'}
+                  color={sshStatus.keyDeployed ? 'success' : 'warning'}
+                  size="small"
+                />
+              </Box>
+              
+              {sshStatus.testing && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
+                  <CircularProgress size={20} />
+                  <Typography variant="body2">Deploying SSH key...</Typography>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
         );
-
       default:
         return 'Unknown step';
     }
@@ -404,7 +446,7 @@ const SetupWizard = ({ onComplete }) => {
     return false;
   };
 
-  const isStepComplete = (step) => {
+  const isStepValid = (step) => {
     switch (step) {
       case 0:
         return formData.pihole.host && formData.pihole.username && formData.pihole.password;
@@ -420,58 +462,87 @@ const SetupWizard = ({ onComplete }) => {
   };
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-      <Paper elevation={3} sx={{ p: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
-          HoleSafe Setup
-        </Typography>
-        
-        <Stepper activeStep={activeStep} sx={{ pt: 3, pb: 5 }}>
-          {steps.map((label, index) => {
-            const stepProps = {};
-            const labelProps = {};
-            if (isStepOptional(index)) {
-              labelProps.optional = (
-                <Typography variant="caption">Optional</Typography>
-              );
-            }
-            return (
-              <Step key={label} {...stepProps}>
-                <StepLabel {...labelProps}>{label}</StepLabel>
-              </Step>
-            );
-          })}
-        </Stepper>
-
-        <Box sx={{ mt: 2, mb: 1 }}>
-          {renderStepContent(activeStep)}
+    <Box sx={{ 
+      minHeight: '100vh', 
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+      py: 4
+    }}>
+      <Container maxWidth="md">
+        {/* Header */}
+        <Box sx={{ textAlign: 'center', mb: 4 }}>
+          <Avatar
+            sx={{
+              bgcolor: 'primary.main',
+              width: 80,
+              height: 80,
+              mx: 'auto',
+              mb: 2,
+              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+            }}
+          >
+            <Shield sx={{ fontSize: 40 }} />
+          </Avatar>
+          <Typography variant="h3" fontWeight="bold" color="white" gutterBottom>
+            Welcome to HoleSafe
+          </Typography>
+          <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
+            Let's set up your Pi-hole backup solution in just a few steps
+          </Typography>
         </Box>
 
-        <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
-          <Button
-            color="inherit"
-            disabled={activeStep === 0}
-            onClick={handleBack}
-            sx={{ mr: 1 }}
-          >
-            Back
-          </Button>
-          <Box sx={{ flex: '1 1 auto' }} />
-          <Button
-            onClick={handleNext}
-            disabled={loading || !isStepComplete(activeStep)}
-          >
-            {loading ? (
-              <CircularProgress size={24} />
-            ) : activeStep === steps.length - 1 ? (
-              'Finish'
-            ) : (
-              'Next'
-            )}
-          </Button>
-        </Box>
-      </Paper>
-    </Container>
+        {/* Setup Card */}
+        <Card sx={{ mb: 4 }}>
+          <CardContent sx={{ p: 4 }}>
+            <Stepper activeStep={activeStep} alternativeLabel={!isMobile}>
+              {steps.map((label, index) => (
+                <Step key={label}>
+                  <StepLabel>
+                    <Typography variant="body2" fontWeight="medium">
+                      {label}
+                    </Typography>
+                  </StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+            
+            {getStepContent(activeStep)}
+            
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+              <Button
+                disabled={activeStep === 0}
+                onClick={handleBack}
+                startIcon={<ArrowBack />}
+                variant="outlined"
+              >
+                Back
+              </Button>
+              
+              <Button
+                variant="contained"
+                onClick={handleNext}
+                disabled={loading || !isStepValid(activeStep)}
+                endIcon={
+                  loading ? (
+                    <CircularProgress size={20} color="inherit" />
+                  ) : activeStep === steps.length - 1 ? (
+                    <CheckCircle />
+                  ) : (
+                    <ArrowForward />
+                  )
+                }
+              >
+                {loading 
+                  ? 'Processing...' 
+                  : activeStep === steps.length - 1 
+                    ? 'Finish Setup' 
+                    : 'Next'
+                }
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
+      </Container>
+    </Box>
   );
 };
 

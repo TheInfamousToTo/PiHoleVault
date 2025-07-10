@@ -75,7 +75,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "• Update the application with: docker-compose pull && docker-compose up -d"
     echo
     echo "🆘 Need help? Check the README.md or visit:"
-    echo "   https://github.com/TheInfamousToTo/Pi-hole-Backup-Script"
+    echo "   https://github.com/TheInfamousToTo/HoleSafe"
     
 else
     echo "⏸️  Application not started."

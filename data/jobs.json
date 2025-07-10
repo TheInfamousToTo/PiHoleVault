@@ -22,5 +22,13 @@
     "message": "Backup completed successfully: pi-hole_backup_2025-07-10T12-44-59-833Z.zip",
     "filename": "pi-hole_backup_2025-07-10T12-44-59-833Z.zip",
     "size": 21211
+  },
+  {
+    "id": "backup_1752156045202",
+    "timestamp": "2025-07-10T14:00:47.136Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-10T14-00-46-256Z.zip",
+    "filename": "pi-hole_backup_2025-07-10T14-00-46-256Z.zip",
+    "size": 21210
   }
 ]

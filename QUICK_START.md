@@ -8,8 +8,8 @@
 ## 1. Clone and Setup
 
 ```bash
-git clone https://github.com/TheInfamousToTo/Pi-hole-Backup-Script.git
-cd Pi-hole-Backup-Script
+git clone https://github.com/TheInfamousToTo/HoleSafe.git
+cd HoleSafe
 chmod +x setup.sh
 ./setup.sh
 ```

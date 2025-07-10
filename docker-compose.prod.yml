@@ -1,17 +1,17 @@
 version: '3.8'
 
 services:
-  frontend:
+  holesafe-frontend:
     image: theinfamoustoto/holesafe-frontend:0.1
     ports:
       - "80:80"
     environment:
       - REACT_APP_API_URL=http://localhost:3001
     depends_on:
-      - backend
+      - holesafe-backend
     restart: unless-stopped
 
-  backend:
+  holesafe-backend:
     image: theinfamoustoto/holesafe-backend:0.1
     ports:
       - "3001:3001"

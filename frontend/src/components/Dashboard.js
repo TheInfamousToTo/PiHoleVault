@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import {
   Container,
   Grid,
@@ -29,6 +29,16 @@ import {
   Divider,
   AppBar,
   Toolbar,
+  Badge,
+  Avatar,
+  LinearProgress,
+  Fade,
+  Skeleton,
+  Stack,
+  useTheme,
+  useMediaQuery,
+  Tooltip,
+  Link,
 } from '@mui/material';
 import {
   PlayArrow,
@@ -43,9 +53,307 @@ import {
   Error,
   Warning,
   Info,
+  Shield,
+  Cloud,
+  Timeline,
+  Speed,
+  Security,
+  Notifications,
+  Dashboard as DashboardIcon,
+  Analytics,
+  GitHub,
+  Coffee,
+  Favorite,
+  Star,
+  Menu,
+  Close,
+  LaunchOutlined,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import api from '../services/api';
+
+// Sponsorship Component
+const SponsorshipBar = memo(() => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  const sponsorLinks = [
+    {
+      label: 'GitHub',
+      icon: <GitHub />,
+      url: 'https://github.com/TheInfamousToTo',
+      color: '#6e5494',
+      tooltip: 'Follow on GitHub'
+    },
+    {
+      label: 'Star',
+      icon: <Star />,
+      url: 'https://github.com/TheInfamousToTo/HoleSafe',
+      color: '#f59e0b',
+      tooltip: 'Star this project'
+    },
+    {
+      label: 'Buy Me Coffee',
+      icon: <Coffee />,
+      url: 'https://buymeacoffee.com/theinfamoustoto',
+      color: '#ff813f',
+      tooltip: 'Support with coffee'
+    },
+    {
+      label: 'Ko-fi',
+      icon: <Favorite />,
+      url: 'https://ko-fi.com/theinfamoustoto',
+      color: '#ff5722',
+      tooltip: 'Support on Ko-fi'
+    },
+    {
+      label: 'Sponsor',
+      icon: <LaunchOutlined />,
+      url: 'https://github.com/sponsors/TheInfamousToTo',
+      color: '#8b5cf6',
+      tooltip: 'Become a sponsor'
+    }
+  ];
+
+  if (isMobile) {
+    return (
+      <Box
+        sx={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 1100,
+          background: 'rgba(30, 41, 59, 0.95)',
+          backdropFilter: 'blur(12px)',
+          borderTop: '1px solid rgba(148, 163, 184, 0.1)',
+          p: 1,
+        }}
+      >
+        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+          {sponsorLinks.map((link, index) => (
+            <Tooltip key={index} title={link.tooltip} placement="top">
+              <IconButton
+                component="a"
+                href={link.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                size="small"
+                sx={{
+                  color: link.color,
+                  '&:hover': {
+                    backgroundColor: `${link.color}20`,
+                    transform: 'scale(1.1)',
+                  },
+                  transition: 'all 0.2s ease-in-out',
+                }}
+              >
+                {link.icon}
+              </IconButton>
+            </Tooltip>
+          ))}
+        </Stack>
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      sx={{
+        position: 'fixed',
+        top: '50%',
+        right: 0,
+        transform: 'translateY(-50%)',
+        zIndex: 1100,
+        background: 'rgba(30, 41, 59, 0.95)',
+        backdropFilter: 'blur(12px)',
+        borderRadius: '12px 0 0 12px',
+        border: '1px solid rgba(148, 163, 184, 0.1)',
+        borderRight: 'none',
+        p: 1,
+      }}
+    >
+      <Stack spacing={1}>
+        {sponsorLinks.map((link, index) => (
+          <Tooltip key={index} title={link.tooltip} placement="left">
+            <IconButton
+              component="a"
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{
+                color: link.color,
+                '&:hover': {
+                  backgroundColor: `${link.color}20`,
+                  transform: 'scale(1.1)',
+                },
+                transition: 'all 0.2s ease-in-out',
+              }}
+            >
+              {link.icon}
+            </IconButton>
+          </Tooltip>
+        ))}
+      </Stack>
+    </Box>
+  );
+});
+
+// Stats Card Component
+const StatsCard = memo(({ title, value, icon, color, subtitle, trend }) => {
+  const theme = useTheme();
+  
+  return (
+    <Card
+      sx={{
+        height: '100%',
+        background: `linear-gradient(135deg, ${color}15 0%, ${color}05 100%)`,
+        border: `1px solid ${color}30`,
+        '&:hover': {
+          transform: 'translateY(-4px)',
+          boxShadow: `0 8px 25px ${color}20`,
+        },
+        transition: 'all 0.3s ease-in-out',
+      }}
+    >
+      <CardContent sx={{ p: 3 }}>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <Box
+            sx={{
+              p: 1.5,
+              borderRadius: 2,
+              backgroundColor: `${color}20`,
+              color: color,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {icon}
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h4" fontWeight="bold" color="text.primary">
+              {value}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {title}
+            </Typography>
+            {subtitle && (
+              <Typography variant="caption" color={color} sx={{ mt: 0.5, display: 'block' }}>
+                {subtitle}
+              </Typography>
+            )}
+          </Box>
+        </Stack>
+      </CardContent>
+    </Card>
+  );
+});
+
+// Hero Section Component
+const HeroSection = memo(() => {
+  const theme = useTheme();
+  
+  return (
+    <Box
+      sx={{
+        background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+        borderRadius: 3,
+        p: 4,
+        mb: 4,
+        position: 'relative',
+        overflow: 'hidden',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(255, 255, 255, 0.1)',
+          borderRadius: 3,
+        },
+      }}
+    >
+      <Stack spacing={2} sx={{ position: 'relative', zIndex: 1 }}>
+        <Typography
+          variant="h3"
+          fontWeight="bold"
+          color="white"
+          sx={{
+            textShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          }}
+        >
+          Welcome to HoleSafe
+        </Typography>
+        <Typography
+          variant="h6"
+          color="rgba(255, 255, 255, 0.9)"
+          sx={{ maxWidth: '600px' }}
+        >
+          Your modern Pi-hole backup solution. Automated, secure, and reliable backup management
+          for your network-wide ad blocking configuration.
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+          <Chip
+            icon={<Shield />}
+            label="Secure"
+            sx={{
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              '& .MuiChip-icon': { color: 'white' },
+            }}
+          />
+          <Chip
+            icon={<Cloud />}
+            label="Automated"
+            sx={{
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              '& .MuiChip-icon': { color: 'white' },
+            }}
+          />
+          <Chip
+            icon={<Speed />}
+            label="Fast"
+            sx={{
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              '& .MuiChip-icon': { color: 'white' },
+            }}
+          />
+        </Box>
+      </Stack>
+    </Box>
+  );
+});
+
+// Action Button Component
+const ActionButton = memo(({ icon, label, onClick, color = 'primary', disabled = false, variant = 'contained' }) => (
+  <Button
+    variant={variant}
+    color={color}
+    startIcon={icon}
+    onClick={onClick}
+    disabled={disabled}
+    sx={{
+      minWidth: 120,
+      py: 1.5,
+      px: 3,
+      borderRadius: 2,
+      fontWeight: 600,
+      textTransform: 'none',
+      boxShadow: variant === 'contained' ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
+      '&:hover': {
+        transform: 'translateY(-2px)',
+        boxShadow: variant === 'contained' ? '0 6px 16px rgba(59, 130, 246, 0.4)' : 'none',
+      },
+      transition: 'all 0.2s ease-in-out',
+    }}
+  >
+    {label}
+  </Button>
+));
 
 const Dashboard = () => {
   const [config, setConfig] = useState(null);
@@ -55,118 +363,123 @@ const Dashboard = () => {
   const [runningBackup, setRunningBackup] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editConfig, setEditConfig] = useState({});
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    loadDashboardData();
-    const interval = setInterval(loadDashboardData, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
-      // Use individual try-catch blocks for each API call
-      try {
-        const configRes = await api.get('/config');
-        setConfig(configRes.data);
-      } catch (configError) {
-        console.error('Failed to load configuration:', configError);
-        // Use default config if loading fails
+      setRefreshing(true);
+      
+      const [configRes, backupsRes, jobsRes] = await Promise.allSettled([
+        api.get('/config'),
+        api.get('/backups'),
+        api.get('/jobs')
+      ]);
+
+      if (configRes.status === 'fulfilled') {
+        setConfig(configRes.value.data);
+      } else {
+        console.error('Failed to load configuration:', configRes.reason);
         setConfig({
           pihole: { host: '192.168.31.230', username: 'root', port: 22 },
           backup: { destinationPath: '/app/backups', maxBackups: 10 },
           schedule: { enabled: true, cronExpression: '0 3 * * *', timezone: 'UTC' }
         });
       }
-      
-      try {
-        const backupsRes = await api.get('/backups');
-        setBackups(backupsRes.data || []);
-      } catch (backupError) {
-        console.error('Failed to load backups:', backupError);
+
+      if (backupsRes.status === 'fulfilled') {
+        setBackups(backupsRes.value.data || []);
+      } else {
+        console.error('Failed to load backups:', backupsRes.reason);
         setBackups([]);
       }
-      
-      try {
-        const jobsRes = await api.get('/jobs');
-        setJobs(jobsRes.data || []);
-      } catch (jobsError) {
-        console.error('Failed to load jobs:', jobsError);
+
+      if (jobsRes.status === 'fulfilled') {
+        setJobs(jobsRes.value.data || []);
+      } else {
+        console.error('Failed to load jobs:', jobsRes.reason);
         setJobs([]);
       }
-      
     } catch (error) {
-      console.error('General error loading dashboard data:', error);
+      console.error('Error loading dashboard data:', error);
+      toast.error('Failed to load dashboard data');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, []);
 
-  const runBackupNow = async () => {
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  const handleRunBackup = async () => {
+    if (runningBackup) return;
+    
     setRunningBackup(true);
     try {
-      const response = await api.post('/backup/run');
-      if (response.data.success) {
-        toast.success('Backup started successfully!');
+      await api.post('/backup/run');
+      toast.success('Backup started successfully!');
+      setTimeout(() => {
         loadDashboardData();
-      } else {
-        toast.error('Failed to start backup: ' + response.data.error);
-      }
+      }, 2000);
     } catch (error) {
-      toast.error('Failed to start backup: ' + error.message);
+      toast.error('Failed to start backup: ' + (error.response?.data?.message || error.message));
     } finally {
       setRunningBackup(false);
     }
   };
 
-  const deleteBackup = async (filename) => {
-    if (window.confirm('Are you sure you want to delete this backup?')) {
-      try {
-        await api.delete(`/backups/${filename}`);
-        toast.success('Backup deleted successfully');
-        loadDashboardData();
-      } catch (error) {
-        toast.error('Failed to delete backup');
-      }
+  const handleDeleteBackup = async (backupId) => {
+    try {
+      await api.delete(`/backups/${backupId}`);
+      toast.success('Backup deleted successfully');
+      loadDashboardData();
+    } catch (error) {
+      toast.error('Failed to delete backup: ' + (error.response?.data?.message || error.message));
     }
   };
 
-  const downloadBackup = async (filename) => {
+  const handleDownloadBackup = async (backupId) => {
     try {
-      const response = await api.get(`/backups/${filename}/download`, {
+      const response = await api.get(`/backups/${backupId}/download`, {
         responseType: 'blob',
       });
-      
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', filename);
+      link.setAttribute('download', `backup-${backupId}.tar.gz`);
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url);
     } catch (error) {
-      toast.error('Failed to download backup');
+      toast.error('Failed to download backup: ' + (error.response?.data?.message || error.message));
     }
   };
 
   const handleEditConfig = () => {
-    setEditConfig(config);
+    setEditConfig({ ...config });
     setEditDialogOpen(true);
   };
 
-  const saveConfig = async () => {
+  const handleSaveConfig = async () => {
     try {
       await api.put('/config', editConfig);
-      toast.success('Configuration updated successfully');
       setConfig(editConfig);
       setEditDialogOpen(false);
-      loadDashboardData();
+      toast.success('Configuration updated successfully');
     } catch (error) {
-      toast.error('Failed to update configuration');
+      toast.error('Failed to update configuration: ' + (error.response?.data?.message || error.message));
     }
   };
 
-  const formatFileSize = (bytes) => {
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleString();
+  };
+
+  const formatBytes = (bytes) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
@@ -174,274 +487,392 @@ const Dashboard = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const getJobStatusIcon = (status) => {
+  const getStatusColor = (status) => {
     switch (status) {
-      case 'success':
-        return <CheckCircle color="success" />;
-      case 'error':
-        return <Error color="error" />;
+      case 'completed':
+        return theme.palette.success.main;
       case 'running':
-        return <CircularProgress size={24} />;
-      case 'warning':
-        return <Warning color="warning" />;
+        return theme.palette.warning.main;
+      case 'failed':
+        return theme.palette.error.main;
       default:
-        return <Info color="info" />;
+        return theme.palette.text.secondary;
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'completed':
+        return <CheckCircle />;
+      case 'running':
+        return <CircularProgress size={20} />;
+      case 'failed':
+        return <Error />;
+      default:
+        return <Info />;
     }
   };
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
-        <CircularProgress />
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress size={60} />
       </Box>
     );
   }
 
   return (
-    <>
-      <AppBar position="static">
+    <Box sx={{ 
+      minHeight: '100vh', 
+      pb: isMobile ? 8 : 0,
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+    }}>
+      <SponsorshipBar />
+      
+      {/* Modern App Bar */}
+      <AppBar 
+        position="sticky" 
+        elevation={0}
+        sx={{
+          background: 'rgba(30, 41, 59, 0.8)',
+          backdropFilter: 'blur(12px)',
+          borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
+        }}
+      >
         <Toolbar>
-          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
-            <img 
-              src="/logo.png" 
-              alt="HoleSafe Logo" 
-              style={{ height: '32px', marginRight: '12px' }}
-              onError={(e) => {
-                e.target.style.display = 'none';
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar
+              sx={{
+                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                width: 40,
+                height: 40,
               }}
-            />
-            <Typography variant="h6" component="div">
+            >
+              <Shield />
+            </Avatar>
+            <Typography variant="h6" fontWeight="bold" color="white">
               HoleSafe
             </Typography>
           </Box>
-          <IconButton color="inherit" onClick={loadDashboardData}>
-            <Refresh />
-          </IconButton>
-          <IconButton color="inherit" onClick={handleEditConfig}>
-            <Settings />
-          </IconButton>
+          
+          <Box sx={{ flexGrow: 1 }} />
+          
+          <Stack direction="row" spacing={1}>
+            <ActionButton
+              icon={<Refresh />}
+              label="Refresh"
+              onClick={() => loadDashboardData()}
+              disabled={refreshing}
+              variant="outlined"
+            />
+            <ActionButton
+              icon={<PlayArrow />}
+              label="Run Backup"
+              onClick={handleRunBackup}
+              disabled={runningBackup}
+            />
+            <ActionButton
+              icon={<Settings />}
+              label="Settings"
+              onClick={handleEditConfig}
+              variant="outlined"
+            />
+          </Stack>
         </Toolbar>
       </AppBar>
 
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Grid container spacing={3}>
-          {/* Quick Actions */}
-          <Grid item xs={12}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Quick Actions
-              </Typography>
-              <Box display="flex" gap={2}>
-                <Button
-                  variant="contained"
-                  startIcon={<PlayArrow />}
-                  onClick={runBackupNow}
-                  disabled={runningBackup}
-                >
-                  {runningBackup ? 'Running...' : 'Run Backup Now'}
-                </Button>
-                <Button
-                  variant="outlined"
-                  startIcon={<Settings />}
-                  onClick={handleEditConfig}
-                >
-                  Configure
-                </Button>
-              </Box>
-            </Paper>
-          </Grid>
+      <Container maxWidth="xl" sx={{ py: 4 }}>
+        <HeroSection />
 
-          {/* System Status */}
-          <Grid item xs={12} md={6}>
-            <Card>
+        {/* Stats Grid */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatsCard
+              title="Total Backups"
+              value={backups.length}
+              icon={<Storage />}
+              color={theme.palette.primary.main}
+              subtitle={`${backups.filter(b => b.status === 'completed').length} completed`}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatsCard
+              title="Scheduled Jobs"
+              value={jobs.length}
+              icon={<Schedule />}
+              color={theme.palette.secondary.main}
+              subtitle={`${jobs.filter(j => j.status === 'running').length} active`}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatsCard
+              title="Pi-hole Host"
+              value={config?.pihole?.host || 'Not configured'}
+              icon={<Security />}
+              color={theme.palette.success.main}
+              subtitle={`Port ${config?.pihole?.port || 22}`}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <StatsCard
+              title="Backup Schedule"
+              value={config?.schedule?.enabled ? 'Enabled' : 'Disabled'}
+              icon={<Timeline />}
+              color={config?.schedule?.enabled ? theme.palette.success.main : theme.palette.error.main}
+              subtitle={config?.schedule?.cronExpression || 'No schedule'}
+            />
+          </Grid>
+        </Grid>
+
+        {/* Main Content Grid */}
+        <Grid container spacing={4}>
+          {/* Recent Backups */}
+          <Grid item xs={12} lg={8}>
+            <Card sx={{ height: '100%' }}>
               <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  System Status
-                </Typography>
-                <List dense>
-                  <ListItem>
-                    <ListItemIcon>
-                      <CheckCircle color="success" />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Pi-hole Server"
-                      secondary={`${config?.pihole?.host}:${config?.pihole?.port}`}
-                    />
-                  </ListItem>
-                  <ListItem>
-                    <ListItemIcon>
-                      <Storage />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Backup Directory"
-                      secondary={config?.backup?.destinationPath}
-                    />
-                  </ListItem>
-                  <ListItem>
-                    <ListItemIcon>
-                      <Schedule />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary="Schedule"
-                      secondary={config?.schedule?.cronExpression}
-                    />
-                  </ListItem>
-                </List>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Recent Jobs */}
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom>
-                  Recent Jobs
-                </Typography>
-                <List dense>
-                  {jobs.slice(0, 5).map((job, index) => (
-                    <ListItem key={index}>
-                      <ListItemIcon>
-                        {getJobStatusIcon(job.status)}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={new Date(job.timestamp).toLocaleString()}
-                        secondary={job.message}
-                      />
-                    </ListItem>
-                  ))}
-                  {jobs.length === 0 && (
-                    <ListItem>
-                      <ListItemText primary="No recent jobs" />
-                    </ListItem>
-                  )}
-                </List>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          {/* Backup Files */}
-          <Grid item xs={12}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="h6" gutterBottom>
-                Backup Files ({backups.length})
-              </Typography>
-              <Grid container spacing={2}>
-                {backups.map((backup) => (
-                  <Grid item xs={12} md={6} lg={4} key={backup.filename}>
-                    <Card variant="outlined">
-                      <CardContent>
-                        <Typography variant="subtitle1" noWrap>
-                          {backup.filename}
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary">
-                          {new Date(backup.timestamp).toLocaleString()}
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary">
-                          Size: {formatFileSize(backup.size)}
-                        </Typography>
-                      </CardContent>
-                      <CardActions>
-                        <IconButton
-                          size="small"
-                          onClick={() => downloadBackup(backup.filename)}
-                        >
-                          <Download />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => deleteBackup(backup.filename)}
-                        >
-                          <Delete />
-                        </IconButton>
-                      </CardActions>
-                    </Card>
-                  </Grid>
-                ))}
-                {backups.length === 0 && (
-                  <Grid item xs={12}>
-                    <Alert severity="info">
-                      No backup files found. Run your first backup to get started.
-                    </Alert>
-                  </Grid>
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+                  <Typography variant="h5" fontWeight="bold">
+                    Recent Backups
+                  </Typography>
+                  <Chip
+                    label={`${backups.length} total`}
+                    color="primary"
+                    size="small"
+                  />
+                </Stack>
+                
+                {backups.length === 0 ? (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Cloud sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+                    <Typography variant="h6" color="text.secondary">
+                      No backups yet
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Run your first backup to get started
+                    </Typography>
+                  </Box>
+                ) : (
+                  <List>
+                    {backups.slice(0, 10).map((backup, index) => (
+                      <ListItem
+                        key={backup.id || index}
+                        sx={{
+                          borderRadius: 2,
+                          mb: 1,
+                          backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                          border: '1px solid rgba(59, 130, 246, 0.1)',
+                        }}
+                      >
+                        <ListItemIcon>
+                          {getStatusIcon(backup.status)}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={
+                            <Stack direction="row" alignItems="center" spacing={2}>
+                              <Typography variant="subtitle1" fontWeight="medium">
+                                {backup.filename || `Backup #${backup.id || index + 1}`}
+                              </Typography>
+                              <Chip
+                                label={backup.status || 'completed'}
+                                size="small"
+                                sx={{
+                                  backgroundColor: `${getStatusColor(backup.status)}20`,
+                                  color: getStatusColor(backup.status),
+                                  fontWeight: 'medium',
+                                }}
+                              />
+                            </Stack>
+                          }
+                          secondary={
+                            <Stack direction="row" alignItems="center" spacing={2} sx={{ mt: 1 }}>
+                              <Typography variant="body2" color="text.secondary">
+                                {formatDate(backup.createdAt || backup.timestamp)}
+                              </Typography>
+                              {backup.size && (
+                                <Typography variant="body2" color="text.secondary">
+                                  {formatBytes(backup.size)}
+                                </Typography>
+                              )}
+                            </Stack>
+                          }
+                        />
+                        <Stack direction="row" spacing={1}>
+                          <Tooltip title="Download">
+                            <IconButton
+                              onClick={() => handleDownloadBackup(backup.id || backup.filename)}
+                              disabled={backup.status !== 'completed' && backup.status !== undefined}
+                              size="small"
+                            >
+                              <Download />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete">
+                            <IconButton
+                              onClick={() => handleDeleteBackup(backup.id || backup.filename)}
+                              color="error"
+                              size="small"
+                            >
+                              <Delete />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      </ListItem>
+                    ))}
+                  </List>
                 )}
-              </Grid>
-            </Paper>
+              </CardContent>
+            </Card>
+          </Grid>
+
+          {/* System Status & Jobs */}
+          <Grid item xs={12} lg={4}>
+            <Stack spacing={3}>
+              {/* System Status */}
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+                    System Status
+                  </Typography>
+                  <Stack spacing={2}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">Connection Status</Typography>
+                      <Chip
+                        label="Connected"
+                        size="small"
+                        color="success"
+                        icon={<CheckCircle />}
+                      />
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">Backup Storage</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {config?.backup?.destinationPath || 'Not configured'}
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <Typography variant="body2">Max Backups</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {config?.backup?.maxBackups || 10}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </CardContent>
+              </Card>
+
+              {/* Recent Jobs */}
+              <Card>
+                <CardContent>
+                  <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
+                    Recent Jobs
+                  </Typography>
+                  {jobs.length === 0 ? (
+                    <Box sx={{ textAlign: 'center', py: 2 }}>
+                      <Schedule sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                      <Typography variant="body2" color="text.secondary">
+                        No jobs yet
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <List dense>
+                      {jobs.slice(0, 5).map((job, index) => (
+                        <ListItem key={job.id || index} sx={{ px: 0 }}>
+                          <ListItemIcon>
+                            {getStatusIcon(job.status)}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={job.type || 'Backup Job'}
+                            secondary={formatDate(job.createdAt || job.timestamp)}
+                            primaryTypographyProps={{ fontSize: '0.875rem' }}
+                            secondaryTypographyProps={{ fontSize: '0.75rem' }}
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  )}
+                </CardContent>
+              </Card>
+            </Stack>
           </Grid>
         </Grid>
       </Container>
 
-      {/* Edit Configuration Dialog */}
+      {/* Configuration Edit Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Edit Configuration</DialogTitle>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <Settings />
+            <Typography variant="h6">Edit Configuration</Typography>
+          </Stack>
+        </DialogTitle>
         <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Pi-hole Host"
-                value={editConfig?.pihole?.host || ''}
-                onChange={(e) => setEditConfig({
-                  ...editConfig,
-                  pihole: { ...editConfig.pihole, host: e.target.value }
-                })}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="SSH Port"
-                type="number"
-                value={editConfig?.pihole?.port || 22}
-                onChange={(e) => setEditConfig({
-                  ...editConfig,
-                  pihole: { ...editConfig.pihole, port: parseInt(e.target.value) }
-                })}
-              />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Backup Destination"
-                value={editConfig?.backup?.destinationPath || ''}
-                onChange={(e) => setEditConfig({
-                  ...editConfig,
-                  backup: { ...editConfig.backup, destinationPath: e.target.value }
-                })}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Max Backups"
-                type="number"
-                value={editConfig?.backup?.maxBackups || 10}
-                onChange={(e) => setEditConfig({
-                  ...editConfig,
-                  backup: { ...editConfig.backup, maxBackups: parseInt(e.target.value) }
-                })}
-              />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <TextField
-                fullWidth
-                label="Cron Expression"
-                value={editConfig?.schedule?.cronExpression || ''}
-                onChange={(e) => setEditConfig({
-                  ...editConfig,
-                  schedule: { ...editConfig.schedule, cronExpression: e.target.value }
-                })}
-              />
-            </Grid>
-          </Grid>
+          <Stack spacing={3} sx={{ mt: 2 }}>
+            <TextField
+              label="Pi-hole Host"
+              value={editConfig.pihole?.host || ''}
+              onChange={(e) => setEditConfig({
+                ...editConfig,
+                pihole: { ...editConfig.pihole, host: e.target.value }
+              })}
+              fullWidth
+            />
+            <TextField
+              label="Username"
+              value={editConfig.pihole?.username || ''}
+              onChange={(e) => setEditConfig({
+                ...editConfig,
+                pihole: { ...editConfig.pihole, username: e.target.value }
+              })}
+              fullWidth
+            />
+            <TextField
+              label="SSH Port"
+              type="number"
+              value={editConfig.pihole?.port || 22}
+              onChange={(e) => setEditConfig({
+                ...editConfig,
+                pihole: { ...editConfig.pihole, port: parseInt(e.target.value) }
+              })}
+              fullWidth
+            />
+            <TextField
+              label="Backup Path"
+              value={editConfig.backup?.destinationPath || ''}
+              onChange={(e) => setEditConfig({
+                ...editConfig,
+                backup: { ...editConfig.backup, destinationPath: e.target.value }
+              })}
+              fullWidth
+            />
+            <TextField
+              label="Max Backups"
+              type="number"
+              value={editConfig.backup?.maxBackups || 10}
+              onChange={(e) => setEditConfig({
+                ...editConfig,
+                backup: { ...editConfig.backup, maxBackups: parseInt(e.target.value) }
+              })}
+              fullWidth
+            />
+            <TextField
+              label="Cron Expression"
+              value={editConfig.schedule?.cronExpression || ''}
+              onChange={(e) => setEditConfig({
+                ...editConfig,
+                schedule: { ...editConfig.schedule, cronExpression: e.target.value }
+              })}
+              fullWidth
+              helperText="Example: 0 3 * * * (daily at 3 AM)"
+            />
+          </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-          <Button onClick={saveConfig} variant="contained">Save</Button>
+          <Button variant="contained" onClick={handleSaveConfig}>
+            Save Changes
+          </Button>
         </DialogActions>
       </Dialog>
-    </>
+    </Box>
   );
 };
 
