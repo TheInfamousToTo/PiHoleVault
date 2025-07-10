@@ -3,6 +3,7 @@ version: '3.8'
 services:
   holesafe:
     image: theinfamoustoto/holesafe:latest
+    container_name: holesafe
     ports:
       - "3000:80"  # Single port for both frontend and backend
     volumes:
@@ -19,6 +20,14 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
+    networks:
+      - holesafe-network
+
+networks:
+  holesafe-network:
+    driver: bridge
 
 volumes:
   ssh_keys:
+    driver: local
