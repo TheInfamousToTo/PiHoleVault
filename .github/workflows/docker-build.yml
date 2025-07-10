@@ -31,9 +31,10 @@ jobs:
         with:
           images: theinfamoustoto/holesafe-frontend
           tags: |
-            type=semver,pattern={{version}}
             type=ref,event=branch
-            type=sha
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
             
       - name: Extract metadata for Backend
@@ -42,9 +43,10 @@ jobs:
         with:
           images: theinfamoustoto/holesafe-backend
           tags: |
-            type=semver,pattern={{version}}
             type=ref,event=branch
-            type=sha
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable={{is_default_branch}}
             
       - name: Build and push Frontend image
