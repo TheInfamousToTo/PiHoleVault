@@ -1,141 +1,344 @@
-# Pi-hole Backup Script
+# Pi-hole Backup Manager v0.1
 
-This script creates backups of your Pi-hole configuration using the Teleporter function and stores them in a specified directory. It also manages old backups, keeping only a configurable number of the most recent backups.
+A comprehensive web-based solution for managing Pi-hole backups with automated scheduling, SSH key management, and a modern React frontend.
 
-## Features
-- Automated Pi-hole configuration backups using Teleporter.
-- Configurable backup directory.
-- Timestamped backup files in `.zip` format.
-- Automatic removal of old backups, keeping only the most recent backups.
+![Pi-hole Backup Manager Dashboard](https://raw.githubusercontent.com/TheInfamousToTo/Pi-hole-Backup-Script/main/frontend/public/dashboard-preview.png)
 
-## Prerequisites
-- Pi-hole installed and running (version 5.x or 6.x).
-- Sufficient permissions to execute backup commands and write to the backup directory.
+## 🚀 Features
 
-## Usage
-1. Clone the repository:
-   ```sh
-   git clone https://github.com/TheInfamousToTo/Pi-hole-Backup-Script.git
-   ```
-2. Navigate to the script directory:
-   ```sh
-   cd Pi-hole-Backup-Script
-   ```
-3. Make the script executable:
-   ```sh
-   chmod +x backup_pihole.sh
-   ```
-4. Execute the script:
-   ```sh
-   ./pihole-backup.sh
-   ```
+- **Web-based Interface**: Modern React frontend with Material-UI components
+- **Setup Wizard**: Step-by-step configuration for first-time users
+- **SSH Key Management**: Automatic generation and deployment of SSH keys for passwordless authentication
+- **Backup Scheduling**: Configurable cron-based scheduling with validation
+- **Backup Management**: Download, delete, and view backup files through the web interface
+- **Job History**: Track backup job status and history
+- **Docker Deployment**: Complete containerized solution with Docker Compose
 
-## Configuration
+## 📁 Project Structure
 
-You'll need to adjust these variables within the `backup_pihole.sh` script to match your preferences:
-
-- **`BACKUP_DIR`**: Define the full path to the directory where you want Pi-hole backups to be saved. The default is `/mnt/nfs/BACKUP/Pihole`, which assumes you are using an NFS mount at that location. **Be sure to change this if your backup location is different.**
-
-- **`MAX_BACKUPS`**: Specify the maximum number of the most recent backup files you want to keep. Older backups beyond this limit will be automatically removed during each script execution. The default is `10`.
-
-## Script Details
-```bash
-#!/bin/bash
-
-# ------------------------------------------------------------------------------
-# Script: backup_pihole.sh
-# Author: TheInfamousToTo
-# Date: April 21, 2025
-# Description: This script automates the backup of Pi-hole configurations
-#              using the Teleporter function, stores them in a specified
-#              directory, and manages old backups.
-# ------------------------------------------------------------------------------
-
-# ---------------------------- Configuration ---------------------------------
-# Define the directory where Pi-hole backups will be stored.
-# Default is set to an NFS mount point. CHANGE THIS if needed.
-BACKUP_DIR="/mnt/nfs/BACKUP/Pihole"
-
-# Define the maximum number of backup files to keep.
-# Older backups exceeding this number will be automatically removed.
-MAX_BACKUPS=10
-# ------------------------------------------------------------------------------
-
-# Ensure the backup directory exists. The '-p' flag creates parent
-# directories if they don't exist without throwing an error.
-mkdir -p "$BACKUP_DIR"
-
-# Output a starting message to the console.
-echo "Starting Pi-hole backup script..."
-
-# Generate the Pi-hole Teleporter backup. The '--teleporter' command
-# creates a .zip archive of the Pi-hole configuration. The output
-# (the filename of the created archive) is captured in the
-# 'backup_file' variable.
-backup_file=$(pihole-FTL --teleporter)
-
-# Check if the backup creation was successful. The '-n' flag checks
-# if the string has a non-zero length (i.e., the filename is not empty).
-if [ -n "$backup_file" ]; then
-  # If the backup was created successfully, inform the user.
-  echo "Successfully created backup: $backup_file"
-
-  # Move the generated backup file to the specified backup directory
-  # on the NFS share.
-  mv "$backup_file" "$BACKUP_DIR/"
-  echo "Moved backup to: $BACKUP_DIR"
-
-  # List the files in the backup directory before the cleanup process.
-  echo "Listing files before cleanup:"
-  ls -l "$BACKUP_DIR"
-
-  # ------------------------- Remove Old Backups -----------------------------
-  echo "Removing old backups (keeping the last $MAX_BACKUPS)..."
-  # Find files in the backup directory that match the Pi-hole Teleporter
-  # filename pattern (*.zip), are regular files ('-type f'), sort them in
-  # reverse order (newest first based on filename), skip the first
-  # '$MAX_BACKUPS' files (the newest ones), and then delete the remaining
-  # older files using 'xargs'. The '-d '\n'' option ensures that filenames
-  # with spaces are handled correctly.
-  find "$BACKUP_DIR" -name "pi-hole_pihole_teleporter_*.zip" -type f | sort -r | tail -n +$((MAX_BACKUPS + 1)) | xargs -d '\n' rm -f
-  echo "Finished cleanup."
-  # --------------------------------------------------------------------------
-
-  # List the files in the backup directory after the cleanup process.
-  echo "Listing files after cleanup:"
-  ls -l "$BACKUP_DIR"
-else
-  # If the backup creation failed, display an error message and exit
-  # the script with a non-zero exit code (indicating an error).
-  echo "Error creating Pi-hole teleporter backup."
-  exit 1
-fi
-
-# If the script reaches this point, the backup and cleanup process
-# were likely successful. Exit with a zero exit code.
-echo "Pi-hole backup script finished."
-exit 0
-
-# ----------------------------- Important Notes -----------------------------
-# *** IMPORTANT: To automate this script, you need to set up a cron job.
-# *** Example (runs every day at 3:00 AM - adjust as needed):
-# *** 0 3 * * * /path/to/script/backup_pihole.sh
-# *** Replace '/path/to/script/backup_pihole.sh' with the actual path to
-# *** where you saved the script. Use `sudo crontab -e` to edit the root
-# *** crontab for system-wide scheduling.
-
-# *** Test the script thoroughly by running it manually first to ensure it
-# *** works as expected and that backups are created and old ones are removed.
-
-# *** Always verify that the backup files are valid and can be used for
-# *** restoration if needed.
-
-# *** Ensure that the script has the necessary permissions to write to the
-# *** specified backup directory and to execute the `pihole-FTL` command.
-# --------------------------------------------------------------------------
+```
+├── docker-compose.yml          # Docker Compose configuration
+├── frontend/                   # React frontend application
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── SetupWizard.js # Initial setup wizard
+│   │   │   └── Dashboard.js   # Main dashboard
+│   │   ├── services/
+│   │   │   └── api.js         # API client
+│   │   └── App.js             # Main application
+│   ├── package.json
+│   └── Dockerfile
+├── backend/                    # Node.js backend API
+│   ├── routes/                 # Express route handlers
+│   ├── services/               # Business logic services
+│   ├── server.js              # Main server file
+│   ├── package.json
+│   └── Dockerfile
+├── data/                      # Configuration and job data
+├── backups/                   # Backup file storage
+└── backup_pihole.sh          # Original backup script
 ```
 
-## License
-This project is licensed under the MIT License.
+## 🛠 Installation & Setup
 
-Feel free to modify the sections according to your specific needs.
+### Prerequisites
+
+- Docker and Docker Compose
+- Pi-hole server with SSH access
+- Network connectivity between the backup system and Pi-hole server
+
+### Quick Start
+
+There are two ways to get started with Pi-hole Backup Manager:
+
+#### Option 1: Using Docker Hub Images
+
+1. **Create a docker-compose.yml file**:
+
+```yaml
+version: '3.8'
+
+services:
+  frontend:
+    image: theinfamoustoto/pihole-backup-frontend:0.1
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    image: theinfamoustoto/pihole-backup-backend:0.1
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/data
+      - ./backups:/app/backups
+      - ssh_keys:/root/.ssh
+    environment:
+      - DATA_DIR=/app/data
+      - BACKUP_DIR=/app/backups
+    restart: unless-stopped
+
+volumes:
+  ssh_keys:
+```
+
+2. **Start the containers**:
+
+```bash
+mkdir -p data backups
+docker-compose up -d
+```
+
+3. **Access the web interface** at http://localhost:3000
+
+#### Option 2: Build from Source
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/TheInfamousToTo/Pi-hole-Backup-Script.git
+   cd Pi-hole-Backup-Script
+   ```
+
+2. **Start the application**:
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **Access the web interface**:
+   - Open your browser and navigate to `http://localhost:3000`
+   - Follow the setup wizard to configure your Pi-hole connection
+
+### Manual Installation
+
+If you prefer to run without Docker:
+
+1. **Backend Setup**:
+   ```bash
+   cd backend
+   npm install
+   npm start
+   ```
+
+2. **Frontend Setup**:
+   ```bash
+   cd frontend
+   npm install
+   npm start
+   ```
+
+## 🔧 Configuration
+
+### Initial Setup Wizard
+
+The first time you access the application, you'll be guided through a setup wizard:
+
+1. **Pi-hole Server Configuration**:
+   - Server IP/hostname
+   - SSH port (default: 22)
+   - Username and password
+
+2. **Backup Settings**:
+   - Destination path for backups
+   - Maximum number of backups to retain
+
+3. **Schedule Configuration**:
+   - Cron expression for automated backups
+   - Timezone settings
+
+4. **SSH Key Setup**:
+   - Automatic generation and deployment of SSH keys
+   - Passwordless authentication setup
+
+### Manual Configuration
+
+Configuration is stored in `/data/config.json`:
+
+```json
+{
+  "pihole": {
+    "host": "192.168.1.100",
+    "username": "pi",
+    "password": "your-password",
+    "port": 22
+  },
+  "backup": {
+    "destinationPath": "/app/backups",
+    "maxBackups": 10
+  },
+  "schedule": {
+    "enabled": true,
+    "cronExpression": "0 3 * * *",
+    "timezone": "UTC"
+  },
+  "sshKeyDeployed": true,
+  "sshKeyPath": "/root/.ssh/id_rsa"
+}
+```
+
+## 🎯 Features
+
+### Web Dashboard
+
+- **System Status**: View Pi-hole connection status and configuration
+- **Quick Actions**: Run backups manually with one click
+- **Backup Management**: Browse, download, and delete backup files
+- **Job History**: Monitor backup job status and history
+- **Configuration**: Edit settings through the web interface
+
+### Automated Backups
+
+- **Cron Scheduling**: Flexible scheduling using cron expressions
+- **Automatic Cleanup**: Configurable retention policy for old backups
+- **Error Handling**: Comprehensive error logging and recovery
+- **SSH Key Authentication**: Secure, passwordless connections
+
+### Security Features
+
+- **SSH Key Management**: Automatic key generation and deployment
+- **Secure Authentication**: No passwords stored after SSH key setup
+- **Input Validation**: Protection against malicious inputs
+- **File Security**: Secure file handling and path validation
+
+## 🔍 API Endpoints
+
+### Configuration
+- `GET /api/config/status` - Check configuration status
+- `GET /api/config` - Get current configuration
+- `POST /api/config/save` - Save new configuration
+- `PUT /api/config` - Update existing configuration
+
+### Pi-hole Management
+- `POST /api/pihole/test-connection` - Test Pi-hole connection
+- `GET /api/pihole/status` - Get Pi-hole server status
+
+### Backup Operations
+- `POST /api/backup/run` - Run backup manually
+- `GET /api/backup` - List backup files
+- `GET /api/backup/:filename/download` - Download backup file
+- `DELETE /api/backup/:filename` - Delete backup file
+
+### SSH Management
+- `POST /api/ssh/setup-key` - Setup SSH key authentication
+- `POST /api/ssh/test-key` - Test SSH key authentication
+- `GET /api/ssh/status` - Get SSH key status
+
+### Scheduling
+- `POST /api/schedule/validate` - Validate cron expression
+- `GET /api/schedule/next-runs` - Get next scheduled runs
+- `POST /api/schedule/toggle` - Enable/disable scheduling
+
+### Job Management
+- `GET /api/jobs` - Get job history
+- `DELETE /api/jobs` - Clear job history
+- `GET /api/jobs/stats` - Get job statistics
+
+## 🔨 Development
+
+### Environment Variables
+
+Backend environment variables:
+- `NODE_ENV` - Application environment (development/production)
+- `PORT` - Server port (default: 3001)
+- `DATA_DIR` - Data directory path (default: ./data)
+- `BACKUP_DIR` - Backup directory path (default: ./backups)
+
+Frontend environment variables:
+- `REACT_APP_API_URL` - Backend API URL (default: http://localhost:3001)
+
+### Building for Production
+
+1. **Build frontend**:
+
+   ```bash
+   cd frontend
+   npm run build
+   ```
+
+2. **Production deployment**:
+
+   ```bash
+   docker-compose -f docker-compose.prod.yml up -d
+   ```
+
+## 📋 Backup Process
+
+1. **Connection**: Connect to Pi-hole server via SSH
+2. **Generation**: Execute `pihole-FTL --teleporter` command
+3. **Transfer**: Download backup file to local storage
+4. **Cleanup**: Remove temporary files from Pi-hole server
+5. **Retention**: Apply retention policy to old backups
+6. **Logging**: Record job status and details
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+1. **SSH Connection Failed**:
+   - Verify Pi-hole server is accessible
+   - Check SSH credentials and port
+   - Ensure SSH service is running on Pi-hole
+
+2. **Backup Command Failed**:
+   - Verify Pi-hole is properly installed
+   - Check user permissions for pihole-FTL command
+   - Ensure sufficient disk space
+
+3. **Docker Issues**:
+   - Check Docker and Docker Compose versions
+   - Verify port availability (3000, 3001)
+   - Check container logs: `docker-compose logs`
+
+### Logs
+
+- **Application logs**: Available in the backend container
+- **Job history**: Accessible through the web interface
+- **Error logs**: Stored in `/data/error.log`
+
+## 🔄 Migration from Original Script
+
+To migrate from the original bash script:
+
+1. **Backup existing data**: Copy any existing backup files
+2. **Note configuration**: Record your current settings
+3. **Deploy new system**: Follow installation instructions
+4. **Configure through wizard**: Enter your existing settings
+5. **Test thoroughly**: Verify backups work correctly
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 💝 Support
+
+If you find this project helpful, please consider supporting the development:
+
+- GitHub: [@TheInfamousToTo](https://github.com/TheInfamousToTo)
+- Buy Me a Coffee: [theinfamoustoto](https://buymeacoffee.com/theinfamoustoto)
+- Ko-fi: [theinfamoustoto](https://ko-fi.com/theinfamoustoto)
+- PayPal: [Direct Link](https://paypal.me/alsatrawi)
+
+## 🔮 Future Enhancements
+
+- Multiple Pi-hole server support
+- Backup encryption
+- Cloud storage integration
+- Mobile responsive improvements
+- Backup verification and testing
+- Integration with monitoring systems
+- Custom notification systems
+
+---
+
+## Original Script Details (Legacy)
+
+The original backup script is still available as `backup_pihole.sh` for users who prefer the command-line approach.

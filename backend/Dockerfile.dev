@@ -1,0 +1,25 @@
+FROM node:18-alpine
+
+# Install SSH client and other dependencies
+RUN apk add --no-cache openssh-client openssh-keygen
+
+WORKDIR /app
+
+# Copy package files first for better Docker layer caching
+COPY package*.json ./
+
+# Install all dependencies including dev dependencies for development
+RUN npm install --silent
+
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/backups /root/.ssh
+
+# Set proper permissions for SSH
+RUN chmod 700 /root/.ssh
+
+EXPOSE 3001
+
+# Use nodemon for development hot reloading
+CMD ["npm", "run", "dev"]

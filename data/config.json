@@ -1,0 +1,21 @@
+{
+  "pihole": {
+    "host": "192.168.31.230",
+    "username": "root",
+    "password": "***",
+    "port": 22
+  },
+  "backup": {
+    "destinationPath": "/app/backups",
+    "maxBackups": 10
+  },
+  "schedule": {
+    "enabled": true,
+    "cronExpression": "0 3 * * *",
+    "timezone": "UTC"
+  },
+  "sshKeyDeployed": true,
+  "sshKeyPath": "/root/.ssh/id_rsa",
+  "createdAt": "2025-07-10T09:02:02.375Z",
+  "updatedAt": "2025-07-10T10:39:48.758Z"
+}

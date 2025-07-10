@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: theinfamoustoto/pihole-backup-frontend:0.1
+    ports:
+      - "80:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3001
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    image: theinfamoustoto/pihole-backup-backend:0.1
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/data
+      - ./backups:/app/backups
+      - ssh_keys:/root/.ssh
+    environment:
+      - NODE_ENV=production
+      - DATA_DIR=/app/data
+      - BACKUP_DIR=/app/backups
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  ssh_keys:

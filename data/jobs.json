@@ -1,0 +1,26 @@
+[
+  {
+    "id": "backup_1752151482726",
+    "timestamp": "2025-07-10T12:44:43.866Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-10T12-44-43-132Z.zip",
+    "filename": "pi-hole_backup_2025-07-10T12-44-43-132Z.zip",
+    "size": 21211
+  },
+  {
+    "id": "backup_1752151491512",
+    "timestamp": "2025-07-10T12:44:52.697Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-10T12-44-51-831Z.zip",
+    "filename": "pi-hole_backup_2025-07-10T12-44-51-831Z.zip",
+    "size": 21211
+  },
+  {
+    "id": "backup_1752151499576",
+    "timestamp": "2025-07-10T12:45:00.364Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-10T12-44-59-833Z.zip",
+    "filename": "pi-hole_backup_2025-07-10T12-44-59-833Z.zip",
+    "size": 21211
+  }
+]
