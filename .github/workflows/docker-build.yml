@@ -18,7 +18,7 @@ jobs:
       - name: Read version from file
         id: version
         run: |
-          VERSION=$(cat version | tr -d '\n')
+          VERSION=$(cat version | tr -d '\n' | sed 's/^v//')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Found version: $VERSION"
         
