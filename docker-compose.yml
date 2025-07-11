@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   holesafe:
-    build: .
+    image: theinfamoustoto/holesafe:latest
     container_name: holesafe
     ports:
       - "3000:80"  # Single port for both frontend and backend
