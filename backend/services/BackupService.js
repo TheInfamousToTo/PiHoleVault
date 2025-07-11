@@ -1,12 +1,14 @@
 const fs = require('fs-extra');
 const path = require('path');
 const { NodeSSH } = require('node-ssh');
+const DiscordService = require('./DiscordService');
 
 class BackupService {
   constructor(dataDir, backupDir, logger) {
     this.dataDir = dataDir;
     this.backupDir = backupDir;
     this.logger = logger;
+    this.discordService = new DiscordService(logger);
   }
 
   async runBackup() {
@@ -129,6 +131,25 @@ class BackupService {
           size: stats.size,
           jobId 
         });
+
+        // Send Discord notification for successful backup
+        const discordConfig = this.getDiscordConfig(config);
+        if (discordConfig && discordConfig.enabled && discordConfig.notifyOnSuccess) {
+          try {
+            await this.discordService.sendBackupSuccess(discordConfig.webhookUrl, {
+              filename: localFilename,
+              size: stats.size,
+              jobId,
+              pihole: config.pihole
+            });
+            this.logger.info('Discord notification sent for successful backup', { jobId });
+          } catch (discordError) {
+            this.logger.error('Failed to send Discord notification for successful backup', { 
+              error: discordError.message,
+              jobId 
+            });
+          }
+        }
         
         return {
           success: true,
@@ -156,6 +177,25 @@ class BackupService {
       
       // Log failed job
       await this.logJob(jobId, 'error', `Backup failed: ${error.message}`);
+
+      // Send Discord notification for backup failure
+      try {
+        const config = await this.loadConfig();
+        const discordConfig = this.getDiscordConfig(config);
+        if (discordConfig && discordConfig.enabled && discordConfig.notifyOnFailure) {
+          await this.discordService.sendBackupFailure(discordConfig.webhookUrl, {
+            error: error.message,
+            jobId,
+            pihole: config.pihole
+          });
+          this.logger.info('Discord notification sent for backup failure', { jobId });
+        }
+      } catch (discordError) {
+        this.logger.error('Failed to send Discord notification for backup failure', { 
+          error: discordError.message,
+          jobId 
+        });
+      }
       
       return {
         success: false,
@@ -212,6 +252,22 @@ class BackupService {
     }
     
     return await fs.readJson(configPath);
+  }
+
+  getDiscordConfig(config) {
+    // Check environment variable first, then fall back to config file
+    const webhookUrl = process.env.DISCORD_WEBHOOK_URL || config.discord?.webhookUrl;
+    
+    if (!webhookUrl) {
+      return null;
+    }
+
+    return {
+      enabled: config.discord?.enabled !== false, // Default to true if webhook URL is provided
+      webhookUrl: webhookUrl,
+      notifyOnSuccess: config.discord?.notifyOnSuccess !== false, // Default to true
+      notifyOnFailure: config.discord?.notifyOnFailure !== false, // Default to true
+    };
   }
 
   async logJob(jobId, status, message, extra = {}) {

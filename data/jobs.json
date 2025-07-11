@@ -230,5 +230,21 @@
     "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-52-00-184Z.zip",
     "filename": "pi-hole_backup_2025-07-11T10-52-00-184Z.zip",
     "size": 21213
+  },
+  {
+    "id": "backup_1752244531648",
+    "timestamp": "2025-07-11T14:35:32.510Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T14-35-32-084Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T14-35-32-084Z.zip",
+    "size": 21211
+  },
+  {
+    "id": "backup_1752244559198",
+    "timestamp": "2025-07-11T14:35:59.957Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T14-35-59-495Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T14-35-59-495Z.zip",
+    "size": 21211
   }
 ]

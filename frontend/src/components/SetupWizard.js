@@ -24,6 +24,8 @@ import {
   Chip,
   useTheme,
   useMediaQuery,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Visibility,
@@ -36,6 +38,7 @@ import {
   ArrowBack,
   Computer,
   Key,
+  Notifications,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import api from '../services/api';
@@ -44,6 +47,7 @@ const steps = [
   'Pi-hole Server Configuration',
   'Backup Settings',
   'Schedule Configuration',
+  'Discord Notifications',
   'SSH Key Setup'
 ];
 
@@ -71,6 +75,12 @@ const SetupWizard = ({ onComplete }) => {
       enabled: true,
       cronExpression: '0 3 * * *', // Daily at 3 AM
       timezone: 'GMT+3', // Default to GMT+3
+    },
+    discord: {
+      enabled: false,
+      webhookUrl: '',
+      notifyOnSuccess: true,
+      notifyOnFailure: true,
     }
   });
 
@@ -89,6 +99,8 @@ const SetupWizard = ({ onComplete }) => {
         await testConnection();
       } else if (activeStep === 2) {
         await validateSchedule();
+      } else if (activeStep === 3) {
+        await validateDiscordConfig();
       } else {
         setActiveStep((prevActiveStep) => prevActiveStep + 1);
       }
@@ -137,6 +149,37 @@ const SetupWizard = ({ onComplete }) => {
       }
     } catch (error) {
       toast.error('Schedule validation failed: ' + error.message);
+    }
+  };
+
+  const validateDiscordConfig = async () => {
+    if (!formData.discord.enabled) {
+      // Discord is optional, proceed to next step
+      setActiveStep((prevActiveStep) => prevActiveStep + 1);
+      return;
+    }
+
+    if (!formData.discord.webhookUrl) {
+      toast.error('Please enter a Discord webhook URL or disable Discord notifications');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await api.post('/discord/test', {
+        webhookUrl: formData.discord.webhookUrl
+      });
+      
+      if (response.data.success) {
+        toast.success('Discord webhook test successful!');
+        setActiveStep((prevActiveStep) => prevActiveStep + 1);
+      } else {
+        toast.error('Discord webhook test failed: ' + response.data.error);
+      }
+    } catch (error) {
+      toast.error('Discord webhook test failed: ' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -413,6 +456,109 @@ const SetupWizard = ({ onComplete }) => {
           <Card sx={{ mt: 3 }}>
             <CardContent sx={{ p: 4 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Avatar sx={{ bgcolor: 'info.main', mr: 2 }}>
+                  <Notifications />
+                </Avatar>
+                <Box>
+                  <Typography variant="h6" fontWeight="bold">
+                    Discord Notifications
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Configure Discord webhook for backup notifications (optional)
+                  </Typography>
+                </Box>
+              </Box>
+              
+              <Alert severity="info" sx={{ mb: 3 }}>
+                Discord notifications are optional. You can skip this step or configure it later in the settings.
+              </Alert>
+              
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={formData.discord.enabled}
+                        onChange={(e) => handleInputChange('discord', 'enabled', e.target.checked)}
+                        color="primary"
+                      />
+                    }
+                    label="Enable Discord Notifications"
+                  />
+                </Grid>
+                
+                {formData.discord.enabled && (
+                  <>
+                    <Grid item xs={12}>
+                      <TextField
+                        fullWidth
+                        label="Discord Webhook URL"
+                        value={formData.discord.webhookUrl}
+                        onChange={(e) => handleInputChange('discord', 'webhookUrl', e.target.value)}
+                        placeholder="https://discord.com/api/webhooks/..."
+                        helperText="Get this from your Discord server settings > Integrations > Webhooks"
+                        type="url"
+                      />
+                    </Grid>
+                    
+                    <Grid item xs={12} md={6}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={formData.discord.notifyOnSuccess}
+                            onChange={(e) => handleInputChange('discord', 'notifyOnSuccess', e.target.checked)}
+                            color="primary"
+                          />
+                        }
+                        label="Notify on Successful Backup"
+                      />
+                    </Grid>
+                    
+                    <Grid item xs={12} md={6}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={formData.discord.notifyOnFailure}
+                            onChange={(e) => handleInputChange('discord', 'notifyOnFailure', e.target.checked)}
+                            color="primary"
+                          />
+                        }
+                        label="Notify on Backup Failure"
+                      />
+                    </Grid>
+                  </>
+                )}
+              </Grid>
+              
+              {formData.discord.enabled && (
+                <Box sx={{ mt: 3, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    How to get Discord Webhook URL:
+                  </Typography>
+                  <Stack spacing={1}>
+                    <Typography variant="body2" color="text.secondary">
+                      1. Go to your Discord server settings
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      2. Click on "Integrations" in the left sidebar
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      3. Click "Create Webhook" or "View Webhooks"
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      4. Copy the webhook URL and paste it above
+                    </Typography>
+                  </Stack>
+                </Box>
+              )}
+            </CardContent>
+          </Card>
+        );
+      case 4:
+        return (
+          <Card sx={{ mt: 3 }}>
+            <CardContent sx={{ p: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                 <Avatar sx={{ bgcolor: 'warning.main', mr: 2 }}>
                   <Key />
                 </Avatar>
@@ -506,6 +652,8 @@ const SetupWizard = ({ onComplete }) => {
       case 2:
         return formData.schedule.cronExpression;
       case 3:
+        return true; // Discord notifications are optional
+      case 4:
         return sshStatus.keyDeployed;
       default:
         return false;

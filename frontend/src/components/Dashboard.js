@@ -35,6 +35,8 @@ import {
   Grow,
   Slide,
   Zoom,
+  FormControlLabel,
+  Switch,
 } from '@mui/material';
 import {
   PlayArrow,
@@ -59,6 +61,7 @@ import {
   LaunchOutlined,
   Close,
   MoreVert,
+  Notifications,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import api from '../services/api';
@@ -389,6 +392,14 @@ const Dashboard = ({ onReconfigure }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
   const [settingsAnchorEl, setSettingsAnchorEl] = useState(null);
+  const [discordDialogOpen, setDiscordDialogOpen] = useState(false);
+  const [discordConfig, setDiscordConfig] = useState({
+    enabled: false,
+    webhookUrl: '',
+    notifyOnSuccess: true,
+    notifyOnFailure: true
+  });
+  const [discordTesting, setDiscordTesting] = useState(false);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -503,6 +514,72 @@ const Dashboard = ({ onReconfigure }) => {
       link.remove();
     } catch (error) {
       toast.error('Failed to download backup: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleDiscordOpen = async () => {
+    try {
+      const response = await api.get('/discord/config');
+      if (response.data.success) {
+        setDiscordConfig({
+          enabled: response.data.config.enabled,
+          webhookUrl: '', // Don't expose the webhook URL
+          notifyOnSuccess: response.data.config.notifyOnSuccess,
+          notifyOnFailure: response.data.config.notifyOnFailure
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load Discord config:', error);
+    }
+    setDiscordDialogOpen(true);
+    handleSettingsClose();
+  };
+
+  const handleDiscordClose = () => {
+    setDiscordDialogOpen(false);
+    setDiscordConfig({
+      enabled: false,
+      webhookUrl: '',
+      notifyOnSuccess: true,
+      notifyOnFailure: true
+    });
+  };
+
+  const handleDiscordSave = async () => {
+    try {
+      const response = await api.post('/discord/config', discordConfig);
+      if (response.data.success) {
+        toast.success('Discord configuration updated successfully!');
+        handleDiscordClose();
+      } else {
+        toast.error('Failed to update Discord configuration: ' + response.data.error);
+      }
+    } catch (error) {
+      toast.error('Failed to update Discord configuration: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const handleDiscordTest = async () => {
+    if (!discordConfig.webhookUrl) {
+      toast.error('Please enter a webhook URL first');
+      return;
+    }
+
+    setDiscordTesting(true);
+    try {
+      const response = await api.post('/discord/test', {
+        webhookUrl: discordConfig.webhookUrl
+      });
+      
+      if (response.data.success) {
+        toast.success('Discord test notification sent successfully!');
+      } else {
+        toast.error('Discord test failed: ' + response.data.error);
+      }
+    } catch (error) {
+      toast.error('Discord test failed: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setDiscordTesting(false);
     }
   };
 
@@ -733,6 +810,12 @@ const Dashboard = ({ onReconfigure }) => {
                   <Settings fontSize="small" />
                 </ListItemIcon>
                 Configure Settings
+              </MenuItem>
+              <MenuItem onClick={handleDiscordOpen}>
+                <ListItemIcon sx={{ color: 'info.main', minWidth: 36 }}>
+                  <Notifications fontSize="small" />
+                </ListItemIcon>
+                Discord Notifications
               </MenuItem>
               {onReconfigure && (
                 <MenuItem onClick={handleReconfigure}>
@@ -1100,6 +1183,111 @@ const Dashboard = ({ onReconfigure }) => {
           <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleSaveConfig}>
             Save Changes
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Discord Configuration Dialog */}
+      <Dialog open={discordDialogOpen} onClose={handleDiscordClose} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Avatar sx={{ bgcolor: 'info.main' }}>
+              <Notifications />
+            </Avatar>
+            Discord Notifications
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={discordConfig.enabled}
+                  onChange={(e) => setDiscordConfig(prev => ({ ...prev, enabled: e.target.checked }))}
+                  color="primary"
+                />
+              }
+              label="Enable Discord Notifications"
+              sx={{ mb: 3 }}
+            />
+            
+            {discordConfig.enabled && (
+              <Stack spacing={3}>
+                <TextField
+                  fullWidth
+                  label="Discord Webhook URL"
+                  value={discordConfig.webhookUrl}
+                  onChange={(e) => setDiscordConfig(prev => ({ ...prev, webhookUrl: e.target.value }))}
+                  placeholder="https://discord.com/api/webhooks/..."
+                  helperText="Get this from your Discord server settings > Integrations > Webhooks"
+                  type="url"
+                />
+                
+                <Box>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={discordConfig.notifyOnSuccess}
+                        onChange={(e) => setDiscordConfig(prev => ({ ...prev, notifyOnSuccess: e.target.checked }))}
+                        color="primary"
+                      />
+                    }
+                    label="Notify on Successful Backup"
+                  />
+                </Box>
+                
+                <Box>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={discordConfig.notifyOnFailure}
+                        onChange={(e) => setDiscordConfig(prev => ({ ...prev, notifyOnFailure: e.target.checked }))}
+                        color="primary"
+                      />
+                    }
+                    label="Notify on Backup Failure"
+                  />
+                </Box>
+                
+                <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    How to get Discord Webhook URL:
+                  </Typography>
+                  <Stack spacing={1}>
+                    <Typography variant="body2" color="text.secondary">
+                      1. Go to your Discord server settings
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      2. Click on "Integrations" in the left sidebar
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      3. Click "Create Webhook" or "View Webhooks"
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      4. Copy the webhook URL and paste it above
+                    </Typography>
+                  </Stack>
+                </Box>
+                
+                {discordConfig.webhookUrl && (
+                  <Button
+                    variant="outlined"
+                    onClick={handleDiscordTest}
+                    disabled={discordTesting}
+                    startIcon={discordTesting ? <CircularProgress size={20} /> : <Notifications />}
+                    fullWidth
+                  >
+                    {discordTesting ? 'Testing...' : 'Send Test Notification'}
+                  </Button>
+                )}
+              </Stack>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDiscordClose}>Cancel</Button>
+          <Button variant="contained" onClick={handleDiscordSave}>
+            Save Configuration
           </Button>
         </DialogActions>
       </Dialog>

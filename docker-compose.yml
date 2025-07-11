@@ -14,6 +14,9 @@ services:
       - NODE_ENV=production
       - DATA_DIR=/app/data
       - BACKUP_DIR=/app/backups
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+    env_file:
+      - .env
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]

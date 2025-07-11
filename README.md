@@ -1,6 +1,6 @@
-# HoleSafe v1.2.0
+# HoleSafe v1.3.0
 
-A comprehensive web-based solution for managing Pi-hole backups with automated scheduling, SSH key management, and a modern React frontend featuring advanced animations and responsive UI.
+A comprehensive web-based solution for managing Pi-hole backups with automated scheduling, SSH key management, Discord notifications, and a modern React frontend featuring advanced animations and responsive UI.
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/logo.png" alt="HoleSafe Logo" width="200"/>
@@ -38,11 +38,52 @@ If you find HoleSafe useful, consider supporting its development:
 - **⏰ Backup Scheduling**: Configurable cron-based scheduling with timezone validation
 - **📁 Backup Management**: Download, delete, and view backup files through the web interface
 - **📊 Job History**: Track backup job status and history with real-time updates
-- **🐳 Docker Deployment**: Single-container solution with nginx and Node.js
+- **� Discord Notifications**: Rich Discord webhook notifications for backup success/failure with detailed embeds
+- **�🐳 Docker Deployment**: Single-container solution with nginx and Node.js
 - **💚 Health Monitoring**: Built-in health checks and status monitoring
 - **🔄 Reconfigure Option**: Easy access to setup wizard for configuration changes
 - **🚀 Production Ready**: Optimized for production deployment with proper error handling
 - **🏗️ Multi-Platform**: Docker images available for AMD64 and ARM64 architectures
+
+## 🎯 Version 1.3.0 Release - Discord Notifications & Enhanced Communication
+
+This release introduces comprehensive Discord integration for real-time backup notifications and enhanced communication features:
+
+### ✨ New Features
+
+- **🔔 Discord Notifications**:
+  - Rich embed notifications for backup success and failure
+  - Configurable notification preferences (success/failure)
+  - Beautiful Discord embeds with colors, thumbnails, and detailed information
+  - Real-time webhook delivery with comprehensive error handling
+
+- **⚙️ Enhanced Setup Wizard**:
+  - Added Discord configuration step in setup process
+  - Optional Discord webhook configuration with live testing
+  - Step-by-step Discord webhook setup instructions
+  - Webhook validation and test functionality
+
+- **🎨 Dashboard Improvements**:
+  - New Discord settings dialog accessible from settings menu
+  - Live Discord webhook testing from the dashboard
+  - Discord configuration status indicators
+  - Enhanced settings management with organized categories
+
+### 🔧 Technical Improvements
+
+- **📡 Robust Notification System**: Automatic Discord notifications integrated into backup workflow
+- **🛡️ Error Handling**: Graceful fallback when Discord notifications fail
+- **🧪 Testing Framework**: Built-in webhook testing for configuration validation
+- **📋 Comprehensive Logging**: Detailed Discord notification logging for troubleshooting
+
+### 🎨 User Experience Enhancements
+
+- **🎯 Intuitive Configuration**: Simple Discord setup process with clear instructions
+- **🔄 Real-time Feedback**: Instant notification delivery with status confirmation
+- **📱 Rich Content**: Professional Discord embeds with HoleSafe branding and detailed backup information
+- **⚡ Optional Integration**: Discord notifications are completely optional and don't affect core functionality
+
+---
 
 ## 🎯 Version 1.2.0 Release - Advanced UI/UX & Local Build Support
 
@@ -211,6 +252,7 @@ services:
       - NODE_ENV=production
       - DATA_DIR=/app/data
       - BACKUP_DIR=/app/backups
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}  # Optional: Discord webhook for notifications
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
@@ -238,6 +280,27 @@ docker-compose up -d
 ```
 
 3. **Access the web interface** at <http://localhost:3000>
+
+#### Environment Variables
+
+HoleSafe supports configuration through environment variables for production deployments:
+
+**Discord Notifications**:
+```bash
+# Optional: Set Discord webhook URL for notifications
+export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
+```
+
+**Using with Docker Compose**:
+```bash
+# Create a .env file in the same directory as docker-compose.yml
+echo "DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN" > .env
+
+# Start the container (will automatically read the .env file)
+docker-compose up -d
+```
+
+**Priority**: Environment variables take precedence over configuration file settings. This allows for easy deployment across different environments while keeping sensitive information secure.
 
 #### Local Build (New in v1.2.0)
 
@@ -355,7 +418,12 @@ The first time you access the application, you'll be guided through a setup wiza
    - Cron expression for automated backups
    - Timezone settings
 
-4. **SSH Key Setup**:
+4. **Discord Notifications** (optional):
+   - Discord webhook URL configuration
+   - Notification preferences for success/failure
+   - Test webhook functionality
+
+5. **SSH Key Setup**:
    - Automatic generation and deployment of SSH keys
    - Passwordless authentication setup
 
@@ -380,8 +448,61 @@ Configuration is stored in `/data/config.json`:
     "cronExpression": "0 3 * * *",
     "timezone": "UTC"
   },
+  "discord": {
+    "enabled": false,
+    "webhookUrl": "https://discord.com/api/webhooks/...",
+    "notifyOnSuccess": true,
+    "notifyOnFailure": true
+  },
   "sshKeyDeployed": true,
   "sshKeyPath": "/root/.ssh/id_rsa"
+}
+```
+
+### Discord Notifications Configuration
+
+HoleSafe supports rich Discord notifications with detailed embeds for backup operations:
+
+#### Setup Discord Webhook
+
+1. **Go to your Discord server settings**
+2. **Navigate to Integrations > Webhooks**
+3. **Create a new webhook or use an existing one**
+4. **Copy the webhook URL**
+5. **Configure in HoleSafe setup wizard or dashboard settings**
+
+#### Notification Features
+
+- **🎨 Rich Embeds**: Beautiful formatted messages with colors and thumbnails
+- **📊 Detailed Information**: Backup file size, server details, job ID, and timestamps
+- **🎯 Selective Notifications**: Choose to notify on success, failure, or both
+- **🧪 Test Function**: Send test notifications to verify configuration
+- **⚡ Real-time**: Instant notifications when backup operations complete
+
+#### Example Notification Content
+
+**Successful Backup:**
+- Green embed with success icon
+- Backup filename and file size
+- Pi-hole server information
+- Job ID and timestamp
+
+**Failed Backup:**
+- Red embed with error icon
+- Error details and troubleshooting information
+- Server connection details
+- Job ID for tracking
+
+#### Configuration Options
+
+```json
+{
+  "discord": {
+    "enabled": true,                    // Enable/disable Discord notifications
+    "webhookUrl": "https://discord.com/api/webhooks/YOUR_WEBHOOK_URL",
+    "notifyOnSuccess": true,           // Send notification on successful backup
+    "notifyOnFailure": true            // Send notification on backup failure
+  }
 }
 ```
 
@@ -447,6 +568,13 @@ Configuration is stored in `/data/config.json`:
 - `GET /api/jobs` - Get job history
 - `DELETE /api/jobs` - Clear job history
 - `GET /api/jobs/stats` - Get job statistics
+
+### Discord Notifications
+
+- `GET /api/discord/config` - Get Discord configuration status
+- `POST /api/discord/config` - Update Discord configuration
+- `POST /api/discord/test` - Test Discord webhook
+- `POST /api/discord/test-notification` - Send test notification with current config
 
 ## 🔨 Development
 

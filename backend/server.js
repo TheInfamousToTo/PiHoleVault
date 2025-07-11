@@ -13,6 +13,7 @@ const backupRoutes = require('./routes/backup');
 const sshRoutes = require('./routes/ssh');
 const scheduleRoutes = require('./routes/schedule');
 const jobRoutes = require('./routes/jobs');
+const discordRoutes = require('./routes/discord');
 
 // Import services
 const BackupService = require('./services/BackupService');
@@ -70,6 +71,7 @@ app.use('/api/backups', backupRoutes);  // Add alias for backups endpoint
 app.use('/api/ssh', sshRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/jobs', jobRoutes);
+app.use('/api/discord', discordRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

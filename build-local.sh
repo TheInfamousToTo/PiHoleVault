@@ -5,8 +5,12 @@
 
 set -e
 
+# Discord webhook URL for notifications
+export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1393231200889344183/sUv1wnBjDk4pkmytuqJeEFfuylBgcv6cIc2c79m8afLOCEZEXRkPYkpPyqmEHUbLPQd3"
+
 echo "🚀 HoleSafe Local Build & Deploy Script"
 echo "======================================="
+echo "🔔 Discord notifications enabled"
 
 # Function to show usage
 show_usage() {
@@ -20,6 +24,9 @@ show_usage() {
     echo "  rebuild     Force rebuild and restart"
     echo "  dev         Use development configuration"
     echo "  clean       Remove all containers, images, and volumes"
+    echo "  status      Show container status"
+    echo "  shell       Open shell in container"
+    echo "  discord     Show Discord webhook status"
     echo "  help        Show this help message"
     echo ""
     echo "Examples:"
@@ -28,6 +35,8 @@ show_usage() {
     echo "  $0 dev up                   # Start with dev config"
     echo "  $0 rebuild                  # Force rebuild and restart"
     echo "  $0 logs                     # View logs"
+    echo "  $0 status                   # Check container status"
+    echo "  $0 discord                  # Check Discord webhook status"
     echo ""
 }
 
@@ -95,6 +104,29 @@ case "${1:-help}" in
     "shell")
         echo "🐚 Opening shell in HoleSafe container..."
         docker-compose -f $COMPOSE_FILE exec holesafe sh
+        ;;
+    
+    "discord")
+        echo "🔔 Discord Webhook Configuration:"
+        if [[ -n "$DISCORD_WEBHOOK_URL" ]]; then
+            echo "✅ Webhook URL: ${DISCORD_WEBHOOK_URL:0:50}..." 
+            echo "📡 Discord notifications are enabled"
+            echo "🧪 Testing webhook..."
+            # Test the webhook with a simple curl command
+            curl -X POST "$DISCORD_WEBHOOK_URL" \
+                -H "Content-Type: application/json" \
+                -d '{
+                    "username": "HoleSafe Test",
+                    "embeds": [{
+                        "title": "🧪 Test Notification",
+                        "description": "Discord webhook is working correctly!",
+                        "color": 65280,
+                        "footer": {"text": "HoleSafe Local Build"}
+                    }]
+                }' && echo "✅ Test notification sent!" || echo "❌ Test failed"
+        else
+            echo "❌ No Discord webhook URL configured"
+        fi
         ;;
     
     "help"|*)
