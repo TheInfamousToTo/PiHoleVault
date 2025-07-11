@@ -12,7 +12,7 @@ A comprehensive web-based solution for managing Pi-hole backups with automated s
 
 - **GitHub Repository**: [TheInfamousToTo/HoleSafe](https://github.com/TheInfamousToTo/HoleSafe)
 - **Docker Hub**: [theinfamoustoto/holesafe](https://hub.docker.com/r/theinfamoustoto/holesafe)
-- **Latest Release**: [v1.2.0](https://github.com/TheInfamousToTo/HoleSafe/releases/tag/v1.2.0)
+- **Latest Release**: [v1.3.0](https://github.com/TheInfamousToTo/HoleSafe/releases/tag/v1.3.0)
 
 ### ❤️ Support the Project
 
