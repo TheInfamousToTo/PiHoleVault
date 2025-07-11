@@ -33,6 +33,11 @@ COPY backend/ .
 # Copy built frontend from build stage
 COPY --from=frontend-build /app/frontend/build /usr/share/nginx/html
 
+# Fix permissions for nginx - more robust approach
+RUN chown -R nginx:nginx /usr/share/nginx/html
+RUN find /usr/share/nginx/html -type d -exec chmod 755 {} \+
+RUN find /usr/share/nginx/html -type f -exec chmod 644 {} \+
+
 # Create necessary directories
 RUN mkdir -p /app/data /app/backups /root/.ssh /var/log/supervisor
 

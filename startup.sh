@@ -34,7 +34,8 @@ fi
 # Ensure proper permissions
 chmod 755 /usr/share/nginx/html
 chmod -R 644 /usr/share/nginx/html/*
-chmod 755 /usr/share/nginx/html/static
+find /usr/share/nginx/html -type d -exec chmod 755 {} \+
+chown -R nginx:nginx /usr/share/nginx/html
 
 echo "✅ Pre-flight checks completed successfully"
 
