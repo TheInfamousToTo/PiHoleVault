@@ -30,5 +30,49 @@
     "message": "Backup completed successfully: pi-hole_backup_2025-07-10T14-00-46-256Z.zip",
     "filename": "pi-hole_backup_2025-07-10T14-00-46-256Z.zip",
     "size": 21210
+  },
+  {
+    "id": "backup_1752203018701",
+    "timestamp": "2025-07-11T03:03:39.025Z",
+    "status": "error",
+    "message": "Backup failed: All configured authentication methods failed"
+  },
+  {
+    "id": "backup_1752203024642",
+    "timestamp": "2025-07-11T03:03:44.903Z",
+    "status": "error",
+    "message": "Backup failed: All configured authentication methods failed"
+  },
+  {
+    "id": "backup_1752203031967",
+    "timestamp": "2025-07-11T03:03:52.204Z",
+    "status": "error",
+    "message": "Backup failed: All configured authentication methods failed"
+  },
+  {
+    "id": "backup_1752203181946",
+    "timestamp": "2025-07-11T03:06:22.249Z",
+    "status": "error",
+    "message": "Backup failed: All configured authentication methods failed"
+  },
+  {
+    "id": "backup_1752203221732",
+    "timestamp": "2025-07-11T03:07:01.942Z",
+    "status": "error",
+    "message": "Backup failed: All configured authentication methods failed"
+  },
+  {
+    "id": "backup_1752204944254",
+    "timestamp": "2025-07-11T03:35:44.520Z",
+    "status": "error",
+    "message": "Backup failed: All configured authentication methods failed"
+  },
+  {
+    "id": "backup_1752204977152",
+    "timestamp": "2025-07-11T03:36:17.976Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T03-36-17-500Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T03-36-17-500Z.zip",
+    "size": 21213
   }
 ]

@@ -320,7 +320,7 @@ function App() {
               path="/dashboard" 
               element={
                 isConfigured ? (
-                  <Dashboard />
+                  <Dashboard onReconfigure={() => setIsConfigured(false)} />
                 ) : (
                   <Navigate to="/setup" replace />
                 )

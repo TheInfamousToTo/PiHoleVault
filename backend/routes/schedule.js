@@ -4,10 +4,39 @@ const path = require('path');
 const cronParser = require('cron-parser');
 const router = express.Router();
 
+// Convert GMT offset format (e.g., "GMT+3") to timezone name (e.g., "Etc/GMT-3")
+// Note: Etc/GMT offsets are inverted in POSIX timezone naming
+function convertGMTOffsetToTimezone(gmtOffset) {
+  if (!gmtOffset || !gmtOffset.startsWith('GMT')) {
+    return 'UTC'; // Default to UTC if invalid format
+  }
+  
+  // Extract the offset part (e.g., "+3" from "GMT+3")
+  const offsetStr = gmtOffset.substring(3);
+  
+  if (offsetStr === '+0' || offsetStr === '-0' || offsetStr === '0') {
+    return 'UTC';
+  }
+  
+  // Parse the offset number
+  const offset = parseInt(offsetStr);
+  if (isNaN(offset)) {
+    return 'UTC';
+  }
+  
+  // Convert to POSIX timezone format (Etc/GMT zones are inverted)
+  // GMT+3 becomes Etc/GMT-3 in POSIX notation
+  const posixOffset = -offset;
+  const sign = posixOffset >= 0 ? '+' : '-';
+  const absOffset = Math.abs(posixOffset);
+  
+  return `Etc/GMT${sign}${absOffset}`;
+}
+
 // Validate cron expression
 router.post('/validate', (req, res) => {
   try {
-    const { cronExpression } = req.body;
+    const { cronExpression, timezone } = req.body;
     
     if (!cronExpression) {
       return res.status(400).json({ 
@@ -17,7 +46,12 @@ router.post('/validate', (req, res) => {
     }
     
     try {
-      const interval = cronParser.parseExpression(cronExpression);
+      // Convert GMT offset to timezone if provided
+      const convertedTimezone = timezone ? convertGMTOffsetToTimezone(timezone) : 'UTC';
+      
+      const interval = cronParser.parseExpression(cronExpression, {
+        tz: convertedTimezone
+      });
       const nextRuns = [];
       
       // Get next 5 scheduled runs
@@ -28,7 +62,9 @@ router.post('/validate', (req, res) => {
       res.json({ 
         valid: true, 
         nextRuns,
-        message: 'Cron expression is valid' 
+        message: 'Cron expression is valid',
+        timezone: timezone || 'UTC',
+        convertedTimezone: convertedTimezone
       });
       
     } catch (error) {
@@ -63,7 +99,13 @@ router.get('/next-runs', async (req, res) => {
     }
     
     try {
-      const interval = cronParser.parseExpression(config.schedule.cronExpression);
+      // Convert GMT offset to timezone if provided
+      const convertedTimezone = config.schedule.timezone ? 
+        convertGMTOffsetToTimezone(config.schedule.timezone) : 'UTC';
+        
+      const interval = cronParser.parseExpression(config.schedule.cronExpression, {
+        tz: convertedTimezone
+      });
       const nextRuns = [];
       
       // Get next 10 scheduled runs
@@ -77,7 +119,9 @@ router.get('/next-runs', async (req, res) => {
       res.json({ 
         success: true, 
         nextRuns,
-        cronExpression: config.schedule.cronExpression 
+        cronExpression: config.schedule.cronExpression,
+        timezone: config.schedule.timezone,
+        convertedTimezone: convertedTimezone
       });
       
     } catch (error) {

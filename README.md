@@ -1,4 +1,4 @@
-# HoleSafe v1.0.0
+# HoleSafe v1.1.0
 
 A comprehensive web-based solution for managing Pi-hole backups with automated scheduling, SSH key management, and a modern React frontend.
 
@@ -8,36 +8,98 @@ A comprehensive web-based solution for managing Pi-hole backups with automated s
 
 ![HoleSafe Dashboard](https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/dashboard-preview.png)
 
-## 📦 Quick Links
+## 📦 Quick Links & Support
 
 - **GitHub Repository**: [TheInfamousToTo/HoleSafe](https://github.com/TheInfamousToTo/HoleSafe)
-- **Docker Hub**: [theinfamoustoto/holesafe-combined](https://hub.docker.com/r/theinfamoustoto/holesafe-combined)
-- **Latest Release**: [v1.0.0](https://github.com/TheInfamousToTo/HoleSafe/releases/tag/v1.0.0)
+- **Docker Hub**: [theinfamoustoto/holesafe](https://hub.docker.com/r/theinfamoustoto/holesafe)
+- **Latest Release**: [v1.1.0](https://github.com/TheInfamousToTo/HoleSafe/releases/tag/v1.1.0)
+
+### ❤️ Support the Project
+
+If you find HoleSafe useful, consider supporting its development:
+
+- ⭐ **Star this repository** on GitHub
+- ☕ **Buy me a coffee** on [Buy Me a Coffee](https://buymeacoffee.com/theinfamoustoto)
+- � **Support on Ko-fi** at [Ko-fi](https://ko-fi.com/theinfamoustoto)
+- �🚀 **Become a sponsor** on [GitHub Sponsors](https://github.com/sponsors/TheInfamousToTo)
 
 ## 🚀 Features
 
-- **Modern Web Interface**: Clean, responsive React frontend inspired by Pi-hole's design
-- **HoleSafe Branding**: Professional interface with matching Pi-hole color scheme
-- **Setup Wizard**: Step-by-step configuration for first-time users
-- **SSH Key Management**: Automatic generation and deployment of SSH keys for passwordless authentication
-- **Backup Scheduling**: Configurable cron-based scheduling with validation
+- **Modern Web Interface**: Clean, responsive React frontend with Material-UI components
+- **Integrated Branding**: HoleSafe logo integration throughout the interface
+- **Enhanced Navigation**: Streamlined AppBar with all essential functions and support links
+- **Setup Wizard**: Step-by-step configuration with logo display and improved UX
+- **SSH Key Management**: Automatic generation and deployment with manual deployment option
+- **Timezone Support**: GMT-based timezone selection with proper POSIX conversion
+- **Backup Scheduling**: Configurable cron-based scheduling with timezone validation
 - **Backup Management**: Download, delete, and view backup files through the web interface
 - **Job History**: Track backup job status and history with real-time updates
-- **Docker Deployment**: Complete containerized solution with Docker Compose
+- **Docker Deployment**: Single-container solution with nginx and Node.js
 - **Health Monitoring**: Built-in health checks and status monitoring
+- **Reconfigure Option**: Easy access to setup wizard for configuration changes
 - **Production Ready**: Optimized for production deployment with proper error handling
 - **Multi-Platform**: Docker images available for AMD64 and ARM64 architectures
 
-## 🎯 Version 1.0.0 Release
+## 🎯 Version 1.1.0 Release - Enhanced UI & User Experience
 
-This is the first stable release of HoleSafe with the following highlights:
+This release focuses on major UI improvements and user experience enhancements:
 
-- **Complete Web Interface**: Full-featured dashboard for managing Pi-hole backups
-- **Docker Hub Images**: Pre-built Docker images for easy deployment
-- **Comprehensive API**: REST API for all backup operations
-- **Production Testing**: Thoroughly tested in production environments
-- **Documentation**: Complete setup and usage documentation
-- **Security Features**: SSH key management and secure authentication
+### ✨ New Features
+
+- **🎨 Logo Integration**: HoleSafe logo displayed prominently in both Dashboard and Setup Wizard
+- **🚀 Enhanced AppBar**: All support and sponsorship links moved to the main navigation bar
+- **⚙️ Reconfigure Access**: Easy access to setup wizard from the dashboard
+- **🌍 GMT Timezone Support**: Complete GMT-12 to GMT+12 timezone selection with proper POSIX conversion
+- **🔑 Manual SSH Deployment**: Option to manually deploy SSH keys when automatic deployment fails
+- **📱 Responsive Design**: Improved mobile and desktop experience
+- **🎛️ Streamlined Interface**: Removed redundant sponsorship bars, consolidated into main navigation
+
+### 🔧 Improvements
+
+- **Alpine Linux Compatibility**: Fixed nginx configuration for Alpine Linux containers
+- **POSIX Timezone Handling**: Proper timezone conversion for cron scheduling (GMT+3 → Etc/GMT-3)
+- **SSH Authentication**: Enhanced SSH key deployment with fallback options
+- **Container Architecture**: Single-port deployment with nginx reverse proxy
+- **Error Handling**: Improved error messages and user feedback
+
+### 🐛 Bug Fixes
+
+- Fixed nginx configuration path conflicts in Alpine Linux
+- Corrected SSH API endpoints (`/ssh/setup-key` instead of `/ssh/setup`)
+- Resolved timezone conversion issues for proper cron scheduling
+- Fixed container startup sequence and health checks
+
+## 🎨 User Interface
+
+### Enhanced Navigation Bar
+
+HoleSafe v1.1.0 features a completely redesigned navigation experience:
+
+- **🏠 HoleSafe Logo**: Prominently displayed logo for brand recognition
+- **🔄 Refresh Button**: Quick access to reload dashboard data
+- **🐙 GitHub Link**: Direct access to the project repository
+- **⭐ Star Project**: Easy way to star the repository on GitHub
+- **☕ Buy Me Coffee**: Support the developer directly from the interface
+- **💖 Ko-fi Support**: Alternative donation platform integration
+- **🚀 GitHub Sponsors**: Become a sponsor for ongoing development
+- **▶️ Run Backup**: One-click backup execution
+- **⚙️ Settings**: Access configuration options
+- **🔧 Reconfigure**: Return to setup wizard for changes
+
+### Setup Wizard Improvements
+
+- **Logo Integration**: HoleSafe logo displayed throughout the setup process
+- **GMT Timezone Support**: Complete GMT-12 to GMT+12 timezone selection
+- **Manual SSH Deployment**: Fallback option when automatic deployment fails
+- **Improved Validation**: Better error handling and user feedback
+- **Responsive Design**: Optimized for both desktop and mobile devices
+
+### Dashboard Enhancements
+
+- **Consolidated Interface**: All essential functions in the main navigation
+- **Real-time Status**: Live updates for backup operations and system status
+- **Professional Branding**: Consistent HoleSafe theming throughout
+- **Support Integration**: Direct access to project support and sponsorship options
 
 ## 📁 Project Structure
 
@@ -83,7 +145,8 @@ version: '3.8'
 
 services:
   holesafe:
-    image: theinfamoustoto/holesafe-combined:latest
+    image: theinfamoustoto/holesafe:latest
+    container_name: holesafe
     ports:
       - "3000:80"  # Single port for both frontend and backend
     volumes:
@@ -100,9 +163,17 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 40s
+    networks:
+      - holesafe-network
+
+networks:
+  holesafe-network:
+    driver: bridge
 
 volumes:
   ssh_keys:
+    driver: local
 ```
 
 2. **Start the container**:

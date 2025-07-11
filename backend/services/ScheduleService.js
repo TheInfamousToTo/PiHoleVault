@@ -38,6 +38,9 @@ class ScheduleService {
         return;
       }
       
+      // Convert GMT offset to timezone format
+      const timezone = this.convertGMTOffsetToTimezone(config.schedule.timezone);
+      
       // Schedule the backup task
       const task = cron.schedule(
         config.schedule.cronExpression,
@@ -62,7 +65,7 @@ class ScheduleService {
         },
         {
           scheduled: true,
-          timezone: config.schedule.timezone || 'UTC'
+          timezone: timezone
         }
       );
       
@@ -70,7 +73,8 @@ class ScheduleService {
       
       this.logger.info('Scheduled backup task created', {
         expression: config.schedule.cronExpression,
-        timezone: config.schedule.timezone || 'UTC'
+        timezone: config.schedule.timezone,
+        convertedTimezone: timezone
       });
       
     } catch (error) {
@@ -139,6 +143,35 @@ class ScheduleService {
         error: error.message
       });
     }
+  }
+
+  // Convert GMT offset format (e.g., "GMT+3") to timezone name (e.g., "Etc/GMT-3")
+  // Note: Etc/GMT offsets are inverted in POSIX timezone naming
+  convertGMTOffsetToTimezone(gmtOffset) {
+    if (!gmtOffset || !gmtOffset.startsWith('GMT')) {
+      return 'UTC'; // Default to UTC if invalid format
+    }
+    
+    // Extract the offset part (e.g., "+3" from "GMT+3")
+    const offsetStr = gmtOffset.substring(3);
+    
+    if (offsetStr === '+0' || offsetStr === '-0' || offsetStr === '0') {
+      return 'UTC';
+    }
+    
+    // Parse the offset number
+    const offset = parseInt(offsetStr);
+    if (isNaN(offset)) {
+      return 'UTC';
+    }
+    
+    // Convert to POSIX timezone format (Etc/GMT zones are inverted)
+    // GMT+3 becomes Etc/GMT-3 in POSIX notation
+    const posixOffset = -offset;
+    const sign = posixOffset >= 0 ? '+' : '-';
+    const absOffset = Math.abs(posixOffset);
+    
+    return `Etc/GMT${sign}${absOffset}`;
   }
 }
 

@@ -70,7 +70,7 @@ const SetupWizard = ({ onComplete }) => {
     schedule: {
       enabled: true,
       cronExpression: '0 3 * * *', // Daily at 3 AM
-      timezone: 'UTC',
+      timezone: 'GMT+3', // Default to GMT+3
     }
   });
 
@@ -125,7 +125,8 @@ const SetupWizard = ({ onComplete }) => {
     
     try {
       const response = await api.post('/schedule/validate', {
-        cronExpression: formData.schedule.cronExpression
+        cronExpression: formData.schedule.cronExpression,
+        timezone: formData.schedule.timezone
       });
       
       if (response.data.valid) {
@@ -144,7 +145,7 @@ const SetupWizard = ({ onComplete }) => {
     setSshStatus(prev => ({ ...prev, testing: true }));
     
     try {
-      const response = await api.post('/ssh/setup', formData.pihole);
+      const response = await api.post('/ssh/setup-key', formData.pihole);
       
       if (response.data.success) {
         setSshStatus({
@@ -357,13 +358,40 @@ const SetupWizard = ({ onComplete }) => {
                   />
                 </Grid>
                 <Grid item xs={12} md={4}>
-                  <TextField
-                    fullWidth
-                    label="Timezone"
-                    value={formData.schedule.timezone}
-                    onChange={(e) => handleInputChange('schedule', 'timezone', e.target.value)}
-                    helperText="Server timezone"
-                  />
+                  <FormControl fullWidth>
+                    <InputLabel>Timezone</InputLabel>
+                    <Select
+                      value={formData.schedule.timezone}
+                      onChange={(e) => handleInputChange('schedule', 'timezone', e.target.value)}
+                      label="Timezone"
+                    >
+                      <MenuItem value="GMT-12">GMT-12</MenuItem>
+                      <MenuItem value="GMT-11">GMT-11</MenuItem>
+                      <MenuItem value="GMT-10">GMT-10</MenuItem>
+                      <MenuItem value="GMT-9">GMT-9</MenuItem>
+                      <MenuItem value="GMT-8">GMT-8</MenuItem>
+                      <MenuItem value="GMT-7">GMT-7</MenuItem>
+                      <MenuItem value="GMT-6">GMT-6</MenuItem>
+                      <MenuItem value="GMT-5">GMT-5</MenuItem>
+                      <MenuItem value="GMT-4">GMT-4</MenuItem>
+                      <MenuItem value="GMT-3">GMT-3</MenuItem>
+                      <MenuItem value="GMT-2">GMT-2</MenuItem>
+                      <MenuItem value="GMT-1">GMT-1</MenuItem>
+                      <MenuItem value="GMT+0">GMT+0 (UTC)</MenuItem>
+                      <MenuItem value="GMT+1">GMT+1</MenuItem>
+                      <MenuItem value="GMT+2">GMT+2</MenuItem>
+                      <MenuItem value="GMT+3">GMT+3 (Default)</MenuItem>
+                      <MenuItem value="GMT+4">GMT+4</MenuItem>
+                      <MenuItem value="GMT+5">GMT+5</MenuItem>
+                      <MenuItem value="GMT+6">GMT+6</MenuItem>
+                      <MenuItem value="GMT+7">GMT+7</MenuItem>
+                      <MenuItem value="GMT+8">GMT+8</MenuItem>
+                      <MenuItem value="GMT+9">GMT+9</MenuItem>
+                      <MenuItem value="GMT+10">GMT+10</MenuItem>
+                      <MenuItem value="GMT+11">GMT+11</MenuItem>
+                      <MenuItem value="GMT+12">GMT+12</MenuItem>
+                    </Select>
+                  </FormControl>
                 </Grid>
               </Grid>
               
@@ -421,6 +449,40 @@ const SetupWizard = ({ onComplete }) => {
                 />
               </Box>
               
+              {!sshStatus.keyDeployed && (
+                <Box sx={{ mt: 3 }}>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={async () => {
+                      setSshStatus(prev => ({ ...prev, testing: true }));
+                      try {
+                        const response = await api.post('/ssh/setup-key', formData.pihole);
+                        if (response.data.success) {
+                          setSshStatus({
+                            connected: true,
+                            keyDeployed: true,
+                            testing: false,
+                          });
+                          toast.success('SSH key deployed successfully!');
+                        } else {
+                          toast.error('SSH key deployment failed: ' + response.data.error);
+                          setSshStatus(prev => ({ ...prev, testing: false }));
+                        }
+                      } catch (error) {
+                        console.error('SSH key deployment error:', error);
+                        toast.error('SSH key deployment failed: ' + error.message);
+                        setSshStatus(prev => ({ ...prev, testing: false }));
+                      }
+                    }}
+                    disabled={sshStatus.testing}
+                    startIcon={sshStatus.testing ? <CircularProgress size={20} /> : <Key />}
+                  >
+                    {sshStatus.testing ? 'Deploying SSH Key...' : 'Deploy SSH Key'}
+                  </Button>
+                </Box>
+              )}
+              
               {sshStatus.testing && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2 }}>
                   <CircularProgress size={20} />
@@ -459,18 +521,18 @@ const SetupWizard = ({ onComplete }) => {
       <Container maxWidth="md">
         {/* Header */}
         <Box sx={{ textAlign: 'center', mb: 4 }}>
-          <Avatar
-            sx={{
-              bgcolor: 'primary.main',
-              width: 80,
-              height: 80,
-              mx: 'auto',
-              mb: 2,
-              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-            }}
-          >
-            <Shield sx={{ fontSize: 40 }} />
-          </Avatar>
+          <Box sx={{ mb: 2 }}>
+            <img 
+              src="/logo.png" 
+              alt="HoleSafe Logo" 
+              style={{ 
+                height: 80, 
+                width: 'auto', 
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+              }} 
+            />
+          </Box>
           <Typography variant="h3" fontWeight="bold" color="white" gutterBottom>
             Welcome to HoleSafe
           </Typography>

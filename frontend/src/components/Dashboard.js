@@ -26,6 +26,10 @@ import {
   useTheme,
   useMediaQuery,
   Tooltip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   PlayArrow,
@@ -51,133 +55,6 @@ import {
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import api from '../services/api';
-
-// Sponsorship Component
-const SponsorshipBar = memo(() => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-
-  const sponsorLinks = [
-    {
-      label: 'GitHub',
-      icon: <GitHub />,
-      url: 'https://github.com/TheInfamousToTo',
-      color: '#6e5494',
-      tooltip: 'Follow on GitHub'
-    },
-    {
-      label: 'Star',
-      icon: <Star />,
-      url: 'https://github.com/TheInfamousToTo/HoleSafe',
-      color: '#f59e0b',
-      tooltip: 'Star this project'
-    },
-    {
-      label: 'Buy Me Coffee',
-      icon: <Coffee />,
-      url: 'https://buymeacoffee.com/theinfamoustoto',
-      color: '#ff813f',
-      tooltip: 'Support with coffee'
-    },
-    {
-      label: 'Ko-fi',
-      icon: <Favorite />,
-      url: 'https://ko-fi.com/theinfamoustoto',
-      color: '#ff5722',
-      tooltip: 'Support on Ko-fi'
-    },
-    {
-      label: 'Sponsor',
-      icon: <LaunchOutlined />,
-      url: 'https://github.com/sponsors/TheInfamousToTo',
-      color: '#8b5cf6',
-      tooltip: 'Become a sponsor'
-    }
-  ];
-
-  if (isMobile) {
-    return (
-      <Box
-        sx={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 1100,
-          background: 'rgba(30, 41, 59, 0.95)',
-          backdropFilter: 'blur(12px)',
-          borderTop: '1px solid rgba(148, 163, 184, 0.1)',
-          p: 1,
-        }}
-      >
-        <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-          {sponsorLinks.map((link, index) => (
-            <Tooltip key={index} title={link.tooltip} placement="top">
-              <IconButton
-                component="a"
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                size="small"
-                sx={{
-                  color: link.color,
-                  '&:hover': {
-                    backgroundColor: `${link.color}20`,
-                    transform: 'scale(1.1)',
-                  },
-                  transition: 'all 0.2s ease-in-out',
-                }}
-              >
-                {link.icon}
-              </IconButton>
-            </Tooltip>
-          ))}
-        </Stack>
-      </Box>
-    );
-  }
-
-  return (
-    <Box
-      sx={{
-        position: 'fixed',
-        top: '50%',
-        right: 0,
-        transform: 'translateY(-50%)',
-        zIndex: 1100,
-        background: 'rgba(30, 41, 59, 0.95)',
-        backdropFilter: 'blur(12px)',
-        borderRadius: '12px 0 0 12px',
-        border: '1px solid rgba(148, 163, 184, 0.1)',
-        borderRight: 'none',
-        p: 1,
-      }}
-    >
-      <Stack spacing={1}>
-        {sponsorLinks.map((link, index) => (
-          <Tooltip key={index} title={link.tooltip} placement="left">
-            <IconButton
-              component="a"
-              href={link.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{
-                color: link.color,
-                '&:hover': {
-                  backgroundColor: `${link.color}20`,
-                  transform: 'scale(1.1)',
-                },
-                transition: 'all 0.2s ease-in-out',
-              }}
-            >
-              {link.icon}
-            </IconButton>
-          </Tooltip>
-        ))}
-      </Stack>
-    </Box>
-  );
-});
 
 // Stats Card Component
 const StatsCard = memo(({ title, value, icon, color, subtitle, trend }) => {
@@ -331,7 +208,7 @@ const ActionButton = memo(({ icon, label, onClick, color = 'primary', disabled =
   </Button>
 ));
 
-const Dashboard = () => {
+const Dashboard = ({ onReconfigure }) => {
   const [config, setConfig] = useState(null);
   const [backups, setBackups] = useState([]);
   const [jobs, setJobs] = useState([]);
@@ -361,7 +238,7 @@ const Dashboard = () => {
         setConfig({
           pihole: { host: '192.168.31.230', username: 'root', port: 22 },
           backup: { destinationPath: '/app/backups', maxBackups: 10 },
-          schedule: { enabled: true, cronExpression: '0 3 * * *', timezone: 'UTC' }
+          schedule: { enabled: true, cronExpression: '0 3 * * *', timezone: 'GMT+3' }
         });
       }
 
@@ -500,11 +377,8 @@ const Dashboard = () => {
   return (
     <Box sx={{ 
       minHeight: '100vh', 
-      pb: isMobile ? 8 : 0,
       background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
     }}>
-      <SponsorshipBar />
-      
       {/* Modern App Bar */}
       <AppBar 
         position="sticky" 
@@ -516,30 +390,105 @@ const Dashboard = () => {
         }}
       >
         <Toolbar>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Avatar
-              sx={{
-                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-                width: 40,
-                height: 40,
-              }}
-            >
-              <Shield />
-            </Avatar>
-            <Typography variant="h6" fontWeight="bold" color="white">
-              HoleSafe
-            </Typography>
-          </Box>
+          <Typography variant="h6" fontWeight="bold" color="white">
+            HoleSafe
+          </Typography>
           
           <Box sx={{ flexGrow: 1 }} />
           
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <img 
+              src="/logo.png" 
+              alt="HoleSafe Logo" 
+              style={{ 
+                height: 32, 
+                width: 'auto', 
+                borderRadius: '6px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                marginRight: '8px'
+              }} 
+            />
             <ActionButton
               icon={<Refresh />}
               label="Refresh"
               onClick={() => loadDashboardData()}
               disabled={refreshing}
               variant="outlined"
+            />
+            <ActionButton
+              icon={<GitHub />}
+              label="GitHub"
+              onClick={() => window.open('https://github.com/TheInfamousToTo', '_blank')}
+              variant="outlined"
+              sx={{ 
+                color: '#6e5494', 
+                borderColor: '#6e5494',
+                '&:hover': { 
+                  borderColor: '#6e5494',
+                  backgroundColor: '#6e5494',
+                  color: 'white'
+                }
+              }}
+            />
+            <ActionButton
+              icon={<Star />}
+              label="Star"
+              onClick={() => window.open('https://github.com/TheInfamousToTo/HoleSafe', '_blank')}
+              variant="outlined"
+              sx={{ 
+                color: '#f59e0b', 
+                borderColor: '#f59e0b',
+                '&:hover': { 
+                  borderColor: '#f59e0b',
+                  backgroundColor: '#f59e0b',
+                  color: 'white'
+                }
+              }}
+            />
+            <ActionButton
+              icon={<Coffee />}
+              label="Buy Coffee"
+              onClick={() => window.open('https://buymeacoffee.com/theinfamoustoto', '_blank')}
+              variant="outlined"
+              sx={{ 
+                color: '#ff813f', 
+                borderColor: '#ff813f',
+                '&:hover': { 
+                  borderColor: '#ff813f',
+                  backgroundColor: '#ff813f',
+                  color: 'white'
+                }
+              }}
+            />
+            <ActionButton
+              icon={<Favorite />}
+              label="Ko-fi"
+              onClick={() => window.open('https://ko-fi.com/theinfamoustoto', '_blank')}
+              variant="outlined"
+              sx={{ 
+                color: '#ff5722', 
+                borderColor: '#ff5722',
+                '&:hover': { 
+                  borderColor: '#ff5722',
+                  backgroundColor: '#ff5722',
+                  color: 'white'
+                }
+              }}
+            />
+            <ActionButton
+              icon={<LaunchOutlined />}
+              label="Sponsor"
+              onClick={() => window.open('https://github.com/sponsors/TheInfamousToTo', '_blank')}
+              variant="outlined"
+              sx={{ 
+                color: '#8b5cf6', 
+                borderColor: '#8b5cf6',
+                '&:hover': { 
+                  borderColor: '#8b5cf6',
+                  backgroundColor: '#8b5cf6',
+                  color: 'white'
+                }
+              }}
             />
             <ActionButton
               icon={<PlayArrow />}
@@ -553,6 +502,23 @@ const Dashboard = () => {
               onClick={handleEditConfig}
               variant="outlined"
             />
+            {onReconfigure && (
+              <ActionButton
+                icon={<Shield />}
+                label="Reconfigure"
+                onClick={onReconfigure}
+                variant="outlined"
+                sx={{ 
+                  color: 'warning.main', 
+                  borderColor: 'warning.main',
+                  '&:hover': { 
+                    borderColor: 'warning.light',
+                    backgroundColor: 'warning.main',
+                    color: 'white'
+                  }
+                }}
+              />
+            )}
           </Stack>
         </Toolbar>
       </AppBar>
@@ -839,6 +805,43 @@ const Dashboard = () => {
               fullWidth
               helperText="Example: 0 3 * * * (daily at 3 AM)"
             />
+            <FormControl fullWidth>
+              <InputLabel>Timezone</InputLabel>
+              <Select
+                value={editConfig.schedule?.timezone || 'GMT+3'}
+                onChange={(e) => setEditConfig({
+                  ...editConfig,
+                  schedule: { ...editConfig.schedule, timezone: e.target.value }
+                })}
+                label="Timezone"
+              >
+                <MenuItem value="GMT-12">GMT-12</MenuItem>
+                <MenuItem value="GMT-11">GMT-11</MenuItem>
+                <MenuItem value="GMT-10">GMT-10</MenuItem>
+                <MenuItem value="GMT-9">GMT-9</MenuItem>
+                <MenuItem value="GMT-8">GMT-8</MenuItem>
+                <MenuItem value="GMT-7">GMT-7</MenuItem>
+                <MenuItem value="GMT-6">GMT-6</MenuItem>
+                <MenuItem value="GMT-5">GMT-5</MenuItem>
+                <MenuItem value="GMT-4">GMT-4</MenuItem>
+                <MenuItem value="GMT-3">GMT-3</MenuItem>
+                <MenuItem value="GMT-2">GMT-2</MenuItem>
+                <MenuItem value="GMT-1">GMT-1</MenuItem>
+                <MenuItem value="GMT+0">GMT+0</MenuItem>
+                <MenuItem value="GMT+1">GMT+1</MenuItem>
+                <MenuItem value="GMT+2">GMT+2</MenuItem>
+                <MenuItem value="GMT+3">GMT+3</MenuItem>
+                <MenuItem value="GMT+4">GMT+4</MenuItem>
+                <MenuItem value="GMT+5">GMT+5</MenuItem>
+                <MenuItem value="GMT+6">GMT+6</MenuItem>
+                <MenuItem value="GMT+7">GMT+7</MenuItem>
+                <MenuItem value="GMT+8">GMT+8</MenuItem>
+                <MenuItem value="GMT+9">GMT+9</MenuItem>
+                <MenuItem value="GMT+10">GMT+10</MenuItem>
+                <MenuItem value="GMT+11">GMT+11</MenuItem>
+                <MenuItem value="GMT+12">GMT+12</MenuItem>
+              </Select>
+            </FormControl>
           </Stack>
         </DialogContent>
         <DialogActions>
