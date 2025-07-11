@@ -49,13 +49,12 @@ RUN chmod 700 /root/.ssh && \
     ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N "" && \
     chmod 600 /root/.ssh/id_rsa
 
-# Copy startup script
-COPY startup.sh /usr/local/bin/startup.sh
-RUN chmod +x /usr/local/bin/startup.sh
-
-# Copy test script
-COPY nginx-test.sh /usr/local/bin/nginx-test.sh
-RUN chmod +x /usr/local/bin/nginx-test.sh
+# Create startup script inline
+RUN echo '#!/bin/sh' > /usr/local/bin/startup.sh && \
+    echo 'echo "Starting HoleSafe services..."' >> /usr/local/bin/startup.sh && \
+    echo 'nginx -t && echo "Nginx config OK"' >> /usr/local/bin/startup.sh && \
+    echo 'exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf' >> /usr/local/bin/startup.sh && \
+    chmod +x /usr/local/bin/startup.sh
 
 # Configure nginx
 # Remove default nginx configs and add our custom one to the correct location
