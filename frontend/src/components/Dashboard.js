@@ -52,6 +52,7 @@ import {
   Favorite,
   Star,
   LaunchOutlined,
+  Close,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import api from '../services/api';
@@ -106,7 +107,9 @@ const StatsCard = memo(({ title, value, icon, color, subtitle, trend }) => {
 });
 
 // Hero Section Component
-const HeroSection = memo(() => {
+const HeroSection = memo(({ onClose, show }) => {
+  if (!show) return null;
+  
   return (
     <Box
       sx={{
@@ -128,6 +131,22 @@ const HeroSection = memo(() => {
         },
       }}
     >
+      <IconButton
+        onClick={onClose}
+        sx={{
+          position: 'absolute',
+          top: 16,
+          right: 16,
+          color: 'white',
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          '&:hover': {
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+          },
+          zIndex: 2,
+        }}
+      >
+        <Close />
+      </IconButton>
       <Stack spacing={2} sx={{ position: 'relative', zIndex: 1 }}>
         <Typography
           variant="h3"
@@ -217,6 +236,7 @@ const Dashboard = ({ onReconfigure }) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editConfig, setEditConfig] = useState({});
   const [refreshing, setRefreshing] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(true);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -390,24 +410,25 @@ const Dashboard = ({ onReconfigure }) => {
         }}
       >
         <Toolbar>
-          <Typography variant="h6" fontWeight="bold" color="white">
-            HoleSafe
-          </Typography>
-          
-          <Box sx={{ flexGrow: 1 }} />
-          
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <img 
               src="/logo.png" 
               alt="HoleSafe Logo" 
               style={{ 
-                height: 32, 
+                height: 40, 
                 width: 'auto', 
-                borderRadius: '6px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                marginRight: '8px'
+                borderRadius: '8px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
               }} 
             />
+            <Typography variant="h6" fontWeight="bold" color="white">
+              HoleSafe
+            </Typography>
+          </Box>
+          
+          <Box sx={{ flexGrow: 1 }} />
+          
+          <Stack direction="row" spacing={1} alignItems="center">
             <ActionButton
               icon={<Refresh />}
               label="Refresh"
@@ -524,7 +545,7 @@ const Dashboard = ({ onReconfigure }) => {
       </AppBar>
 
       <Container maxWidth="xl" sx={{ py: 4 }}>
-        <HeroSection />
+        <HeroSection show={showWelcome} onClose={() => setShowWelcome(false)} />
 
         {/* Stats Grid */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
