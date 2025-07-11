@@ -74,5 +74,161 @@
     "message": "Backup completed successfully: pi-hole_backup_2025-07-11T03-36-17-500Z.zip",
     "filename": "pi-hole_backup_2025-07-11T03-36-17-500Z.zip",
     "size": 21213
+  },
+  {
+    "id": "backup_1752228560788",
+    "timestamp": "2025-07-11T10:09:23.954Z",
+    "status": "error",
+    "message": "Backup failed: All configured authentication methods failed"
+  },
+  {
+    "id": "backup_1752228598343",
+    "timestamp": "2025-07-11T10:09:59.108Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-09-58-662Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-09-58-662Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752228601873",
+    "timestamp": "2025-07-11T10:10:02.565Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-10-02-144Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-10-02-144Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752228605724",
+    "timestamp": "2025-07-11T10:10:06.512Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-10-06-046Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-10-06-046Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752228613353",
+    "timestamp": "2025-07-11T10:10:14.158Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-10-13-713Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-10-13-713Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752228617276",
+    "timestamp": "2025-07-11T10:10:18.050Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-10-17-593Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-10-17-593Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752228626260",
+    "timestamp": "2025-07-11T10:10:27.072Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-10-26-608Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-10-26-608Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752228630093",
+    "timestamp": "2025-07-11T10:10:30.868Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-10-30-407Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-10-30-407Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752228633745",
+    "timestamp": "2025-07-11T10:10:34.503Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-10-34-048Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-10-34-048Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752228636940",
+    "timestamp": "2025-07-11T10:10:37.690Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-10-37-266Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-10-37-266Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752228640166",
+    "timestamp": "2025-07-11T10:10:40.933Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-10-40-470Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-10-40-470Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752228647065",
+    "timestamp": "2025-07-11T10:10:47.804Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-10-47-349Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-10-47-349Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752228650260",
+    "timestamp": "2025-07-11T10:10:51.028Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-10-50-574Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-10-50-574Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752228653682",
+    "timestamp": "2025-07-11T10:10:54.397Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-10-53-996Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-10-53-996Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752228655741",
+    "timestamp": "2025-07-11T10:10:56.473Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-10-56-018Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-10-56-018Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752228657658",
+    "timestamp": "2025-07-11T10:10:58.362Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-10-57-968Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-10-57-968Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752230627055",
+    "timestamp": "2025-07-11T10:43:47.986Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-43-47-500Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-43-47-500Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752230653065",
+    "timestamp": "2025-07-11T10:44:16.165Z",
+    "status": "error",
+    "message": "Backup failed: All configured authentication methods failed"
+  },
+  {
+    "id": "backup_1752230695477",
+    "timestamp": "2025-07-11T10:44:56.213Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-44-55-767Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-44-55-767Z.zip",
+    "size": 21212
+  },
+  {
+    "id": "backup_1752231119730",
+    "timestamp": "2025-07-11T10:52:00.619Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-11T10-52-00-184Z.zip",
+    "filename": "pi-hole_backup_2025-07-11T10-52-00-184Z.zip",
+    "size": 21213
   }
 ]

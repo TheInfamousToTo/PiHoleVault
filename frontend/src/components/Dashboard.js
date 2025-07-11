@@ -30,6 +30,11 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Menu,
+  Fade,
+  Grow,
+  Slide,
+  Zoom,
 } from '@mui/material';
 import {
   PlayArrow,
@@ -53,154 +58,282 @@ import {
   Star,
   LaunchOutlined,
   Close,
+  MoreVert,
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import api from '../services/api';
 
-// Stats Card Component
-const StatsCard = memo(({ title, value, icon, color, subtitle, trend }) => {
+// Stats Card Component with Enhanced Animations
+const StatsCard = memo(({ title, value, icon, color, subtitle, trend, index = 0 }) => {
   return (
-    <Card
-      sx={{
-        height: '100%',
-        background: `linear-gradient(135deg, ${color}15 0%, ${color}05 100%)`,
-        border: `1px solid ${color}30`,
-        '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: `0 8px 25px ${color}20`,
-        },
-        transition: 'all 0.3s ease-in-out',
-      }}
+    <Grow
+      in={true}
+      style={{ transformOrigin: '0 0 0' }}
+      timeout={800 + (index * 200)}
     >
-      <CardContent sx={{ p: 3 }}>
-        <Stack direction="row" alignItems="center" spacing={2}>
-          <Box
-            sx={{
-              p: 1.5,
-              borderRadius: 2,
-              backgroundColor: `${color}20`,
-              color: color,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {icon}
-          </Box>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h4" fontWeight="bold" color="text.primary">
-              {value}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {title}
-            </Typography>
-            {subtitle && (
-              <Typography variant="caption" color={color} sx={{ mt: 0.5, display: 'block' }}>
-                {subtitle}
+      <Card
+        sx={{
+          height: '100%',
+          background: `linear-gradient(135deg, ${color}15 0%, ${color}05 100%)`,
+          border: `1px solid ${color}30`,
+          backdropFilter: 'blur(10px)',
+          position: 'relative',
+          overflow: 'hidden',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: `linear-gradient(45deg, ${color}10, transparent)`,
+            opacity: 0,
+            transition: 'opacity 0.3s ease',
+          },
+          '&:hover': {
+            transform: 'translateY(-8px) scale(1.02)',
+            boxShadow: `0 20px 40px ${color}25, 0 0 0 1px ${color}40`,
+            '&::before': {
+              opacity: 1,
+            },
+          },
+          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          cursor: 'pointer',
+        }}
+      >
+        <CardContent sx={{ p: 3, position: 'relative', zIndex: 1 }}>
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 3,
+                backgroundColor: `${color}20`,
+                color: color,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: 3,
+                  background: `linear-gradient(45deg, ${color}30, transparent)`,
+                  opacity: 0,
+                  transition: 'opacity 0.3s ease',
+                },
+                '&:hover::after': {
+                  opacity: 1,
+                },
+                transition: 'transform 0.3s ease',
+                '&:hover': {
+                  transform: 'rotate(5deg) scale(1.1)',
+                },
+              }}
+            >
+              {icon}
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography 
+                variant="h4" 
+                fontWeight="bold" 
+                color="text.primary"
+                sx={{
+                  background: `linear-gradient(45deg, ${color}, ${color}80)`,
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                }}
+              >
+                {value}
               </Typography>
-            )}
-          </Box>
-        </Stack>
-      </CardContent>
-    </Card>
+              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                {title}
+              </Typography>
+              {subtitle && (
+                <Typography 
+                  variant="caption" 
+                  color={color} 
+                  sx={{ 
+                    mt: 0.5, 
+                    display: 'block',
+                    fontWeight: 600,
+                    opacity: 0.8,
+                  }}
+                >
+                  {subtitle}
+                </Typography>
+              )}
+            </Box>
+          </Stack>
+        </CardContent>
+      </Card>
+    </Grow>
   );
 });
 
-// Hero Section Component
+// Enhanced Hero Section Component
 const HeroSection = memo(({ onClose, show }) => {
   if (!show) return null;
   
   return (
-    <Box
-      sx={{
-        background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-        borderRadius: 3,
-        p: 4,
-        mb: 4,
-        position: 'relative',
-        overflow: 'hidden',
-        '&::before': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(255, 255, 255, 0.1)',
-          borderRadius: 3,
-        },
-      }}
-    >
-      <IconButton
-        onClick={onClose}
+    <Slide direction="down" in={show} mountOnEnter unmountOnExit timeout={600}>
+      <Box
         sx={{
-          position: 'absolute',
-          top: 16,
-          right: 16,
-          color: 'white',
-          backgroundColor: 'rgba(255, 255, 255, 0.1)',
-          '&:hover': {
-            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+          background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+          borderRadius: 4,
+          p: 4,
+          mb: 4,
+          position: 'relative',
+          overflow: 'hidden',
+          boxShadow: '0 20px 40px rgba(59, 130, 246, 0.3)',
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(255, 255, 255, 0.1)',
+            borderRadius: 4,
+            backdropFilter: 'blur(10px)',
           },
-          zIndex: 2,
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            top: '-50%',
+            right: '-50%',
+            width: '200%',
+            height: '200%',
+            background: 'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%)',
+            animation: 'shimmer 3s infinite',
+            '@keyframes shimmer': {
+              '0%': { transform: 'translateX(-100%) translateY(-100%) rotate(45deg)' },
+              '100%': { transform: 'translateX(100%) translateY(100%) rotate(45deg)' },
+            },
+          },
         }}
       >
-        <Close />
-      </IconButton>
-      <Stack spacing={2} sx={{ position: 'relative', zIndex: 1 }}>
-        <Typography
-          variant="h3"
-          fontWeight="bold"
-          color="white"
+        <IconButton
+          onClick={onClose}
           sx={{
-            textShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            color: 'white',
+            backgroundColor: 'rgba(255, 255, 255, 0.15)',
+            backdropFilter: 'blur(10px)',
+            '&:hover': {
+              backgroundColor: 'rgba(255, 255, 255, 0.25)',
+              transform: 'scale(1.1) rotate(90deg)',
+            },
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            zIndex: 3,
           }}
         >
-          Welcome to HoleSafe
-        </Typography>
-        <Typography
-          variant="h6"
-          color="rgba(255, 255, 255, 0.9)"
-          sx={{ maxWidth: '600px' }}
-        >
-          Your modern Pi-hole backup solution. Automated, secure, and reliable backup management
-          for your network-wide ad blocking configuration.
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-          <Chip
-            icon={<Shield />}
-            label="Secure"
-            sx={{
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              color: 'white',
-              '& .MuiChip-icon': { color: 'white' },
-            }}
-          />
-          <Chip
-            icon={<Cloud />}
-            label="Automated"
-            sx={{
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              color: 'white',
-              '& .MuiChip-icon': { color: 'white' },
-            }}
-          />
-          <Chip
-            icon={<Speed />}
-            label="Fast"
-            sx={{
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              color: 'white',
-              '& .MuiChip-icon': { color: 'white' },
-            }}
-          />
-        </Box>
-      </Stack>
-    </Box>
+          <Close />
+        </IconButton>
+        <Stack spacing={3} sx={{ position: 'relative', zIndex: 2 }}>
+          <Zoom in={show} timeout={800}>
+            <Typography
+              variant="h3"
+              fontWeight="bold"
+              color="white"
+              sx={{
+                textShadow: '0 4px 8px rgba(0,0,0,0.3)',
+                background: 'linear-gradient(45deg, #ffffff, #e0e7ff)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              Welcome to HoleSafe
+            </Typography>
+          </Zoom>
+          <Fade in={show} timeout={1200}>
+            <Typography
+              variant="h6"
+              color="rgba(255, 255, 255, 0.95)"
+              sx={{ 
+                maxWidth: '600px',
+                textShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                fontWeight: 400,
+                lineHeight: 1.6,
+              }}
+            >
+              Your modern Pi-hole backup solution. Automated, secure, and reliable backup management
+              for your network-wide ad blocking configuration.
+            </Typography>
+          </Fade>
+          <Box sx={{ display: 'flex', gap: 2, mt: 3, flexWrap: 'wrap' }}>
+            {[
+              { icon: <Shield />, label: "Secure", delay: 1400 },
+              { icon: <Cloud />, label: "Automated", delay: 1600 },
+              { icon: <Speed />, label: "Fast", delay: 1800 }
+            ].map((chip, index) => (
+              <Zoom key={chip.label} in={show} timeout={chip.delay}>
+                <Chip
+                  icon={chip.icon}
+                  label={chip.label}
+                  sx={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                    color: 'white',
+                    fontWeight: 600,
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.3)',
+                    '& .MuiChip-icon': { color: 'white' },
+                    '&:hover': {
+                      backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                      transform: 'translateY(-2px)',
+                    },
+                    transition: 'all 0.3s ease',
+                  }}
+                />
+              </Zoom>
+            ))}
+          </Box>
+        </Stack>
+      </Box>
+    </Slide>
   );
 });
 
-// Action Button Component
+// Enhanced Icon Button Component
+const EnhancedIconButton = memo(({ children, onClick, color = '#6c757d', tooltip, disabled = false, sx = {} }) => (
+  <Tooltip title={tooltip} placement="bottom">
+    <IconButton
+      onClick={onClick}
+      disabled={disabled}
+      sx={{
+        color: disabled ? 'text.disabled' : color,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)',
+        border: `1px solid ${disabled ? 'rgba(255,255,255,0.1)' : color}40`,
+        width: 44,
+        height: 44,
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        '&:hover': {
+          backgroundColor: disabled ? 'rgba(255, 255, 255, 0.1)' : color,
+          color: disabled ? 'text.disabled' : 'white',
+          transform: disabled ? 'none' : 'translateY(-2px) scale(1.05)',
+          boxShadow: disabled ? 'none' : `0 8px 20px ${color}40`,
+          borderColor: disabled ? 'rgba(255,255,255,0.1)' : color,
+        },
+        '&:active': {
+          transform: disabled ? 'none' : 'translateY(0) scale(0.95)',
+        },
+        '&.Mui-disabled': {
+          opacity: 0.5,
+        },
+        ...sx, // Merge with custom styles
+      }}
+    >
+      {children}
+    </IconButton>
+  </Tooltip>
+));
+
+// Action Button Component (Enhanced)
 const ActionButton = memo(({ icon, label, onClick, color = 'primary', disabled = false, variant = 'contained' }) => (
   <Button
     variant={variant}
@@ -209,18 +342,36 @@ const ActionButton = memo(({ icon, label, onClick, color = 'primary', disabled =
     onClick={onClick}
     disabled={disabled}
     sx={{
-      minWidth: 120,
+      minWidth: 140,
       py: 1.5,
-      px: 3,
-      borderRadius: 2,
+      px: 4,
+      borderRadius: 3,
       fontWeight: 600,
       textTransform: 'none',
-      boxShadow: variant === 'contained' ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
-      '&:hover': {
-        transform: 'translateY(-2px)',
-        boxShadow: variant === 'contained' ? '0 6px 16px rgba(59, 130, 246, 0.4)' : 'none',
+      position: 'relative',
+      overflow: 'hidden',
+      boxShadow: variant === 'contained' ? '0 6px 20px rgba(59, 130, 246, 0.3)' : 'none',
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        top: 0,
+        left: '-100%',
+        width: '100%',
+        height: '100%',
+        background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+        transition: 'left 0.6s ease',
       },
-      transition: 'all 0.2s ease-in-out',
+      '&:hover': {
+        transform: 'translateY(-3px) scale(1.02)',
+        boxShadow: variant === 'contained' ? '0 10px 30px rgba(59, 130, 246, 0.4)' : '0 6px 20px rgba(0,0,0,0.1)',
+        '&::before': {
+          left: '100%',
+        },
+      },
+      '&:active': {
+        transform: 'translateY(-1px) scale(0.98)',
+      },
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     }}
   >
     {label}
@@ -237,9 +388,32 @@ const Dashboard = ({ onReconfigure }) => {
   const [editConfig, setEditConfig] = useState({});
   const [refreshing, setRefreshing] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
+  const [settingsAnchorEl, setSettingsAnchorEl] = useState(null);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const settingsOpen = Boolean(settingsAnchorEl);
+
+  const handleSettingsClick = (event) => {
+    setSettingsAnchorEl(event.currentTarget);
+  };
+
+  const handleSettingsClose = () => {
+    setSettingsAnchorEl(null);
+  };
+
+  const handleEditConfig = () => {
+    setEditConfig({ ...config });
+    setEditDialogOpen(true);
+    handleSettingsClose();
+  };
+
+  const handleReconfigure = () => {
+    if (onReconfigure) {
+      onReconfigure();
+      handleSettingsClose();
+    }
+  };
 
   const loadDashboardData = useCallback(async () => {
     try {
@@ -332,10 +506,7 @@ const Dashboard = ({ onReconfigure }) => {
     }
   };
 
-  const handleEditConfig = () => {
-    setEditConfig({ ...config });
-    setEditDialogOpen(true);
-  };
+
 
   const handleSaveConfig = async () => {
     try {
@@ -399,7 +570,7 @@ const Dashboard = ({ onReconfigure }) => {
       minHeight: '100vh', 
       background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
     }}>
-      {/* Modern App Bar */}
+      {/* Modern App Bar with Icon-Only Buttons */}
       <AppBar 
         position="sticky" 
         elevation={0}
@@ -407,6 +578,7 @@ const Dashboard = ({ onReconfigure }) => {
           background: 'rgba(30, 41, 59, 0.8)',
           backdropFilter: 'blur(12px)',
           borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
+          zIndex: (theme) => theme.zIndex.appBar, // Ensure proper layering
         }}
       >
         <Toolbar>
@@ -429,117 +601,148 @@ const Dashboard = ({ onReconfigure }) => {
           <Box sx={{ flexGrow: 1 }} />
           
           <Stack direction="row" spacing={1} alignItems="center">
-            <ActionButton
-              icon={<Refresh />}
-              label="Refresh"
+            {/* GitHub */}
+            <EnhancedIconButton
+              onClick={() => window.open('https://github.com/TheInfamousToTo', '_blank')}
+              tooltip="GitHub"
+              color="#6e5494"
+              sx={{ 
+                '&:hover': { 
+                  backgroundColor: 'rgba(110, 84, 148, 0.2)',
+                }
+              }}
+            >
+              <GitHub />
+            </EnhancedIconButton>
+
+            {/* Star */}
+            <EnhancedIconButton
+              onClick={() => window.open('https://github.com/TheInfamousToTo/HoleSafe', '_blank')}
+              tooltip="Star on GitHub"
+              color="#f59e0b"
+              sx={{ 
+                '&:hover': { 
+                  backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                }
+              }}
+            >
+              <Star />
+            </EnhancedIconButton>
+
+            {/* Buy Coffee */}
+            <EnhancedIconButton
+              onClick={() => window.open('https://buymeacoffee.com/theinfamoustoto', '_blank')}
+              tooltip="Buy Me a Coffee"
+              color="#ff813f"
+              sx={{ 
+                '&:hover': { 
+                  backgroundColor: 'rgba(255, 129, 63, 0.2)',
+                }
+              }}
+            >
+              <Coffee />
+            </EnhancedIconButton>
+
+            {/* Ko-fi */}
+            <EnhancedIconButton
+              onClick={() => window.open('https://ko-fi.com/theinfamoustoto', '_blank')}
+              tooltip="Support on Ko-fi"
+              color="#ff5722"
+              sx={{ 
+                '&:hover': { 
+                  backgroundColor: 'rgba(255, 87, 34, 0.2)',
+                }
+              }}
+            >
+              <Favorite />
+            </EnhancedIconButton>
+
+            {/* Sponsor with Heart icon */}
+            <EnhancedIconButton
+              onClick={() => window.open('https://github.com/sponsors/TheInfamousToTo', '_blank')}
+              tooltip="Sponsor"
+              color="#8b5cf6"
+              sx={{ 
+                '&:hover': { 
+                  backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                }
+              }}
+            >
+              <Favorite />
+            </EnhancedIconButton>
+
+            {/* Refresh */}
+            <EnhancedIconButton
               onClick={() => loadDashboardData()}
               disabled={refreshing}
-              variant="outlined"
-            />
-            <ActionButton
-              icon={<GitHub />}
-              label="GitHub"
-              onClick={() => window.open('https://github.com/TheInfamousToTo', '_blank')}
-              variant="outlined"
+              tooltip="Refresh"
+              color="rgba(255, 255, 255, 0.8)"
               sx={{ 
-                color: '#6e5494', 
-                borderColor: '#6e5494',
                 '&:hover': { 
-                  borderColor: '#6e5494',
-                  backgroundColor: '#6e5494',
-                  color: 'white'
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 }
               }}
-            />
-            <ActionButton
-              icon={<Star />}
-              label="Star"
-              onClick={() => window.open('https://github.com/TheInfamousToTo/HoleSafe', '_blank')}
-              variant="outlined"
-              sx={{ 
-                color: '#f59e0b', 
-                borderColor: '#f59e0b',
-                '&:hover': { 
-                  borderColor: '#f59e0b',
-                  backgroundColor: '#f59e0b',
-                  color: 'white'
-                }
-              }}
-            />
-            <ActionButton
-              icon={<Coffee />}
-              label="Buy Coffee"
-              onClick={() => window.open('https://buymeacoffee.com/theinfamoustoto', '_blank')}
-              variant="outlined"
-              sx={{ 
-                color: '#ff813f', 
-                borderColor: '#ff813f',
-                '&:hover': { 
-                  borderColor: '#ff813f',
-                  backgroundColor: '#ff813f',
-                  color: 'white'
-                }
-              }}
-            />
-            <ActionButton
-              icon={<Favorite />}
-              label="Ko-fi"
-              onClick={() => window.open('https://ko-fi.com/theinfamoustoto', '_blank')}
-              variant="outlined"
-              sx={{ 
-                color: '#ff5722', 
-                borderColor: '#ff5722',
-                '&:hover': { 
-                  borderColor: '#ff5722',
-                  backgroundColor: '#ff5722',
-                  color: 'white'
-                }
-              }}
-            />
-            <ActionButton
-              icon={<LaunchOutlined />}
-              label="Sponsor"
-              onClick={() => window.open('https://github.com/sponsors/TheInfamousToTo', '_blank')}
-              variant="outlined"
-              sx={{ 
-                color: '#8b5cf6', 
-                borderColor: '#8b5cf6',
-                '&:hover': { 
-                  borderColor: '#8b5cf6',
-                  backgroundColor: '#8b5cf6',
-                  color: 'white'
-                }
-              }}
-            />
+            >
+              <Refresh />
+            </EnhancedIconButton>
+
+            {/* Run Backup */}
             <ActionButton
               icon={<PlayArrow />}
               label="Run Backup"
               onClick={handleRunBackup}
               disabled={runningBackup}
             />
-            <ActionButton
-              icon={<Settings />}
-              label="Settings"
-              onClick={handleEditConfig}
-              variant="outlined"
-            />
-            {onReconfigure && (
-              <ActionButton
-                icon={<Shield />}
-                label="Reconfigure"
-                onClick={onReconfigure}
-                variant="outlined"
-                sx={{ 
-                  color: 'warning.main', 
-                  borderColor: 'warning.main',
-                  '&:hover': { 
-                    borderColor: 'warning.light',
-                    backgroundColor: 'warning.main',
-                    color: 'white'
+
+            {/* Settings Menu */}
+            <EnhancedIconButton
+              onClick={handleSettingsClick}
+              tooltip="Settings"
+              color="rgba(255, 255, 255, 0.8)"
+              sx={{ 
+                '&:hover': { 
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                }
+              }}
+            >
+              <Settings />
+            </EnhancedIconButton>
+
+            <Menu
+              anchorEl={settingsAnchorEl}
+              open={settingsOpen}
+              onClose={handleSettingsClose}
+              PaperProps={{
+                sx: {
+                  background: 'rgba(30, 41, 59, 0.95)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(148, 163, 184, 0.2)',
+                  borderRadius: 2,
+                  minWidth: 200,
+                  '& .MuiMenuItem-root': {
+                    color: 'white',
+                    '&:hover': {
+                      backgroundColor: 'rgba(148, 163, 184, 0.1)',
+                    }
                   }
-                }}
-              />
-            )}
+                }
+              }}
+            >
+              <MenuItem onClick={handleEditConfig}>
+                <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}>
+                  <Settings fontSize="small" />
+                </ListItemIcon>
+                Configure Settings
+              </MenuItem>
+              {onReconfigure && (
+                <MenuItem onClick={handleReconfigure}>
+                  <ListItemIcon sx={{ color: 'warning.main', minWidth: 36 }}>
+                    <Shield fontSize="small" />
+                  </ListItemIcon>
+                  Reconfigure System
+                </MenuItem>
+              )}
+            </Menu>
           </Stack>
         </Toolbar>
       </AppBar>
@@ -617,15 +820,26 @@ const Dashboard = ({ onReconfigure }) => {
                 ) : (
                   <List>
                     {backups.slice(0, 10).map((backup, index) => (
-                      <ListItem
+                      <Grow
                         key={backup.id || index}
-                        sx={{
-                          borderRadius: 2,
-                          mb: 1,
-                          backgroundColor: 'rgba(59, 130, 246, 0.05)',
-                          border: '1px solid rgba(59, 130, 246, 0.1)',
-                        }}
+                        in={true}
+                        timeout={300 + index * 100}
                       >
+                        <ListItem
+                          sx={{
+                            borderRadius: 2,
+                            mb: 1,
+                            backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                            border: '1px solid rgba(59, 130, 246, 0.1)',
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                              border: '1px solid rgba(59, 130, 246, 0.2)',
+                              transform: 'translateY(-2px)',
+                              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)',
+                            }
+                          }}
+                        >
                         <ListItemIcon>
                           {getStatusIcon(backup.status)}
                         </ListItemIcon>
@@ -680,6 +894,7 @@ const Dashboard = ({ onReconfigure }) => {
                           </Tooltip>
                         </Stack>
                       </ListItem>
+                      </Grow>
                     ))}
                   </List>
                 )}
@@ -738,17 +953,33 @@ const Dashboard = ({ onReconfigure }) => {
                   ) : (
                     <List dense>
                       {jobs.slice(0, 5).map((job, index) => (
-                        <ListItem key={job.id || index} sx={{ px: 0 }}>
-                          <ListItemIcon>
-                            {getStatusIcon(job.status)}
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={job.type || 'Backup Job'}
-                            secondary={formatDate(job.createdAt || job.timestamp)}
-                            primaryTypographyProps={{ fontSize: '0.875rem' }}
-                            secondaryTypographyProps={{ fontSize: '0.75rem' }}
-                          />
-                        </ListItem>
+                        <Fade
+                          key={job.id || index}
+                          in={true}
+                          timeout={400 + index * 150}
+                        >
+                          <ListItem 
+                            sx={{ 
+                              px: 0,
+                              borderRadius: 1,
+                              transition: 'all 0.2s ease',
+                              '&:hover': {
+                                backgroundColor: 'rgba(148, 163, 184, 0.05)',
+                                transform: 'translateX(4px)',
+                              }
+                            }}
+                          >
+                            <ListItemIcon>
+                              {getStatusIcon(job.status)}
+                            </ListItemIcon>
+                            <ListItemText
+                              primary={job.type || 'Backup Job'}
+                              secondary={formatDate(job.createdAt || job.timestamp)}
+                              primaryTypographyProps={{ fontSize: '0.875rem' }}
+                              secondaryTypographyProps={{ fontSize: '0.75rem' }}
+                            />
+                          </ListItem>
+                        </Fade>
                       ))}
                     </List>
                   )}

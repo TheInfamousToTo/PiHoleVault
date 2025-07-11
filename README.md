@@ -1,6 +1,6 @@
-# HoleSafe v1.1.0
+# HoleSafe v1.2.0
 
-A comprehensive web-based solution for managing Pi-hole backups with automated scheduling, SSH key management, and a modern React frontend.
+A comprehensive web-based solution for managing Pi-hole backups with automated scheduling, SSH key management, and a modern React frontend featuring advanced animations and responsive UI.
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/logo.png" alt="HoleSafe Logo" width="200"/>
@@ -12,7 +12,7 @@ A comprehensive web-based solution for managing Pi-hole backups with automated s
 
 - **GitHub Repository**: [TheInfamousToTo/HoleSafe](https://github.com/TheInfamousToTo/HoleSafe)
 - **Docker Hub**: [theinfamoustoto/holesafe](https://hub.docker.com/r/theinfamoustoto/holesafe)
-- **Latest Release**: [v1.1.0](https://github.com/TheInfamousToTo/HoleSafe/releases/tag/v1.1.0)
+- **Latest Release**: [v1.2.0](https://github.com/TheInfamousToTo/HoleSafe/releases/tag/v1.2.0)
 
 ### ❤️ Support the Project
 
@@ -20,34 +20,88 @@ If you find HoleSafe useful, consider supporting its development:
 
 - ⭐ **Star this repository** on GitHub
 - ☕ **Buy me a coffee** on [Buy Me a Coffee](https://buymeacoffee.com/theinfamoustoto)
-- � **Support on Ko-fi** at [Ko-fi](https://ko-fi.com/theinfamoustoto)
-- �🚀 **Become a sponsor** on [GitHub Sponsors](https://github.com/sponsors/TheInfamousToTo)
+- 💖 **Support on Ko-fi** at [Ko-fi](https://ko-fi.com/theinfamoustoto)
+- 🚀 **Become a sponsor** on [GitHub Sponsors](https://github.com/sponsors/TheInfamousToTo)
 
 ## 🚀 Features
 
-- **Modern Web Interface**: Clean, responsive React frontend with Material-UI components
-- **Integrated Branding**: HoleSafe logo integration throughout the interface
-- **Enhanced Navigation**: Streamlined AppBar with all essential functions and support links
-- **Setup Wizard**: Step-by-step configuration with logo display and improved UX
-- **SSH Key Management**: Automatic generation and deployment with manual deployment option
-- **Timezone Support**: GMT-based timezone selection with proper POSIX conversion
-- **Backup Scheduling**: Configurable cron-based scheduling with timezone validation
-- **Backup Management**: Download, delete, and view backup files through the web interface
-- **Job History**: Track backup job status and history with real-time updates
-- **Docker Deployment**: Single-container solution with nginx and Node.js
-- **Health Monitoring**: Built-in health checks and status monitoring
-- **Reconfigure Option**: Easy access to setup wizard for configuration changes
-- **Production Ready**: Optimized for production deployment with proper error handling
-- **Multi-Platform**: Docker images available for AMD64 and ARM64 architectures
+- **🎨 Modern Animated UI**: Advanced Material-UI animations with glassmorphism effects and smooth transitions
+- **🔄 Icon-Only AppBar**: Clean, minimalist navigation with color-coded icon buttons and tooltips
+- **🎪 Enhanced Animations**: Staggered component mounting, hover effects, and premium visual feedback
+- **📱 Responsive Design**: Fully responsive interface optimized for desktop, tablet, and mobile
+- **⚡ Performance Optimized**: Efficient rendering with React.memo and optimized component structure
+- **🎯 Improved UX**: Better notification positioning, enhanced interactions, and intuitive navigation
+- **🛠️ Local Build Support**: Complete local Docker build setup with development and production configurations
+- **🔧 Setup Wizard**: Step-by-step configuration with logo display and improved UX
+- **🔑 SSH Key Management**: Automatic generation and deployment with manual deployment option
+- **🌍 Timezone Support**: GMT-based timezone selection with proper POSIX conversion
+- **⏰ Backup Scheduling**: Configurable cron-based scheduling with timezone validation
+- **📁 Backup Management**: Download, delete, and view backup files through the web interface
+- **📊 Job History**: Track backup job status and history with real-time updates
+- **🐳 Docker Deployment**: Single-container solution with nginx and Node.js
+- **💚 Health Monitoring**: Built-in health checks and status monitoring
+- **🔄 Reconfigure Option**: Easy access to setup wizard for configuration changes
+- **🚀 Production Ready**: Optimized for production deployment with proper error handling
+- **🏗️ Multi-Platform**: Docker images available for AMD64 and ARM64 architectures
 
-## 🎯 Version 1.1.0 Release - Enhanced UI & User Experience
+## 🎯 Version 1.2.0 Release - Advanced UI/UX & Local Build Support
 
-This release focuses on major UI improvements and user experience enhancements:
+This major release introduces comprehensive UI/UX improvements and local development capabilities:
 
 ### ✨ New Features
 
-- **🎨 Logo Integration**: HoleSafe logo displayed prominently in both Dashboard and Setup Wizard
-- **🚀 Enhanced AppBar**: All support and sponsorship links moved to the main navigation bar
+- **🎨 Advanced Animation System**: 
+  - Staggered Grow animations for stats cards with custom timing
+  - Slide, Zoom, and Fade transitions for hero section elements
+  - Shimmer effects and gradient backgrounds for premium feel
+  - Enhanced hover states with transform animations
+
+- **🔄 Icon-Only AppBar Redesign**:
+  - Clean, minimalist design with color-coded icons
+  - Enhanced tooltips for better user guidance
+  - Glassmorphism effects with backdrop blur
+  - Settings dropdown menu with Reconfigure option integrated
+
+- **🛠️ Local Build Environment**:
+  - Complete Docker Compose setup for local development
+  - Helper script (`build-local.sh`) for easy project management
+  - Development and production build configurations
+  - Comprehensive documentation for local setup
+
+- **⚡ Performance Enhancements**:
+  - React.memo optimization for all major components
+  - Efficient component re-rendering strategies
+  - Optimized animation timing and easing functions
+  - Enhanced state management for better responsiveness
+
+### 🎨 UI/UX Improvements
+
+- **📱 Enhanced Responsive Design**: Better mobile experience with optimized touch targets
+- **� Premium Animations**: Glassmorphism effects, gradient backgrounds, and smooth transitions
+- **🔔 Improved Notifications**: Better positioning to avoid covering UI elements
+- **💎 Visual Polish**: Enhanced shadows, borders, and color schemes
+- **🎯 Intuitive Navigation**: Icon-only design with clear visual hierarchy
+
+### 🛠️ Development Features
+
+- **🏗️ Local Build Support**: 
+  - `docker-compose.local.yml` for production-like local builds
+  - `docker-compose.dev.yml` for development with debugging options
+  - `build-local.sh` helper script with multiple commands
+  - Complete setup documentation in `LOCAL_BUILD_GUIDE.md`
+
+- **� Enhanced Development Workflow**:
+  - Easy build, start, stop, and debug commands
+  - Container status monitoring and log viewing
+  - Clean rebuild and cleanup operations
+  - Shell access for debugging
+
+### 🔧 Technical Improvements
+
+- **🎨 Component Architecture**: Enhanced component structure with better prop handling
+- **📦 Build Optimization**: Improved Docker build process and layer caching
+- **🔄 State Management**: Better state handling for animations and UI interactions
+- **🎪 Animation Framework**: Comprehensive Material-UI animation integration
 - **⚙️ Reconfigure Access**: Easy access to setup wizard from the dashboard
 - **🌍 GMT Timezone Support**: Complete GMT-12 to GMT+12 timezone selection with proper POSIX conversion
 - **🔑 Manual SSH Deployment**: Option to manually deploy SSH keys when automatic deployment fails
@@ -185,7 +239,68 @@ docker-compose up -d
 
 3. **Access the web interface** at <http://localhost:3000>
 
-#### Build from Source (Development)
+#### Local Build (New in v1.2.0)
+
+HoleSafe now supports complete local building without pulling from Docker Hub:
+
+1. **Clone the repository**:
+
+   ```bash
+   git clone https://github.com/TheInfamousToTo/HoleSafe.git
+   cd HoleSafe
+   ```
+
+2. **Using the helper script (Recommended)**:
+
+   ```bash
+   # Make script executable
+   chmod +x build-local.sh
+   
+   # Build and start (production config)
+   ./build-local.sh up
+   
+   # Or use development config
+   ./build-local.sh dev up
+   
+   # View logs
+   ./build-local.sh logs
+   
+   # Stop services
+   ./build-local.sh down
+   ```
+
+3. **Using Docker Compose directly**:
+
+   ```bash
+   # Production build
+   docker-compose -f docker-compose.local.yml up -d --build
+   
+   # Development build
+   docker-compose -f docker-compose.dev.yml up -d --build
+   ```
+
+4. **Available helper script commands**:
+
+   ```bash
+   ./build-local.sh build          # Build image only
+   ./build-local.sh up             # Build and start services
+   ./build-local.sh down           # Stop services
+   ./build-local.sh logs           # View logs
+   ./build-local.sh rebuild        # Force rebuild and restart
+   ./build-local.sh status         # Show container status
+   ./build-local.sh shell          # Open shell in container
+   ./build-local.sh clean          # Remove all containers and images
+   
+   # Development mode (prefix with 'dev')
+   ./build-local.sh dev up         # Start with dev config
+   ./build-local.sh dev logs       # View dev logs
+   ```
+
+5. **Access the web interface** at <http://localhost:3000>
+
+For detailed local build documentation, see [`LOCAL_BUILD_GUIDE.md`](LOCAL_BUILD_GUIDE.md).
+
+#### Build from Source (Manual Development)
 
 1. **Clone the repository**:
 
