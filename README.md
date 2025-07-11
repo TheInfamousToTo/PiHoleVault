@@ -50,7 +50,7 @@ This major release introduces comprehensive UI/UX improvements and local develop
 
 ### ✨ New Features
 
-- **🎨 Advanced Animation System**: 
+- **🎨 Advanced Animation System**:
   - Staggered Grow animations for stats cards with custom timing
   - Slide, Zoom, and Fade transitions for hero section elements
   - Shimmer effects and gradient backgrounds for premium feel
@@ -84,7 +84,7 @@ This major release introduces comprehensive UI/UX improvements and local develop
 
 ### 🛠️ Development Features
 
-- **🏗️ Local Build Support**: 
+- **🏗️ Local Build Support**:
   - `docker-compose.local.yml` for production-like local builds
   - `docker-compose.dev.yml` for development with debugging options
   - `build-local.sh` helper script with multiple commands

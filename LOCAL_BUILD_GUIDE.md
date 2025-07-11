@@ -74,11 +74,13 @@ docker-compose -f docker-compose.dev.yml logs -f
 ## Configuration Differences
 
 ### docker-compose.local.yml
+
 - Builds image from local Dockerfile
 - Production-optimized
 - Container name: `holesafe-local`
 
 ### docker-compose.dev.yml
+
 - Same as local but with development options
 - Commented sections for source code mounting
 - Debugging options available
@@ -89,7 +91,7 @@ docker-compose -f docker-compose.dev.yml logs -f
 The local build process:
 
 1. **Frontend Build Stage**: Builds React frontend using Node.js 18 Alpine
-2. **Main Stage**: 
+2. **Main Stage**:
    - Installs system dependencies (openssh, nginx, supervisor)
    - Copies backend code and installs dependencies
    - Copies built frontend to nginx directory
@@ -105,7 +107,7 @@ The local build process:
 ## Ports
 
 - Host port `3000` → Container port `80`
-- Access via: http://localhost:3000
+- Access via: <http://localhost:3000>
 
 ## Troubleshooting
 
