@@ -44,8 +44,27 @@ RUN chmod 700 /root/.ssh && \
     ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N "" && \
     chmod 600 /root/.ssh/id_rsa
 
+# Copy startup script
+COPY startup.sh /usr/local/bin/startup.sh
+RUN chmod +x /usr/local/bin/startup.sh
+
+# Copy test script
+COPY nginx-test.sh /usr/local/bin/nginx-test.sh
+RUN chmod +x /usr/local/bin/nginx-test.sh
+
 # Configure nginx
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Remove default nginx configs and add our custom one to the correct location
+RUN rm -f /etc/nginx/conf.d/default.conf /etc/nginx/http.d/default.conf
+COPY nginx.conf /etc/nginx/http.d/default.conf
+
+# Debug nginx configuration
+RUN echo "=== Nginx main config ===" && cat /etc/nginx/nginx.conf
+RUN echo "=== Our site config ===" && cat /etc/nginx/http.d/default.conf
+RUN echo "=== Testing nginx config ===" && nginx -t
+
+# Enable gzip compression in nginx
+RUN sed -i 's/#gzip on;/gzip on;/' /etc/nginx/nginx.conf && \
+    sed -i '/gzip on;/a gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;' /etc/nginx/nginx.conf
 
 # Configure supervisor to manage both nginx and node
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
@@ -54,4 +73,5 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 EXPOSE 80
 
 # Start supervisor to manage both services
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+ENTRYPOINT []
+CMD ["/usr/local/bin/startup.sh"]

@@ -2,14 +2,16 @@ version: '3.8'
 
 services:
   holesafe:
-    build: .
+    image: theinfamoustoto/holesafe:latest
     container_name: holesafe
     ports:
       - "3000:80"  # Single port for both frontend and backend
     volumes:
-      - ./data:/app/data
-      - ./backups:/app/backups
+      - /mnt/nfs/DOCKER/config/holesafe/data:/app/data
+      - /mnt/nfs/BACKUP/Pihole/holesafe/backups:/app/backups
       - ssh_keys:/root/.ssh
+      # Mount logs for debugging (optional - uncomment if needed)
+      # - ./logs:/var/log/supervisor
     environment:
       - NODE_ENV=production
       - DATA_DIR=/app/data
@@ -22,11 +24,17 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - holesafe-network
+      - Network1
+    # Add logging driver for better debugging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
-  holesafe-network:
-    driver: bridge
+  Network1:
+    external: true
 
 volumes:
   ssh_keys:
