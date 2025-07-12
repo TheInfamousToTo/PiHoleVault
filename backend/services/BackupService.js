@@ -2,6 +2,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const { NodeSSH } = require('node-ssh');
 const DiscordService = require('./DiscordService');
+const AnalyticsService = require('./AnalyticsService');
 
 class BackupService {
   constructor(dataDir, backupDir, logger) {
@@ -9,10 +10,12 @@ class BackupService {
     this.backupDir = backupDir;
     this.logger = logger;
     this.discordService = new DiscordService(logger);
+    this.analyticsService = new AnalyticsService(logger);
   }
 
   async runBackup() {
     const jobId = `backup_${Date.now()}`;
+    const startTime = Date.now();
     
     try {
       this.logger.info('Starting backup process', { jobId });
@@ -26,6 +29,9 @@ class BackupService {
       if (!config.pihole) {
         throw new Error('Pi-hole configuration not found');
       }
+
+      // Record backup start for analytics
+      await this.analyticsService.recordBackupStart(config.pihole.host);
       
       // Connect to Pi-hole server
       const ssh = new NodeSSH();
@@ -132,6 +138,15 @@ class BackupService {
           jobId 
         });
 
+        // Record backup success for analytics
+        const duration = (Date.now() - startTime) / 1000; // seconds
+        await this.analyticsService.recordBackupSuccess({
+          filename: localFilename,
+          size: stats.size,
+          piholeServer: config.pihole.host,
+          duration: duration
+        });
+
         // Send Discord notification for successful backup
         const discordConfig = this.getDiscordConfig(config);
         if (discordConfig && discordConfig.enabled && discordConfig.notifyOnSuccess) {
@@ -177,6 +192,21 @@ class BackupService {
       
       // Log failed job
       await this.logJob(jobId, 'error', `Backup failed: ${error.message}`);
+
+      // Record backup failure for analytics
+      try {
+        const config = await this.loadConfig();
+        const duration = (Date.now() - startTime) / 1000; // seconds
+        await this.analyticsService.recordBackupFailure({
+          message: error.message,
+          piholeServer: config?.pihole?.host || 'unknown',
+          duration: duration
+        });
+      } catch (analyticsError) {
+        this.logger.debug('Failed to record backup failure for analytics', { 
+          error: analyticsError.message 
+        });
+      }
 
       // Send Discord notification for backup failure
       try {

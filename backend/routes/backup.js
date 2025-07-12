@@ -12,7 +12,9 @@ router.post('/run', async (req, res) => {
       res.json({ 
         success: true, 
         message: 'Backup completed successfully',
-        filename: result.filename 
+        filename: result.filename,
+        size: result.size || 0,
+        jobId: result.jobId
       });
     } else {
       res.status(500).json({ 

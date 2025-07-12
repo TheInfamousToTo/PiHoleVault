@@ -65,6 +65,8 @@ import {
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import api from '../services/api';
+import GlobalAnalytics from './GlobalAnalytics';
+import { recordBackupStart, recordBackupSuccess, recordBackupFailure } from '../services/analytics';
 
 // Stats Card Component with Enhanced Animations
 const StatsCard = memo(({ title, value, icon, color, subtitle, trend, index = 0 }) => {
@@ -477,13 +479,39 @@ const Dashboard = ({ onReconfigure }) => {
     if (runningBackup) return;
     
     setRunningBackup(true);
+    const startTime = Date.now();
+    
     try {
-      await api.post('/backup/run');
+      // Record backup start for analytics
+      await recordBackupStart(config?.pihole?.host || 'unknown');
+      
+      const response = await api.post('/backup/run');
+      const duration = (Date.now() - startTime) / 1000; // seconds
+      
+      // Record backup success for analytics
+      if (response.data?.success && response.data?.filename) {
+        await recordBackupSuccess({
+          filename: response.data.filename,
+          size: response.data.size || 0,
+          piholeServer: config?.pihole?.host || 'unknown',
+          duration: duration
+        });
+      }
+      
       toast.success('Backup started successfully!');
       setTimeout(() => {
         loadDashboardData();
       }, 2000);
     } catch (error) {
+      const duration = (Date.now() - startTime) / 1000;
+      
+      // Record backup failure for analytics
+      await recordBackupFailure({
+        message: error.response?.data?.message || error.message,
+        piholeServer: config?.pihole?.host || 'unknown',
+        duration: duration
+      });
+      
       toast.error('Failed to start backup: ' + (error.response?.data?.message || error.message));
     } finally {
       setRunningBackup(false);
@@ -874,7 +902,7 @@ const Dashboard = ({ onReconfigure }) => {
         </Grid>
 
         {/* Main Content Grid */}
-        <Grid container spacing={4}>
+        <Grid container spacing={4} sx={{ mb: 4 }}>
           {/* Recent Backups */}
           <Grid item xs={12} lg={8}>
             <Card sx={{ height: '100%' }}>
@@ -1071,6 +1099,11 @@ const Dashboard = ({ onReconfigure }) => {
             </Stack>
           </Grid>
         </Grid>
+
+        {/* Global Analytics */}
+        <Box>
+          <GlobalAnalytics />
+        </Box>
       </Container>
 
       {/* Configuration Edit Dialog */}

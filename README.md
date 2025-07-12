@@ -1,6 +1,6 @@
-# HoleSafe v1.3.0
+# HoleSafe v1.4.0
 
-A comprehensive web-based solution for managing Pi-hole backups with automated scheduling, SSH key management, Discord notifications, and a modern React frontend featuring advanced animations and responsive UI.
+A comprehensive web-based solution for managing Pi-hole backups with automated scheduling, SSH key management, Discord notifications, global analytics, and a modern React frontend featuring advanced animations and responsive UI.
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/logo.png" alt="HoleSafe Logo" width="200"/>
@@ -12,7 +12,7 @@ A comprehensive web-based solution for managing Pi-hole backups with automated s
 
 - **GitHub Repository**: [TheInfamousToTo/HoleSafe](https://github.com/TheInfamousToTo/HoleSafe)
 - **Docker Hub**: [theinfamoustoto/holesafe](https://hub.docker.com/r/theinfamoustoto/holesafe)
-- **Latest Release**: [v1.3.0](https://github.com/TheInfamousToTo/HoleSafe/releases/tag/v1.3.0)
+- **Latest Release**: [v1.4.0](https://github.com/TheInfamousToTo/HoleSafe/releases/tag/v1.4.0)
 
 ### ❤️ Support the Project
 
@@ -26,6 +26,8 @@ If you find HoleSafe useful, consider supporting its development:
 ## 🚀 Features
 
 - **🎨 Modern Animated UI**: Advanced Material-UI animations with glassmorphism effects and smooth transitions
+- **🌍 Global Analytics**: View worldwide HoleSafe community statistics and track global backup trends
+- **📊 Community Insights**: See real-time statistics from all HoleSafe instances worldwide
 - **🔄 Icon-Only AppBar**: Clean, minimalist navigation with color-coded icon buttons and tooltips
 - **🎪 Enhanced Animations**: Staggered component mounting, hover effects, and premium visual feedback
 - **📱 Responsive Design**: Fully responsive interface optimized for desktop, tablet, and mobile
@@ -44,6 +46,36 @@ If you find HoleSafe useful, consider supporting its development:
 - **🔄 Reconfigure Option**: Easy access to setup wizard for configuration changes
 - **🚀 Production Ready**: Optimized for production deployment with proper error handling
 - **🏗️ Multi-Platform**: Docker images available for AMD64 and ARM64 architectures
+
+## 🎯 Version 1.4.0 Release - Global Analytics & Community Insights
+
+This release introduces groundbreaking global analytics features that connect all HoleSafe instances worldwide:
+
+### ✨ New Features
+
+- **🌍 Global Analytics Dashboard**: View real-time statistics from the worldwide HoleSafe community
+- **📊 Community Insights**: Track global backup success rates, instance counts, and usage patterns
+- **🔗 Anonymous Analytics**: Privacy-focused analytics tracking without exposing sensitive data
+- **📈 Real-time Statistics**: Live updates every 5 minutes from the global analytics service
+- **🎨 Beautiful Analytics UI**: Gradient design with hover effects and animated counters
+- **📍 Instance Tracking**: Each installation gets a unique anonymous identifier
+- **🌐 Community Engagement**: Feel connected to a global network of Pi-hole administrators
+
+### 🔧 Technical Improvements
+
+- **Server-side Analytics**: Backend integration with global analytics API
+- **Client-side Tracking**: Frontend service for seamless data collection
+- **Error Resilience**: Analytics failures never affect backup functionality
+- **Performance Optimized**: Non-blocking API calls with proper timeouts
+- **Privacy-First**: Only anonymous metrics are collected (no IPs, no personal data)
+
+### 📊 Analytics Features
+
+- **Total Backup Jobs**: See worldwide backup job counts
+- **Active Instances**: Track global HoleSafe installations
+- **Success Rates**: Compare your success rate with global averages
+- **Average Duration**: Benchmark your backup performance
+- **Community Size**: View the growing HoleSafe user base
 
 ## 🎯 Version 1.3.0 Release - Discord Notifications & Enhanced Communication
 
@@ -286,12 +318,14 @@ docker-compose up -d
 HoleSafe supports configuration through environment variables for production deployments:
 
 **Discord Notifications**:
+
 ```bash
 # Optional: Set Discord webhook URL for notifications
 export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
 ```
 
 **Using with Docker Compose**:
+
 ```bash
 # Create a .env file in the same directory as docker-compose.yml
 echo "DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN" > .env
@@ -482,12 +516,14 @@ HoleSafe supports rich Discord notifications with detailed embeds for backup ope
 #### Example Notification Content
 
 **Successful Backup:**
+
 - Green embed with success icon
 - Backup filename and file size
 - Pi-hole server information
 - Job ID and timestamp
 
 **Failed Backup:**
+
 - Red embed with error icon
 - Error details and troubleshooting information
 - Server connection details
