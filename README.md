@@ -1,22 +1,22 @@
-# HoleSafe v1.4.0
+# PiHoleVault v1.4.0
 
 A comprehensive web-based solution for managing Pi-hole backups with automated scheduling, SSH key management, Discord notifications, global analytics, and a modern React frontend featuring advanced animations and responsive UI.
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/logo.png" alt="HoleSafe Logo" width="200"/>
+  <img src="https://raw.githubusercontent.com/TheInfamousToTo/PiHoleVault/main/frontend/public/logo.png" alt="PiHoleVault Logo" width="200"/>
 </div>
 
-![HoleSafe Dashboard](https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/dashboard-preview.png)
+![PiHoleVault Dashboard](https://raw.githubusercontent.com/TheInfamousToTo/PiHoleVault/main/frontend/public/dashboard-preview.png)
 
 ## 📦 Quick Links & Support
 
-- **GitHub Repository**: [TheInfamousToTo/HoleSafe](https://github.com/TheInfamousToTo/HoleSafe)
-- **Docker Hub**: [theinfamoustoto/holesafe](https://hub.docker.com/r/theinfamoustoto/holesafe)
-- **Latest Release**: [v1.4.0](https://github.com/TheInfamousToTo/HoleSafe/releases/tag/v1.4.0)
+- **GitHub Repository**: [TheInfamousToTo/PiHoleVault](https://github.com/TheInfamousToTo/PiHoleVault)
+- **Docker Hub**: [theinfamoustoto/piholevault](https://hub.docker.com/r/theinfamoustoto/piholevault)
+- **Latest Release**: [v1.4.0](https://github.com/TheInfamousToTo/PiHoleVault/releases/tag/v1.4.0)
 
 ### ❤️ Support the Project
 
-If you find HoleSafe useful, consider supporting its development:
+If you find PiHoleVault useful, consider supporting its development:
 
 - ⭐ **Star this repository** on GitHub
 - ☕ **Buy me a coffee** on [Buy Me a Coffee](https://buymeacoffee.com/theinfamoustoto)
@@ -26,8 +26,8 @@ If you find HoleSafe useful, consider supporting its development:
 ## 🚀 Features
 
 - **🎨 Modern Animated UI**: Advanced Material-UI animations with glassmorphism effects and smooth transitions
-- **🌍 Global Analytics**: View worldwide HoleSafe community statistics and track global backup trends
-- **📊 Community Insights**: See real-time statistics from all HoleSafe instances worldwide
+- **🌍 Global Analytics**: View worldwide PiHoleVault community statistics and track global backup trends
+- **📊 Community Insights**: See real-time statistics from all PiHoleVault instances worldwide
 - **🔄 Icon-Only AppBar**: Clean, minimalist navigation with color-coded icon buttons and tooltips
 - **🎪 Enhanced Animations**: Staggered component mounting, hover effects, and premium visual feedback
 - **📱 Responsive Design**: Fully responsive interface optimized for desktop, tablet, and mobile

@@ -1,16 +1,16 @@
-// Global Analytics Service for HoleSafe
+// Global Analytics Service for PiHoleVault
 // Handles tracking backup jobs and fetching global statistics
 
-const ANALYTICS_API_BASE = 'https://holesafe.satrawi.cc';
+const ANALYTICS_API_BASE = 'https://PiHoleVault.satrawi.cc';
 
 // Generate or retrieve unique instance ID
 export const getInstanceId = () => {
-  let instanceId = localStorage.getItem('holesafe_instance_id');
+  let instanceId = localStorage.getItem('piholevault_instance_id');
   
   if (!instanceId) {
-    // Generate unique ID: holesafe-{random-string}
-    instanceId = 'holesafe-' + Math.random().toString(36).substring(2, 15);
-    localStorage.setItem('holesafe_instance_id', instanceId);
+    // Generate unique ID: piholevault-{random-string}
+    instanceId = 'piholevault-' + Math.random().toString(36).substring(2, 15);
+    localStorage.setItem('piholevault_instance_id', instanceId);
   }
   
   return instanceId;

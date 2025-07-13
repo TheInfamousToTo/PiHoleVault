@@ -1,4 +1,4 @@
-# Combined HoleSafe Dockerfile - Frontend + Backend in single container
+# Combined PiHoleVault Dockerfile - Frontend + Backend in single container
 FROM node:18-alpine as frontend-build
 
 # Build the React frontend

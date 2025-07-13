@@ -1,14 +1,14 @@
 version: '3.8'
 
 services:
-  holesafe:
+  piholevault:
     build:
       context: .
       dockerfile: Dockerfile
       # Optional: Add build arguments if needed
       # args:
       #   - NODE_ENV=development
-    container_name: holesafe-dev
+    container_name: piholevault-dev
     ports:
       - "3000:80"  # Single port for both frontend and backend
     volumes:
@@ -30,13 +30,13 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - holesafe-network
+      - piholevault-network
     # Enable for debugging
     # stdin_open: true
     # tty: true
 
 networks:
-  holesafe-network:
+  piholevault-network:
     driver: bridge
 
 volumes:

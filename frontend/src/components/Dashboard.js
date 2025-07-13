@@ -252,7 +252,7 @@ const HeroSection = memo(({ onClose, show }) => {
                 backgroundClip: 'text',
               }}
             >
-              Welcome to HoleSafe
+              Welcome to PiHoleVault
             </Typography>
           </Zoom>
           <Fade in={show} timeout={1200}>
@@ -690,7 +690,7 @@ const Dashboard = ({ onReconfigure }) => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             <img 
               src="/logo.png" 
-              alt="HoleSafe Logo" 
+              alt="PiHoleVault Logo" 
               style={{ 
                 height: 40, 
                 width: 'auto', 
@@ -699,7 +699,7 @@ const Dashboard = ({ onReconfigure }) => {
               }} 
             />
             <Typography variant="h6" fontWeight="bold" color="white">
-              HoleSafe
+              PiHoleVault
             </Typography>
           </Box>
           
@@ -722,7 +722,7 @@ const Dashboard = ({ onReconfigure }) => {
 
             {/* Star */}
             <EnhancedIconButton
-              onClick={() => window.open('https://github.com/TheInfamousToTo/HoleSafe', '_blank')}
+              onClick={() => window.open('https://github.com/TheInfamousToTo/PiHoleVault', '_blank')}
               tooltip="Star on GitHub"
               color="#f59e0b"
               sx={{ 

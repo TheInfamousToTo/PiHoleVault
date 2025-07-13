@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  holesafe:
-    image: theinfamoustoto/holesafe:latest
-    container_name: holesafe
+  piholevault:
+    image: theinfamoustoto/piholevault:latest
+    container_name: piholevault
     ports:
       - "3000:80"  # Single port for both frontend and backend
     volumes:
@@ -25,10 +25,10 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - holesafe-network
+      - piholevault-network
 
 networks:
-  holesafe-network:
+  piholevault-network:
     driver: bridge
 
 volumes:

@@ -672,7 +672,7 @@ const SetupWizard = ({ onComplete }) => {
           <Box sx={{ mb: 2 }}>
             <img 
               src="/logo.png" 
-              alt="HoleSafe Logo" 
+              alt="PiHoleVault Logo" 
               style={{ 
                 height: 80, 
                 width: 'auto', 
@@ -682,7 +682,7 @@ const SetupWizard = ({ onComplete }) => {
             />
           </Box>
           <Typography variant="h3" fontWeight="bold" color="white" gutterBottom>
-            Welcome to HoleSafe
+            Welcome to PiHoleVault
           </Typography>
           <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 600, mx: 'auto' }}>
             Let's set up your Pi-hole backup solution in just a few steps

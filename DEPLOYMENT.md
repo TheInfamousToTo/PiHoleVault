@@ -1,10 +1,12 @@
-# HoleSafe Combined Container Deployment Guide
+# PiHoleVault Combined Container Deployment Guide
 
-This guide explains how to deploy HoleSafe using the new combined container approach.
+This guide explains how to deploy PiHoleVa```bash
+docker-compose logs piholevault
+``` using the new combined container approach.
 
 ## What Changed
 
-HoleSafe now uses a **single Docker container** instead of separate frontend and backend containers:
+PiHoleVault now uses a **single Docker container** instead of separate frontend and backend containers:
 
 - **Before**: 2 containers (frontend + backend)
 - **After**: 1 container (combined with nginx reverse proxy)
@@ -22,7 +24,7 @@ HoleSafe now uses a **single Docker container** instead of separate frontend and
 ### Step 1: Get the latest docker-compose.yml
 
 ```bash
-curl -o docker-compose.yml https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/docker-compose.yml
+curl -o docker-compose.yml https://raw.githubusercontent.com/TheInfamousToTo/PiHoleVault/main/docker-compose.yml
 ```
 
 ### Step 2: Create directories
@@ -31,7 +33,7 @@ curl -o docker-compose.yml https://raw.githubusercontent.com/TheInfamousToTo/Hol
 mkdir -p data backups
 ```
 
-### Step 3: Start HoleSafe
+### Step 3: Start PiHoleVault
 
 ```bash
 docker-compose up -d
@@ -92,22 +94,22 @@ docker-compose logs holesafe
 
 ### View logs
 ```bash
-docker-compose logs -f holesafe
+docker-compose logs -f piholevault
 ```
 
 ### Access container shell
 ```bash
-docker-compose exec holesafe sh
+docker-compose exec piholevault sh
 ```
 
 ### Check running processes
 ```bash
-docker-compose exec holesafe supervisorctl status
+docker-compose exec piholevault supervisorctl status
 ```
 
 ### Manual restart
 ```bash
-docker-compose restart holesafe
+docker-compose restart piholevault
 ```
 
 ## Environment Variables
@@ -120,7 +122,7 @@ The combined container supports the same environment variables as before:
 
 ## Docker Hub
 
-The combined image is available at: **theinfamoustoto/holesafe-combined:latest**
+The combined image is available at: **theinfamoustoto/piholevault:latest**
 
 It's automatically built for multiple architectures:
 - linux/amd64 (x86_64)
@@ -131,6 +133,6 @@ It's automatically built for multiple architectures:
 If you encounter any issues with the combined container setup, please create an issue on the GitHub repository with:
 
 1. Your docker-compose.yml file
-2. Container logs (`docker-compose logs holesafe`)
+2. Container logs (`docker-compose logs piholevault`)
 3. System information (OS, Docker version)
 4. Steps to reproduce the issue

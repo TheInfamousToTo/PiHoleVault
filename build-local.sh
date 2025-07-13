@@ -1,14 +1,14 @@
 #!/bin/bash
 
-# HoleSafe Local Build Script
-# This script helps you build and run HoleSafe locally
+# PiHoleVault Local Build Script
+# This script helps you build and run PiHoleVault locally
 
 set -e
 
 # Discord webhook URL for notifications
 export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1393231200889344183/sUv1wnBjDk4pkmytuqJeEFfuylBgcv6cIc2c79m8afLOCEZEXRkPYkpPyqmEHUbLPQd3"
 
-echo "🚀 HoleSafe Local Build & Deploy Script"
+echo "🚀 PiHoleVault Local Build & Deploy Script"
 echo "======================================="
 echo "🔔 Discord notifications enabled"
 
@@ -50,13 +50,13 @@ fi
 # Main command handling
 case "${1:-help}" in
     "build")
-        echo "🔨 Building HoleSafe image locally..."
+        echo "🔨 Building PiHoleVault image locally..."
         docker-compose -f $COMPOSE_FILE build --no-cache
         echo "✅ Build completed!"
         ;;
     
     "up")
-        echo "🚀 Starting HoleSafe services..."
+        echo "🚀 Starting PiHoleVault services..."
         docker-compose -f $COMPOSE_FILE up -d --build
         echo "✅ Services started!"
         echo "🌐 Access HoleSafe at: http://localhost:3000"

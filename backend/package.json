@@ -1,7 +1,7 @@
 {
-  "name": "holesafe-backend",
+  "name": "piholevault-backend",
   "version": "1.4.0",
-  "description": "Backend API for HoleSafe - Pi-hole Backup Manager",
+  "description": "Backend API for PiHoleVault - Pi-hole Backup Manager",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

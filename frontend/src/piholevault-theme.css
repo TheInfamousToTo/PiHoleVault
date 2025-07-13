@@ -1,4 +1,4 @@
-/* HoleSafe - Pi-hole themed custom styles */
+/* PiHoleVault - Pi-hole themed custom styles */
 
 /* Global background */
 body {
@@ -25,11 +25,11 @@ body {
 }
 
 /* Pi-hole inspired gradient backgrounds */
-.holesafe-gradient-primary {
+.piholevault-gradient-primary {
   background: linear-gradient(135deg, #96060c 0%, #7a0509 100%);
 }
 
-.holesafe-gradient-secondary {
+.piholevault-gradient-secondary {
   background: linear-gradient(135deg, #007cba 0%, #0056b3 100%);
 }
 

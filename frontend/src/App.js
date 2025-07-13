@@ -279,7 +279,7 @@ function App() {
                 letterSpacing: '-0.025em',
               }}
             >
-              HoleSafe
+              PiHoleVault
             </Box>
             <Box
               sx={{

@@ -1,11 +1,11 @@
 version: '3.8'
 
 services:
-  holesafe:
+  piholevault:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: holesafe-local
+    container_name: piholevault-local
     ports:
       - "3000:80"  # Single port for both frontend and backend
     volumes:
@@ -27,10 +27,10 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - holesafe-network
+      - piholevault-network
 
 networks:
-  holesafe-network:
+  piholevault-network:
     driver: bridge
 
 volumes:

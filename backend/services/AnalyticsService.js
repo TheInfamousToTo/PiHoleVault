@@ -5,7 +5,7 @@ const { URL } = require('url');
 class AnalyticsService {
   constructor(logger) {
     this.logger = logger;
-    this.analyticsBaseUrl = 'https://holesafe.satrawi.cc';
+    this.analyticsBaseUrl = 'https://PiHoleVault.satrawi.cc';
     this.instanceId = this.generateInstanceId();
   }
 

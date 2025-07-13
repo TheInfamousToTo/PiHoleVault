@@ -163,7 +163,7 @@ const GlobalAnalytics = memo(() => {
               </Box>
               <Box>
                 <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-                  🌍 HoleSafe Global Community
+                  🌍 PiHoleVault Global Community
                 </Typography>
                 <Typography variant="body2" sx={{ opacity: 0.9 }}>
                   Worldwide Pi-hole backup statistics
@@ -326,7 +326,7 @@ const GlobalAnalytics = memo(() => {
 
           {/* Instance ID Info */}
           <Box sx={{ mt: 2, textAlign: 'center' }}>
-            <Tooltip title="Your unique HoleSafe instance identifier">
+            <Tooltip title="Your unique PiHoleVault instance identifier">
               <Chip
                 size="small"
                 icon={<Info sx={{ fontSize: '14px !important' }} />}
