@@ -51,7 +51,7 @@ RUN chmod 700 /root/.ssh && \
 
 # Create startup script inline
 RUN echo '#!/bin/sh' > /usr/local/bin/startup.sh && \
-    echo 'echo "Starting HoleSafe services..."' >> /usr/local/bin/startup.sh && \
+    echo 'echo "Starting PiHoleVault services..."' >> /usr/local/bin/startup.sh && \
     echo 'nginx -t && echo "Nginx config OK"' >> /usr/local/bin/startup.sh && \
     echo 'exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf' >> /usr/local/bin/startup.sh && \
     chmod +x /usr/local/bin/startup.sh

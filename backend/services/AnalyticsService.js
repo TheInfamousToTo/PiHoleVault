@@ -12,7 +12,7 @@ class AnalyticsService {
   generateInstanceId() {
     // Generate a server-side instance ID that persists
     // This could be enhanced to store in a file for persistence
-    return 'holesafe-server-' + Math.random().toString(36).substring(2, 15);
+    return 'piholevault-server-' + Math.random().toString(36).substring(2, 15);
   }
 
   async recordBackupJob(jobData) {

@@ -59,33 +59,33 @@ case "${1:-help}" in
         echo "🚀 Starting PiHoleVault services..."
         docker-compose -f $COMPOSE_FILE up -d --build
         echo "✅ Services started!"
-        echo "🌐 Access HoleSafe at: http://localhost:3000"
+        echo "🌐 Access PiHoleVault at: http://localhost:3000"
         echo "📋 To view logs: $0 logs"
         ;;
     
     "down")
-        echo "🛑 Stopping HoleSafe services..."
+        echo "🛑 Stopping PiHoleVault services..."
         docker-compose -f $COMPOSE_FILE down
         echo "✅ Services stopped!"
         ;;
     
     "logs")
-        echo "📋 Showing HoleSafe logs (Ctrl+C to exit)..."
+        echo "📋 Showing PiHoleVault logs (Ctrl+C to exit)..."
         docker-compose -f $COMPOSE_FILE logs -f
         ;;
     
     "rebuild")
-        echo "🔄 Rebuilding and restarting HoleSafe..."
+        echo "🔄 Rebuilding and restarting PiHoleVault..."
         docker-compose -f $COMPOSE_FILE down
         docker-compose -f $COMPOSE_FILE build --no-cache
         docker-compose -f $COMPOSE_FILE up -d
         echo "✅ Rebuild completed!"
-        echo "🌐 Access HoleSafe at: http://localhost:3000"
+        echo "🌐 Access PiHoleVault at: http://localhost:3000"
         ;;
     
     "clean")
-        echo "🧹 Cleaning up all HoleSafe containers, images, and volumes..."
-        read -p "⚠️  This will remove ALL HoleSafe data. Continue? (y/N): " -n 1 -r
+        echo "🧹 Cleaning up all PiHoleVault containers, images, and volumes..."
+        read -p "⚠️  This will remove ALL PiHoleVault data. Continue? (y/N): " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             docker-compose -f $COMPOSE_FILE down -v --rmi all
@@ -97,13 +97,13 @@ case "${1:-help}" in
         ;;
     
     "status")
-        echo "📊 HoleSafe container status:"
+        echo "📊 PiHoleVault container status:"
         docker-compose -f $COMPOSE_FILE ps
         ;;
     
     "shell")
-        echo "🐚 Opening shell in HoleSafe container..."
-        docker-compose -f $COMPOSE_FILE exec holesafe sh
+        echo "🐚 Opening shell in PiHoleVault container..."
+        docker-compose -f $COMPOSE_FILE exec piholevault sh
         ;;
     
     "discord")
@@ -116,12 +116,12 @@ case "${1:-help}" in
             curl -X POST "$DISCORD_WEBHOOK_URL" \
                 -H "Content-Type: application/json" \
                 -d '{
-                    "username": "HoleSafe Test",
+                    "username": "PiHoleVault Test",
                     "embeds": [{
                         "title": "🧪 Test Notification",
                         "description": "Discord webhook is working correctly!",
                         "color": 65280,
-                        "footer": {"text": "HoleSafe Local Build"}
+                        "footer": {"text": "PiHoleVault Local Build"}
                     }]
                 }' && echo "✅ Test notification sent!" || echo "❌ Test failed"
         else

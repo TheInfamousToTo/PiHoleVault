@@ -49,11 +49,11 @@ If you find PiHoleVault useful, consider supporting its development:
 
 ## 🎯 Version 1.4.0 Release - Global Analytics & Community Insights
 
-This release introduces groundbreaking global analytics features that connect all HoleSafe instances worldwide:
+This release introduces groundbreaking global analytics features that connect all PiHoleVault instances worldwide:
 
 ### ✨ New Features
 
-- **🌍 Global Analytics Dashboard**: View real-time statistics from the worldwide HoleSafe community
+- **🌍 Global Analytics Dashboard**: View real-time statistics from the worldwide PiHoleVault community
 - **📊 Community Insights**: Track global backup success rates, instance counts, and usage patterns
 - **🔗 Anonymous Analytics**: Privacy-focused analytics tracking without exposing sensitive data
 - **📈 Real-time Statistics**: Live updates every 5 minutes from the global analytics service
@@ -72,10 +72,10 @@ This release introduces groundbreaking global analytics features that connect al
 ### 📊 Analytics Features
 
 - **Total Backup Jobs**: See worldwide backup job counts
-- **Active Instances**: Track global HoleSafe installations
+- **Active Instances**: Track global PiHoleVault installations
 - **Success Rates**: Compare your success rate with global averages
 - **Average Duration**: Benchmark your backup performance
-- **Community Size**: View the growing HoleSafe user base
+- **Community Size**: View the growing PiHoleVault user base
 
 ## 🎯 Version 1.3.0 Release - Discord Notifications & Enhanced Communication
 
@@ -112,7 +112,7 @@ This release introduces comprehensive Discord integration for real-time backup n
 
 - **🎯 Intuitive Configuration**: Simple Discord setup process with clear instructions
 - **🔄 Real-time Feedback**: Instant notification delivery with status confirmation
-- **📱 Rich Content**: Professional Discord embeds with HoleSafe branding and detailed backup information
+- **📱 Rich Content**: Professional Discord embeds with PiHoleVault branding and detailed backup information
 - **⚡ Optional Integration**: Discord notifications are completely optional and don't affect core functionality
 
 ---
@@ -200,9 +200,9 @@ This major release introduces comprehensive UI/UX improvements and local develop
 
 ### Enhanced Navigation Bar
 
-HoleSafe v1.1.0 features a completely redesigned navigation experience:
+PiHoleVault v1.1.0 features a completely redesigned navigation experience:
 
-- **🏠 HoleSafe Logo**: Prominently displayed logo for brand recognition
+- **🏠 PiHoleVault Logo**: Prominently displayed logo for brand recognition
 - **🔄 Refresh Button**: Quick access to reload dashboard data
 - **🐙 GitHub Link**: Direct access to the project repository
 - **⭐ Star Project**: Easy way to star the repository on GitHub
@@ -215,7 +215,7 @@ HoleSafe v1.1.0 features a completely redesigned navigation experience:
 
 ### Setup Wizard Improvements
 
-- **Logo Integration**: HoleSafe logo displayed throughout the setup process
+- **Logo Integration**: PiHoleVault logo displayed throughout the setup process
 - **GMT Timezone Support**: Complete GMT-12 to GMT+12 timezone selection
 - **Manual SSH Deployment**: Fallback option when automatic deployment fails
 - **Improved Validation**: Better error handling and user feedback
@@ -225,7 +225,7 @@ HoleSafe v1.1.0 features a completely redesigned navigation experience:
 
 - **Consolidated Interface**: All essential functions in the main navigation
 - **Real-time Status**: Live updates for backup operations and system status
-- **Professional Branding**: Consistent HoleSafe theming throughout
+- **Professional Branding**: Consistent PiHoleVault theming throughout
 - **Support Integration**: Direct access to project support and sponsorship options
 
 ## 📁 Project Structure
@@ -271,9 +271,9 @@ HoleSafe v1.1.0 features a completely redesigned navigation experience:
 version: '3.8'
 
 services:
-  holesafe:
-    image: theinfamoustoto/holesafe:latest
-    container_name: holesafe
+  piholevault:
+    image: theinfamoustoto/piholevault:latest
+    container_name: piholevault
     ports:
       - "3000:80"  # Single port for both frontend and backend
     volumes:
@@ -293,10 +293,10 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - holesafe-network
+      - piholevault-network
 
 networks:
-  holesafe-network:
+  piholevault-network:
     driver: bridge
 
 volumes:
@@ -315,7 +315,7 @@ docker-compose up -d
 
 #### Environment Variables
 
-HoleSafe supports configuration through environment variables for production deployments:
+PiHoleVault supports configuration through environment variables for production deployments:
 
 **Discord Notifications**:
 
@@ -338,13 +338,13 @@ docker-compose up -d
 
 #### Local Build (New in v1.2.0)
 
-HoleSafe now supports complete local building without pulling from Docker Hub:
+PiHoleVault now supports complete local building without pulling from Docker Hub:
 
 1. **Clone the repository**:
 
    ```bash
-   git clone https://github.com/TheInfamousToTo/HoleSafe.git
-   cd HoleSafe
+   git clone https://github.com/TheInfamousToTo/PiHoleVault.git
+   cd PiHoleVault
    ```
 
 2. **Using the helper script (Recommended)**:
@@ -402,14 +402,14 @@ For detailed local build documentation, see [`LOCAL_BUILD_GUIDE.md`](LOCAL_BUILD
 1. **Clone the repository**:
 
    ```bash
-   git clone https://github.com/TheInfamousToTo/HoleSafe.git
-   cd HoleSafe
+   git clone https://github.com/TheInfamousToTo/PiHoleVault.git
+   cd PiHoleVault
    ```
 
 2. **Build and run the combined container**:
 
    ```bash
-   docker build -f Dockerfile.combined -t theinfamoustoto/holesafe-combined:latest .
+   docker build -f Dockerfile.combined -t theinfamoustoto/piholevault-combined:latest .
    docker-compose up -d
    ```
 

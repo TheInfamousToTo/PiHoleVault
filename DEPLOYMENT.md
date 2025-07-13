@@ -87,7 +87,7 @@ The container includes built-in health checks:
 docker-compose ps
 
 # View health check logs
-docker-compose logs holesafe
+docker-compose logs piholevault
 ```
 
 ## Troubleshooting
