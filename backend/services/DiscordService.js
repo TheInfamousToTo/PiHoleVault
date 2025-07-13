@@ -78,8 +78,8 @@ class DiscordService {
     const fileSizeMB = (size / (1024 * 1024)).toFixed(2);
 
     return {
-      username: 'HoleSafe',
-      avatar_url: 'https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/logo.png',
+      username: 'PiHoleVault',
+      avatar_url: 'https://raw.githubusercontent.com/TheInfamousToTo/PiHoleVault/main/frontend/public/logo.png',
       embeds: [
         {
           title: '✅ Pi-hole Backup Successful',
@@ -108,11 +108,11 @@ class DiscordService {
             }
           ],
           thumbnail: {
-            url: 'https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/logo.png'
+            url: 'https://raw.githubusercontent.com/TheInfamousToTo/PiHoleVault/main/frontend/public/logo.png'
           },
           footer: {
-            text: 'HoleSafe - Pi-hole Backup Manager',
-            icon_url: 'https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/favicon.ico'
+            text: 'PiHoleVault - Pi-hole Backup Manager',
+            icon_url: 'https://raw.githubusercontent.com/TheInfamousToTo/PiHoleVault/main/frontend/public/favicon.ico'
           },
           timestamp: timestamp
         }
@@ -129,8 +129,8 @@ class DiscordService {
     const timestamp = new Date().toISOString();
 
     return {
-      username: 'HoleSafe',
-      avatar_url: 'https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/logo.png',
+      username: 'PiHoleVault',
+      avatar_url: 'https://raw.githubusercontent.com/TheInfamousToTo/PiHoleVault/main/frontend/public/logo.png',
       embeds: [
         {
           title: '❌ Pi-hole Backup Failed',
@@ -154,11 +154,11 @@ class DiscordService {
             }
           ],
           thumbnail: {
-            url: 'https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/logo.png'
+            url: 'https://raw.githubusercontent.com/TheInfamousToTo/PiHoleVault/main/frontend/public/logo.png'
           },
           footer: {
-            text: 'HoleSafe - Pi-hole Backup Manager',
-            icon_url: 'https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/favicon.ico'
+            text: 'PiHoleVault - Pi-hole Backup Manager',
+            icon_url: 'https://raw.githubusercontent.com/TheInfamousToTo/PiHoleVault/main/frontend/public/favicon.ico'
           },
           timestamp: timestamp
         }
@@ -192,8 +192,8 @@ class DiscordService {
    */
   async testWebhook(webhookUrl) {
     const testPayload = {
-      username: 'HoleSafe',
-      avatar_url: 'https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/logo.png',
+      username: 'PiHoleVault',
+      avatar_url: 'https://raw.githubusercontent.com/TheInfamousToTo/PiHoleVault/main/frontend/public/logo.png',
       embeds: [
         {
           title: '🧪 Discord Integration Test',
@@ -207,11 +207,11 @@ class DiscordService {
             }
           ],
           thumbnail: {
-            url: 'https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/logo.png'
+            url: 'https://raw.githubusercontent.com/TheInfamousToTo/PiHoleVault/main/frontend/public/logo.png'
           },
           footer: {
-            text: 'HoleSafe - Pi-hole Backup Manager',
-            icon_url: 'https://raw.githubusercontent.com/TheInfamousToTo/HoleSafe/main/frontend/public/favicon.ico'
+            text: 'PiHoleVault - Pi-hole Backup Manager',
+            icon_url: 'https://raw.githubusercontent.com/TheInfamousToTo/PiHoleVault/main/frontend/public/favicon.ico'
           },
           timestamp: new Date().toISOString()
         }
