@@ -66,7 +66,6 @@ import {
 import { toast } from 'react-toastify';
 import api from '../services/api';
 import GlobalAnalytics from './GlobalAnalytics';
-import { recordBackupStart, recordBackupSuccess, recordBackupFailure } from '../services/analytics';
 
 // Stats Card Component with Enhanced Animations
 const StatsCard = memo(({ title, value, icon, color, subtitle, trend, index = 0 }) => {
@@ -479,39 +478,15 @@ const Dashboard = ({ onReconfigure }) => {
     if (runningBackup) return;
     
     setRunningBackup(true);
-    const startTime = Date.now();
     
     try {
-      // Record backup start for analytics
-      await recordBackupStart(config?.pihole?.host || 'unknown');
-      
       const response = await api.post('/backup/run');
-      const duration = (Date.now() - startTime) / 1000; // seconds
-      
-      // Record backup success for analytics
-      if (response.data?.success && response.data?.filename) {
-        await recordBackupSuccess({
-          filename: response.data.filename,
-          size: response.data.size || 0,
-          piholeServer: config?.pihole?.host || 'unknown',
-          duration: duration
-        });
-      }
       
       toast.success('Backup started successfully!');
       setTimeout(() => {
         loadDashboardData();
       }, 2000);
     } catch (error) {
-      const duration = (Date.now() - startTime) / 1000;
-      
-      // Record backup failure for analytics
-      await recordBackupFailure({
-        message: error.response?.data?.message || error.message,
-        piholeServer: config?.pihole?.host || 'unknown',
-        duration: duration
-      });
-      
       toast.error('Failed to start backup: ' + (error.response?.data?.message || error.message));
     } finally {
       setRunningBackup(false);
@@ -869,7 +844,7 @@ const Dashboard = ({ onReconfigure }) => {
               value={backups.length}
               icon={<Storage />}
               color={theme.palette.primary.main}
-              subtitle={`${backups.filter(b => b.status === 'completed').length} completed`}
+              subtitle={`${backups.length} completed`}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -878,7 +853,7 @@ const Dashboard = ({ onReconfigure }) => {
               value={jobs.length}
               icon={<Schedule />}
               color={theme.palette.secondary.main}
-              subtitle={`${jobs.filter(j => j.status === 'running').length} active`}
+              subtitle={`${jobs.filter(j => j.status === 'running').length} running`}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>

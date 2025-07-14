@@ -10,7 +10,7 @@ class BackupService {
     this.backupDir = backupDir;
     this.logger = logger;
     this.discordService = new DiscordService(logger);
-    this.analyticsService = new AnalyticsService(logger);
+    this.analyticsService = new AnalyticsService(logger, dataDir);
   }
 
   async runBackup() {
@@ -30,8 +30,8 @@ class BackupService {
         throw new Error('Pi-hole configuration not found');
       }
 
-      // Record backup start for analytics
-      await this.analyticsService.recordBackupStart(config.pihole.host);
+      // Record backup start for analytics - DISABLED TO PREVENT DOUBLE COUNTING
+      // await this.analyticsService.recordBackupStart(config.pihole.host);
       
       // Connect to Pi-hole server
       const ssh = new NodeSSH();
@@ -138,7 +138,7 @@ class BackupService {
           jobId 
         });
 
-        // Record backup success for analytics
+        // Record backup success for analytics - RE-ENABLED (SINGLE CALL APPROACH)
         const duration = (Date.now() - startTime) / 1000; // seconds
         await this.analyticsService.recordBackupSuccess({
           filename: localFilename,
@@ -193,7 +193,7 @@ class BackupService {
       // Log failed job
       await this.logJob(jobId, 'error', `Backup failed: ${error.message}`);
 
-      // Record backup failure for analytics
+      // Record backup failure for analytics - RE-ENABLED (SINGLE CALL APPROACH)
       try {
         const config = await this.loadConfig();
         const duration = (Date.now() - startTime) / 1000; // seconds

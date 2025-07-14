@@ -1,25 +1,47 @@
 const https = require('https');
 const http = require('http');
 const { URL } = require('url');
+const fs = require('fs-extra');
+const path = require('path');
 
 class AnalyticsService {
-  constructor(logger) {
+  constructor(logger, dataDir) {
     this.logger = logger;
+    this.dataDir = dataDir;
     this.analyticsBaseUrl = 'https://PiHoleVault.satrawi.cc';
-    this.instanceId = this.generateInstanceId();
+    this.instanceId = null;
   }
 
-  generateInstanceId() {
-    // Generate a server-side instance ID that persists
-    // This could be enhanced to store in a file for persistence
-    return 'piholevault-server-' + Math.random().toString(36).substring(2, 15);
+  async getInstanceId() {
+    if (this.instanceId) {
+      return this.instanceId;
+    }
+
+    try {
+      const instancePath = path.join(this.dataDir, 'instance_id.txt');
+      
+      if (await fs.pathExists(instancePath)) {
+        this.instanceId = (await fs.readFile(instancePath, 'utf8')).trim();
+      } else {
+        // Generate a persistent server-side instance ID
+        this.instanceId = 'piholevault-' + Math.random().toString(36).substring(2, 15);
+        await fs.writeFile(instancePath, this.instanceId);
+      }
+      
+      return this.instanceId;
+    } catch (error) {
+      this.logger.warn('Failed to load/save instance ID, using temporary ID', { error: error.message });
+      this.instanceId = 'piholevault-temp-' + Math.random().toString(36).substring(2, 15);
+      return this.instanceId;
+    }
   }
 
   async recordBackupJob(jobData) {
     try {
+      const instanceId = await this.getInstanceId();
       const url = new URL('/backup-job', this.analyticsBaseUrl);
       const postData = JSON.stringify({
-        instance_id: this.instanceId,
+        instance_id: instanceId,
         ...jobData
       });
 
