@@ -262,5 +262,165 @@
     "message": "Backup completed successfully: pi-hole_backup_2025-07-14T00-00-01-002Z.zip",
     "filename": "pi-hole_backup_2025-07-14T00-00-01-002Z.zip",
     "size": 21215
+  },
+  {
+    "id": "backup_1752512688373",
+    "timestamp": "2025-07-14T17:04:49.707Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-14T17-04-49-221Z.zip",
+    "filename": "pi-hole_backup_2025-07-14T17-04-49-221Z.zip",
+    "size": 21215
+  },
+  {
+    "id": "backup_1752512696851",
+    "timestamp": "2025-07-14T17:04:58.552Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-14T17-04-58-131Z.zip",
+    "filename": "pi-hole_backup_2025-07-14T17-04-58-131Z.zip",
+    "size": 21215
+  },
+  {
+    "id": "backup_1752512703291",
+    "timestamp": "2025-07-14T17:05:04.212Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-14T17-05-03-761Z.zip",
+    "filename": "pi-hole_backup_2025-07-14T17-05-03-761Z.zip",
+    "size": 21216
+  },
+  {
+    "id": "backup_1752512712820",
+    "timestamp": "2025-07-14T17:05:13.988Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-14T17-05-13-570Z.zip",
+    "filename": "pi-hole_backup_2025-07-14T17-05-13-570Z.zip",
+    "size": 21216
+  },
+  {
+    "id": "backup_1752512719253",
+    "timestamp": "2025-07-14T17:05:20.147Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-14T17-05-19-681Z.zip",
+    "filename": "pi-hole_backup_2025-07-14T17-05-19-681Z.zip",
+    "size": 21216
+  },
+  {
+    "id": "backup_1752512730149",
+    "timestamp": "2025-07-14T17:05:31.500Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-14T17-05-31-033Z.zip",
+    "filename": "pi-hole_backup_2025-07-14T17-05-31-033Z.zip",
+    "size": 21216
+  },
+  {
+    "id": "backup_1752512746438",
+    "timestamp": "2025-07-14T17:05:48.190Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-14T17-05-47-748Z.zip",
+    "filename": "pi-hole_backup_2025-07-14T17-05-47-748Z.zip",
+    "size": 21216
+  },
+  {
+    "id": "backup_1752512752893",
+    "timestamp": "2025-07-14T17:05:53.809Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-14T17-05-53-371Z.zip",
+    "filename": "pi-hole_backup_2025-07-14T17-05-53-371Z.zip",
+    "size": 21216
+  },
+  {
+    "id": "backup_1752512757667",
+    "timestamp": "2025-07-14T17:05:58.936Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-14T17-05-58-484Z.zip",
+    "filename": "pi-hole_backup_2025-07-14T17-05-58-484Z.zip",
+    "size": 21216
+  },
+  {
+    "id": "backup_1752513154565",
+    "timestamp": "2025-07-14T17:12:36.448Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-14T17-12-36-021Z.zip",
+    "filename": "pi-hole_backup_2025-07-14T17-12-36-021Z.zip",
+    "size": 21214
+  },
+  {
+    "id": "backup_1752513169513",
+    "timestamp": "2025-07-14T17:12:51.281Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-14T17-12-50-838Z.zip",
+    "filename": "pi-hole_backup_2025-07-14T17-12-50-838Z.zip",
+    "size": 21214
+  },
+  {
+    "id": "backup_1752513629280",
+    "timestamp": "2025-07-14T17:20:30.553Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-14T17-20-30-084Z.zip",
+    "filename": "pi-hole_backup_2025-07-14T17-20-30-084Z.zip",
+    "size": 21215
+  },
+  {
+    "id": "backup_1752513635652",
+    "timestamp": "2025-07-14T17:20:37.445Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-14T17-20-36-981Z.zip",
+    "filename": "pi-hole_backup_2025-07-14T17-20-36-981Z.zip",
+    "size": 21215
+  },
+  {
+    "id": "backup_1752514267526",
+    "timestamp": "2025-07-14T17:31:08.467Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-14T17-31-07-985Z.zip",
+    "filename": "pi-hole_backup_2025-07-14T17-31-07-985Z.zip",
+    "size": 21215
+  },
+  {
+    "id": "backup_1752514278216",
+    "timestamp": "2025-07-14T17:31:18.930Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-14T17-31-18-495Z.zip",
+    "filename": "pi-hole_backup_2025-07-14T17-31-18-495Z.zip",
+    "size": 21215
+  },
+  {
+    "id": "backup_1752514732473",
+    "timestamp": "2025-07-14T17:38:53.512Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-14T17-38-53-037Z.zip",
+    "filename": "pi-hole_backup_2025-07-14T17-38-53-037Z.zip",
+    "size": 21214
+  },
+  {
+    "id": "backup_1752537600429",
+    "timestamp": "2025-07-15T00:00:01.230Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-15T00-00-00-802Z.zip",
+    "filename": "pi-hole_backup_2025-07-15T00-00-00-802Z.zip",
+    "size": 21216
+  },
+  {
+    "id": "backup_1752554855451",
+    "timestamp": "2025-07-15T04:47:36.267Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-15T04-47-35-799Z.zip",
+    "filename": "pi-hole_backup_2025-07-15T04-47-35-799Z.zip",
+    "size": 21214
+  },
+  {
+    "id": "backup_1752554888139",
+    "timestamp": "2025-07-15T04:48:08.972Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-15T04-48-08-511Z.zip",
+    "filename": "pi-hole_backup_2025-07-15T04-48-08-511Z.zip",
+    "size": 21214
+  },
+  {
+    "id": "backup_1752556045208",
+    "timestamp": "2025-07-15T05:07:26.059Z",
+    "status": "success",
+    "message": "Backup completed successfully: pi-hole_backup_2025-07-15T05-07-25-598Z.zip",
+    "filename": "pi-hole_backup_2025-07-15T05-07-25-598Z.zip",
+    "size": 21216
   }
 ]
