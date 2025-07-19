@@ -45,7 +45,6 @@ If you find PiHoleVault useful, consider supporting its development:
 - **💚 Health Monitoring**: Built-in health checks and status monitoring
 - **🔄 Reconfigure Option**: Easy access to setup wizard for configuration changes
 - **🚀 Production Ready**: Optimized for production deployment with proper error handling
-- **🏗️ Multi-Platform**: Docker images available for AMD64 and ARM64 architectures
 
 ## 🎯 Version 1.4.0 Release - Global Analytics & Community Insights
 
@@ -716,6 +715,7 @@ If you find this project helpful, please consider supporting the development:
 - Backup verification and testing
 - Integration with monitoring systems
 - Custom notification systems
+- Multi-Platform**: Docker images available for AMD64 and ARM64 architectures
 
 ---
 
