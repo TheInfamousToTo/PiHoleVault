@@ -6,12 +6,14 @@ on:
     paths:
       - 'version'
 
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
 jobs:
-  check-version-change:
+  create-release:
     runs-on: ubuntu-latest
-    outputs:
-      version-changed: ${{ steps.check.outputs.changed }}
-      new-version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,25 +37,11 @@ jobs:
         run: |
           VERSION=$(cat version | tr -d '\n')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "New version: $VERSION"
-
-  create-release:
-    needs: check-version-change
-    if: needs.check-version-change.outputs.version-changed == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Read version
-        id: version
-        run: |
-          VERSION=$(cat version | tr -d '\n')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Creating release for version: $VERSION"
       
       - name: Generate changelog
         id: changelog
+        if: steps.check.outputs.changed == 'true'
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           
@@ -131,18 +119,24 @@ jobs:
               ;;
             *)
               # Generic changelog for other versions
-              CHANGELOG="## Release $VERSION\n\nAutomatically generated release from version file update.\n\nSee commit history for detailed changes."
+              CHANGELOG="## Release $VERSION
+
+          Automatically generated release from version file update.
+
+          See commit history for detailed changes.
+          
+          **Full Changelog**: [View all changes](https://github.com/TheInfamousToTo/PiHoleVault/commits/$VERSION)"
               ;;
           esac
           
-          # Save changelog to file and output
-          echo "$CHANGELOG" > CHANGELOG.md
-          echo 'changelog<<EOF' >> $GITHUB_OUTPUT
+          # Save changelog to output (GitHub Actions multiline string)
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
           echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo 'EOF' >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
       
       - name: Check if tag exists
         id: check-tag
+        if: steps.check.outputs.changed == 'true'
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           if git tag -l | grep -q "^$VERSION$"; then
@@ -153,49 +147,14 @@ jobs:
             echo "Tag $VERSION does not exist"
           fi
       
-      - name: Create and push tag
-        if: steps.check-tag.outputs.exists == 'false'
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "$VERSION" -m "Release $VERSION"
-          git push origin "$VERSION"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
       - name: Create GitHub Release
-        if: steps.check-tag.outputs.exists == 'false'
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: steps.check.outputs.changed == 'true' && steps.check-tag.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.version.outputs.version }}
-          release_name: "PiHoleVault ${{ steps.version.outputs.version }}"
+          name: "PiHoleVault ${{ steps.version.outputs.version }}"
           body: ${{ steps.changelog.outputs.changelog }}
           draft: false
           prerelease: false
-      
-      - name: Update README version references
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          VERSION_NUMBER=$(echo "$VERSION" | sed 's/^v//')
-          
-          # Update README.md version references
-          sed -i "s/# PiHoleVault v[0-9]\+\.[0-9]\+\.[0-9]\+/# PiHoleVault $VERSION/g" README.md
-          sed -i "s/\*\*Latest Release\*\*: \[v[0-9]\+\.[0-9]\+\.[0-9]\+\]/\*\*Latest Release\*\*: [$VERSION]/g" README.md
-          sed -i "s|releases/tag/v[0-9]\+\.[0-9]\+\.[0-9]\+|releases/tag/$VERSION|g" README.md
-          
-          # Commit changes if any
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          if git diff --quiet; then
-            echo "No changes to commit"
-          else
-            git add README.md
-            git commit -m "docs: update version references to $VERSION [skip ci]"
-            git push
-          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
