@@ -1,6 +1,6 @@
 {
   "name": "piholevault-backend",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Backend API for PiHoleVault - Pi-hole Backup Manager",
   "main": "server.js",
   "scripts": {

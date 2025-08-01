@@ -1,4 +1,4 @@
-# PiHoleVault v1.4.0
+# PiHoleVault v1.5.0
 
 A comprehensive web-based solution for managing Pi-hole backups with automated scheduling, SSH key management, Discord notifications, global analytics, and a modern React frontend featuring advanced animations and responsive UI.
 
@@ -12,7 +12,7 @@ A comprehensive web-based solution for managing Pi-hole backups with automated s
 
 - **GitHub Repository**: [TheInfamousToTo/PiHoleVault](https://github.com/TheInfamousToTo/PiHoleVault)
 - **Docker Hub**: [theinfamoustoto/piholevault](https://hub.docker.com/r/theinfamoustoto/piholevault)
-- **Latest Release**: [v1.4.0](https://github.com/TheInfamousToTo/PiHoleVault/releases/tag/v1.4.0)
+- **Latest Release**: [v1.5.0](https://github.com/TheInfamousToTo/PiHoleVault/releases/tag/v1.5.0)
 
 ### ❤️ Support the Project
 
@@ -45,6 +45,34 @@ If you find PiHoleVault useful, consider supporting its development:
 - **💚 Health Monitoring**: Built-in health checks and status monitoring
 - **🔄 Reconfigure Option**: Easy access to setup wizard for configuration changes
 - **🚀 Production Ready**: Optimized for production deployment with proper error handling
+
+## 🎯 Version 1.5.0 Release - Multi-Architecture Support
+
+This release introduces comprehensive multi-architecture support, enabling PiHoleVault to run natively on a wide range of devices and platforms.
+
+### ✨ New Features
+
+- **🌍 Multi-Architecture Docker Images**: Native support for AMD64, ARM64, and ARMv7 architectures
+- **🏗️ Enhanced Build System**: New Docker Buildx-based build pipeline with GitHub Actions integration
+- **🛠️ Local Development Tools**: New `build-multiarch.sh` script for local multi-platform development and testing
+- **📦 Automated CI/CD**: GitHub Actions automatically builds and pushes multi-architecture images to Docker Hub
+- **🔄 Release Automation**: Automatic GitHub releases when version file is updated
+
+### 🏗️ Architecture Support
+
+| Platform | Architecture | Compatible Devices |
+|----------|-------------|-------------------|
+| `linux/amd64` | x86_64 | Intel/AMD servers, desktop PCs |
+| `linux/arm64` | aarch64 | Raspberry Pi 4+, Apple Silicon, AWS Graviton |
+| `linux/arm/v7` | armv7l | Raspberry Pi 3, older ARM devices |
+
+### 🔧 Technical Improvements
+
+- **📋 OCI Image Labels**: Added comprehensive metadata labels to Docker images
+- **⚡ Build Optimization**: Improved cross-platform compilation with build cache optimization
+- **🏷️ Version Synchronization**: Synchronized versions across all package.json files
+- **📖 Enhanced Documentation**: Updated README with multi-architecture information and usage examples
+- **🚨 Legacy Script Deprecation**: Updated legacy build scripts with proper migration guidance
 
 ## 🎯 Version 1.4.0 Release - Global Analytics & Community Insights
 
@@ -263,6 +291,13 @@ PiHoleVault v1.1.0 features a completely redesigned navigation experience:
 ### Quick Start
 
 #### Using Docker Hub Images (Recommended)
+
+**🌍 Multi-Architecture Support**: PiHoleVault Docker images support multiple architectures:
+- **AMD64** (x86_64) - Intel/AMD processors
+- **ARM64** (aarch64) - ARM 64-bit processors (Raspberry Pi 4, Apple Silicon, etc.)
+- **ARMv7** (arm/v7) - ARM 32-bit processors (Raspberry Pi 3, etc.)
+
+Docker will automatically pull the correct image for your platform.
 
 1. **Create a docker-compose.yml file**:
 

@@ -1,27 +1,27 @@
 #!/bin/bash
 
-# Script to build and publish Docker images for HoleSafe
+# Legacy Docker Build Script - DEPRECATED
+# 
+# ⚠️  WARNING: This script is deprecated!
+# 
+# 📝 NEW RECOMMENDED WORKFLOW:
+#   1. Push changes to Git: git push origin main
+#   2. GitHub Actions automatically builds and pushes multi-arch images
+#   3. For local testing: ./build-multiarch.sh build
+#
+# 🔗 See: .github/workflows/docker-build.yml
+# 🛠️  For local builds: ./build-multiarch.sh
 
-VERSION=$(cat version)
-DOCKER_USER="theinfamoustoto"
-FRONTEND_IMAGE="holesafe-frontend"
-BACKEND_IMAGE="holesafe-backend"
+echo "⚠️  DEPRECATED: This script is no longer maintained"
+echo ""
+echo "📝 Use the new workflow instead:"
+echo "  1. git push origin main  # Automatic CI/CD"
+echo "  2. ./build-multiarch.sh  # Local development"
+echo ""
+echo "🚀 The new workflow supports multi-architecture builds:"
+echo "  - AMD64 (Intel/AMD)"
+echo "  - ARM64 (Raspberry Pi 4, Apple Silicon)"
+echo "  - ARMv7 (Raspberry Pi 3)"
+echo ""
 
-echo "Building and publishing HoleSafe version: $VERSION"
-
-# Build frontend image
-echo "Building frontend image..."
-docker build -t $DOCKER_USER/$FRONTEND_IMAGE:$VERSION -t $DOCKER_USER/$FRONTEND_IMAGE:latest --target production ./frontend
-
-# Build backend image
-echo "Building backend image..."
-docker build -t $DOCKER_USER/$BACKEND_IMAGE:$VERSION -t $DOCKER_USER/$BACKEND_IMAGE:latest ./backend
-
-# Push images to Docker Hub
-echo "Pushing images to Docker Hub..."
-docker push $DOCKER_USER/$FRONTEND_IMAGE:$VERSION
-docker push $DOCKER_USER/$FRONTEND_IMAGE:latest
-docker push $DOCKER_USER/$BACKEND_IMAGE:$VERSION
-docker push $DOCKER_USER/$BACKEND_IMAGE:latest
-
-echo "Successfully published version $VERSION to Docker Hub"
+exit 1

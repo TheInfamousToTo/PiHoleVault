@@ -1,5 +1,10 @@
 # Combined PiHoleVault Dockerfile - Frontend + Backend in single container
-FROM node:18-alpine as frontend-build
+# Multi-architecture support: AMD64, ARM64, ARMv7
+FROM --platform=$BUILDPLATFORM node:18-alpine as frontend-build
+
+# Build arguments for cross-platform builds
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
 
 # Build the React frontend
 WORKDIR /app/frontend
@@ -10,6 +15,18 @@ RUN npm run build
 
 # Main application stage
 FROM node:18-alpine
+
+# Build arguments for cross-platform builds
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+
+# Add metadata labels
+LABEL org.opencontainers.image.title="PiHoleVault"
+LABEL org.opencontainers.image.description="Pi-hole Backup Manager with Web Interface"
+LABEL org.opencontainers.image.url="https://github.com/TheInfamousToTo/PiHoleVault"
+LABEL org.opencontainers.image.source="https://github.com/TheInfamousToTo/PiHoleVault"
+LABEL org.opencontainers.image.vendor="TheInfamousToTo"
+LABEL org.opencontainers.image.licenses="MIT"
 
 # Install required system dependencies
 RUN apk add --no-cache \

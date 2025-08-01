@@ -1,0 +1,201 @@
+name: Create Release
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'version'
+
+jobs:
+  check-version-change:
+    runs-on: ubuntu-latest
+    outputs:
+      version-changed: ${{ steps.check.outputs.changed }}
+      new-version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      
+      - name: Check if version file changed
+        id: check
+        run: |
+          if git diff HEAD~1 HEAD --name-only | grep -q "^version$"; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Version file has changed"
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "Version file has not changed"
+          fi
+      
+      - name: Read version
+        id: version
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          VERSION=$(cat version | tr -d '\n')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "New version: $VERSION"
+
+  create-release:
+    needs: check-version-change
+    if: needs.check-version-change.outputs.version-changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Read version
+        id: version
+        run: |
+          VERSION=$(cat version | tr -d '\n')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Creating release for version: $VERSION"
+      
+      - name: Generate changelog
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          # Create a comprehensive changelog based on recent commits and version
+          case "$VERSION" in
+            "v1.5.0")
+              CHANGELOG=$(cat << 'EOF'
+          ## 🚀 PiHoleVault v1.5.0 - Multi-Architecture Support
+          
+          This release introduces comprehensive multi-architecture support, enabling PiHoleVault to run natively on a wide range of devices and platforms.
+          
+          ### ✨ New Features
+          
+          - **🌍 Multi-Architecture Docker Images**: Native support for AMD64, ARM64, and ARMv7 architectures
+          - **🏗️ Enhanced Build System**: New Docker Buildx-based build pipeline with GitHub Actions integration
+          - **🛠️ Local Development Tools**: New `build-multiarch.sh` script for local multi-platform development and testing
+          - **📦 Automated CI/CD**: GitHub Actions automatically builds and pushes multi-architecture images to Docker Hub
+          - **🔄 Release Automation**: Automatic GitHub releases when version file is updated
+          
+          ### 🏗️ Architecture Support
+          
+          | Platform | Architecture | Compatible Devices |
+          |----------|-------------|-------------------|
+          | `linux/amd64` | x86_64 | Intel/AMD servers, desktop PCs |
+          | `linux/arm64` | aarch64 | Raspberry Pi 4+, Apple Silicon, AWS Graviton |
+          | `linux/arm/v7` | armv7l | Raspberry Pi 3, older ARM devices |
+          
+          ### 🔧 Technical Improvements
+          
+          - **📋 OCI Image Labels**: Added comprehensive metadata labels to Docker images
+          - **⚡ Build Optimization**: Improved cross-platform compilation with build cache optimization
+          - **🏷️ Version Synchronization**: Synchronized versions across all package.json files
+          - **📖 Enhanced Documentation**: Updated README with multi-architecture information and usage examples
+          - **🚨 Legacy Script Deprecation**: Updated legacy build scripts with proper migration guidance
+          
+          ### 🔄 Migration & Compatibility
+          
+          - **✅ Zero Breaking Changes**: Existing deployments continue to work seamlessly
+          - **🔄 Automatic Platform Detection**: Docker automatically selects the correct architecture
+          - **⚡ Performance Improvements**: ARM devices now use native images instead of emulation
+          - **📦 Single Image Tag**: Same `theinfamoustoto/piholevault:latest` works across all platforms
+          
+          ### 🛠️ Development Workflow
+          
+          **For Production Deployment:**
+          1. Make code changes
+          2. Test locally: `./build-multiarch.sh build`
+          3. Push to Git: `git push origin main`
+          4. GitHub Actions automatically builds and deploys multi-arch images
+          
+          **For Local Development:**
+          1. Setup: `./build-multiarch.sh setup`
+          2. Build & Test: `./build-multiarch.sh build`
+          
+          ### 📋 Verification
+          
+          To verify multi-architecture support:
+          ```bash
+          # Check available platforms
+          docker buildx imagetools inspect theinfamoustoto/piholevault:latest
+          
+          # Test specific platform
+          docker run --rm --platform=linux/arm64 theinfamoustoto/piholevault:latest echo "ARM64 works!"
+          ```
+          
+          ### 🙏 Acknowledgments
+          
+          This release significantly expands PiHoleVault's compatibility and deployment options. Special thanks to the Docker Buildx team and GitHub Actions for making multi-architecture builds seamless.
+          
+          ---
+          
+          **Full Changelog**: [View all changes](https://github.com/TheInfamousToTo/PiHoleVault/compare/v1.4.0...v1.5.0)
+          EOF
+              )
+              ;;
+            *)
+              # Generic changelog for other versions
+              CHANGELOG="## Release $VERSION\n\nAutomatically generated release from version file update.\n\nSee commit history for detailed changes."
+              ;;
+          esac
+          
+          # Save changelog to file and output
+          echo "$CHANGELOG" > CHANGELOG.md
+          echo 'changelog<<EOF' >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo 'EOF' >> $GITHUB_OUTPUT
+      
+      - name: Check if tag exists
+        id: check-tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if git tag -l | grep -q "^$VERSION$"; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Tag $VERSION already exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Tag $VERSION does not exist"
+          fi
+      
+      - name: Create and push tag
+        if: steps.check-tag.outputs.exists == 'false'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Create GitHub Release
+        if: steps.check-tag.outputs.exists == 'false'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          release_name: "PiHoleVault ${{ steps.version.outputs.version }}"
+          body: ${{ steps.changelog.outputs.changelog }}
+          draft: false
+          prerelease: false
+      
+      - name: Update README version references
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          VERSION_NUMBER=$(echo "$VERSION" | sed 's/^v//')
+          
+          # Update README.md version references
+          sed -i "s/# PiHoleVault v[0-9]\+\.[0-9]\+\.[0-9]\+/# PiHoleVault $VERSION/g" README.md
+          sed -i "s/\*\*Latest Release\*\*: \[v[0-9]\+\.[0-9]\+\.[0-9]\+\]/\*\*Latest Release\*\*: [$VERSION]/g" README.md
+          sed -i "s|releases/tag/v[0-9]\+\.[0-9]\+\.[0-9]\+|releases/tag/$VERSION|g" README.md
+          
+          # Commit changes if any
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          if git diff --quiet; then
+            echo "No changes to commit"
+          else
+            git add README.md
+            git commit -m "docs: update version references to $VERSION [skip ci]"
+            git push
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
