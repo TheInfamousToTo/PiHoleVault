@@ -37,6 +37,7 @@ jobs:
         run: |
           VERSION=$(cat version | tr -d '\n')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "tag_version=v$VERSION" >> $GITHUB_OUTPUT
           echo "Creating release for version: $VERSION"
       
       - name: Generate changelog
@@ -47,7 +48,7 @@ jobs:
           
           # Create a comprehensive changelog based on recent commits and version
           case "$VERSION" in
-            "v1.5.0")
+            "1.5.0")
               CHANGELOG=$(cat << 'EOF'
           ## 🚀 PiHoleVault v1.5.0 - Multi-Architecture Support
           
@@ -138,21 +139,21 @@ jobs:
         id: check-tag
         if: steps.check.outputs.changed == 'true'
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          if git tag -l | grep -q "^$VERSION$"; then
+          TAG_VERSION="${{ steps.version.outputs.tag_version }}"
+          if git tag -l | grep -q "^$TAG_VERSION$"; then
             echo "exists=true" >> $GITHUB_OUTPUT
-            echo "Tag $VERSION already exists"
+            echo "Tag $TAG_VERSION already exists"
           else
             echo "exists=false" >> $GITHUB_OUTPUT
-            echo "Tag $VERSION does not exist"
+            echo "Tag $TAG_VERSION does not exist"
           fi
       
       - name: Create GitHub Release
         if: steps.check.outputs.changed == 'true' && steps.check-tag.outputs.exists == 'false'
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: "PiHoleVault ${{ steps.version.outputs.version }}"
+          tag_name: ${{ steps.version.outputs.tag_version }}
+          name: "PiHoleVault ${{ steps.version.outputs.tag_version }}"
           body: ${{ steps.changelog.outputs.changelog }}
           draft: false
           prerelease: false
