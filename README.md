@@ -46,14 +46,14 @@ If you find PiHoleVault useful, consider supporting its development:
 - **🔄 Reconfigure Option**: Easy access to setup wizard for configuration changes
 - **🚀 Production Ready**: Optimized for production deployment with proper error handling
 
-## 🎯 Version 1.6.0 Release - Comprehensive Debug Features
+## 🎯 Version 1.6.0 Release - Comprehensive Debug Features & Enhanced Docker Logging
 
-This release introduces comprehensive debugging and troubleshooting capabilities, making it easier to diagnose and resolve issues with PiHoleVault.
+This release introduces comprehensive debugging and troubleshooting capabilities, plus enhanced Docker logging that makes application logs easily accessible via `docker logs`.
 
 ### ✨ New Features
 
 - **🐛 Debug Mode**: Comprehensive debug mode with environment variable control (`DEBUG_MODE=true`)
-- **📊 Enhanced Logging**: Structured logging with Winston, log rotation, and detailed error tracking
+- **📊 Enhanced Docker Logging**: Application logs now visible in `docker logs` with user-friendly formatting
 - **🔍 Debug API Endpoints**: 9 new API endpoints for system diagnostics and troubleshooting
 - **🖥️ System Information**: Detailed hardware, memory, and environment information collection
 - **🔗 SSH Diagnostics**: Multi-step SSH connectivity testing with detailed failure analysis
@@ -61,14 +61,51 @@ This release introduces comprehensive debugging and troubleshooting capabilities
 - **📋 Debug Reports**: Comprehensive system reports with sanitized sensitive data
 - **🗂️ Debug File Management**: Downloadable debug files with automatic cleanup
 - **🛠️ Debug Tools**: Command-line debug script (`debug.sh`) with 10+ management commands
-- **✅ Debug Verification**: Automated test script (`verify-debug.sh`) to validate all debug features
-- **📚 Comprehensive Documentation**: Detailed debug documentation in `DEBUG.md`
+- **🐳 Docker Log Integration**: Structured logging with Winston, log rotation, and Docker-friendly output
+- **� Local Development**: Enhanced local build support with `Dockerfile.local`
 
 ### 🔧 Environment Variables
 
-- **`DEBUG_MODE`**: Enable/disable comprehensive debugging features
+- **`DEBUG_MODE`**: Enable/disable comprehensive debugging features and enhanced logging
 - **`LOG_LEVEL`**: Control application logging verbosity (error, warn, info, debug)
 - **`DEBUG_LEVEL`**: Control debug service logging level
+- **`DOCKER_ENV`**: Automatically set in containers for enhanced Docker log formatting
+- **`NODE_ENV`**: Application environment (automatically set to production in containers)
+
+### 📊 Docker Logging Integration
+
+PiHoleVault v1.6.0 features enhanced Docker logging integration that makes troubleshooting much easier:
+
+**✨ Key Features:**
+- **🐳 Docker-Native Logs**: All application logs visible via `docker logs` command
+- **🎨 User-Friendly Formatting**: Timestamped, colored logs with clear prefixes
+- **🔍 Enhanced Debug Output**: Detailed logging when `DEBUG_MODE=true`
+- **📱 Container-Aware**: Automatic detection of Docker environment for optimized output
+- **⚡ Real-Time Monitoring**: Live log streaming with `docker logs -f`
+
+**📋 Viewing Logs:**
+
+```bash
+# View all logs
+docker logs piholevault-container
+
+# Follow logs in real-time
+docker logs -f piholevault-container
+
+# View last 50 lines
+docker logs --tail 50 piholevault-container
+
+# View logs with timestamps
+docker logs -t piholevault-container
+
+# Using docker-compose
+docker-compose logs -f piholevault
+```
+
+**🔧 Log Levels:**
+- **Production**: `INFO` level and above (default)
+- **Debug Mode**: `DEBUG` level with detailed diagnostics
+- **Error Tracking**: All errors automatically logged with stack traces
 
 ### 📊 Debug API Endpoints
 
@@ -383,7 +420,12 @@ services:
       - NODE_ENV=production
       - DATA_DIR=/app/data
       - BACKUP_DIR=/app/backups
-      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}  # Optional: Discord webhook for notifications
+      # Debug configuration (optional)
+      - DEBUG_MODE=${DEBUG_MODE:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - DEBUG_LEVEL=${DEBUG_LEVEL:-info}
+      # Discord notifications (optional)
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
@@ -410,7 +452,37 @@ mkdir -p data backups
 docker-compose up -d
 ```
 
-3. **Access the web interface** at <http://localhost:3000>
+3. **Enable debug mode (optional)**:
+
+Create a `.env` file for enhanced logging and debugging:
+
+```bash
+# Create .env file for debug configuration
+cat > .env << EOF
+# Debug configuration
+DEBUG_MODE=true
+LOG_LEVEL=debug
+DEBUG_LEVEL=debug
+
+# Discord notifications (optional)
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN
+EOF
+
+# Restart container to apply debug settings
+docker-compose down && docker-compose up -d
+```
+
+4. **View enhanced logs**:
+
+```bash
+# Follow logs in real-time with enhanced debug output
+docker-compose logs -f piholevault
+
+# Or using docker directly
+docker logs -f piholevault
+```
+
+5. **Access the web interface** at <http://localhost:3000>
 
 #### Environment Variables
 
@@ -752,11 +824,28 @@ Frontend environment variables:
 
 ## � Debug Features & Troubleshooting
 
-PiHoleVault includes comprehensive debug features to help diagnose and resolve issues quickly.
+PiHoleVault includes comprehensive debug features and enhanced Docker logging to help diagnose and resolve issues quickly.
 
-### Quick Debug Mode Setup
+### 🚀 Quick Debug Setup
 
-Enable debug mode using environment variables in your `docker-compose.yml`:
+**Method 1: Using Environment Variables**
+
+```bash
+# Create .env file
+cat > .env << EOF
+DEBUG_MODE=true
+LOG_LEVEL=debug
+DEBUG_LEVEL=debug
+EOF
+
+# Restart container
+docker-compose down && docker-compose up -d
+
+# View enhanced logs
+docker-compose logs -f piholevault
+```
+
+**Method 2: Direct Docker Compose**
 
 ```yaml
 environment:
@@ -765,18 +854,35 @@ environment:
   - DEBUG_LEVEL=debug
 ```
 
-Or using a `.env` file:
+### 📊 Enhanced Docker Logging
+
+With v1.6.0, all logs are now visible via `docker logs`:
 
 ```bash
-# Copy the example file
-cp .env.example .env
+# View all logs
+docker logs piholevault
 
-# Edit .env and set:
-DEBUG_MODE=true
-LOG_LEVEL=debug
+# Follow logs in real-time
+docker logs -f piholevault
+
+# View with timestamps
+docker logs -t piholevault
+
+# View last 100 lines
+docker logs --tail 100 piholevault
+
+# Filter for errors only
+docker logs piholevault 2>&1 | grep -i error
 ```
 
-### Debug Features Available
+**Log Format Examples:**
+```
+🐳 PiHoleVault [2025-08-03 19:57:40] INFO: PiHoleVault server starting | Details: {"port":3001,"debugMode":true}
+🔍 PiHoleVault-Debug [2025-08-03 19:57:41] INFO: DebugService initialized | Details: {"debugDir":"/app/data/debug"}
+🐳 PiHoleVault [2025-08-03 19:57:42] INFO: GET /api/debug/status | Details: {"statusCode":200,"duration":"25ms"}
+```
+
+### 🔍 Debug Features Available
 
 When `DEBUG_MODE=true`, you get access to:
 
@@ -843,14 +949,63 @@ For detailed debug documentation, see [DEBUG.md](DEBUG.md).
 
 3. **Docker Issues**:
    - Check Docker and Docker Compose versions
-   - Verify port availability (3000, 3001)
-   - Check container logs: `docker-compose logs`
+   - Verify port availability (3000)
+   - Check container logs: `docker-compose logs -f piholevault`
+   - Enable debug mode for detailed diagnostics
 
-### Logs
+4. **Application Not Starting**:
+   - Check container status: `docker ps`
+   - View startup logs: `docker logs piholevault`
+   - Verify environment variables are set correctly
+   - Check health status: `curl http://localhost:3000/health`
 
-- **Application logs**: Available in the backend container
-- **Job history**: Accessible through the web interface
-- **Error logs**: Stored in `/data/error.log`
+5. **Logging Issues**:
+   - For enhanced logging, set `DEBUG_MODE=true`
+   - View real-time logs: `docker logs -f piholevault`
+   - Check debug endpoints: `curl http://localhost:3000/api/debug/status`
+
+### 📋 Enhanced Logging & Diagnostics
+
+**Real-time Log Monitoring:**
+
+```bash
+# Follow all logs
+docker logs -f piholevault
+
+# Follow only error logs
+docker logs -f piholevault 2>&1 | grep -i error
+
+# View startup logs
+docker logs piholevault --since 1m
+
+# Using docker-compose
+docker-compose logs -f piholevault
+```
+
+**Debug Mode Diagnostics:**
+
+```bash
+# Enable debug mode
+echo "DEBUG_MODE=true" >> .env
+docker-compose down && docker-compose up -d
+
+# Check debug status
+curl http://localhost:3000/api/debug/status
+
+# Get system information
+curl http://localhost:3000/api/debug/system-info
+
+# Test SSH connectivity
+curl -X POST http://localhost:3000/api/debug/test-ssh
+```
+
+### 📁 Log Locations
+
+- **Docker Logs**: `docker logs piholevault` (primary method)
+- **Application Logs**: `/app/data/combined.log` (inside container)
+- **Error Logs**: `/app/data/error.log` (inside container)
+- **Debug Logs**: `/app/data/debug/debug.log` (when debug mode enabled)
+- **Job History**: Available through web interface and API
 
 ## 🔄 Migration from Original Script
 
