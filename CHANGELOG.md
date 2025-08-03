@@ -2,6 +2,65 @@
 
 All notable changes to PiHoleVault will be documented in this file.
 
+## [1.6.0] - 2025-08-03
+
+### 🐛 Comprehensive Debug Features
+
+#### ✨ New Features
+
+- **Debug Mode Environment Control**:
+  - `DEBUG_MODE` environment variable for easy enable/disable
+  - `LOG_LEVEL` and `DEBUG_LEVEL` for granular logging control
+  - Debug configuration in docker-compose.yml and docker-compose.local.yml
+
+- **Enhanced Logging System**:
+  - Structured Winston-based logging with JSON format
+  - Separate debug log files in `/app/data/debug/`
+  - Automatic log rotation with size limits and retention policies
+  - Full error stack traces and request context in debug mode
+
+- **Debug API Endpoints** (9 new endpoints when DEBUG_MODE=true):
+  - `/api/debug/status` - Debug status and basic information
+  - `/api/debug/system-info` - Comprehensive system diagnostics
+  - `/api/debug/health-check` - Detailed component health checks
+  - `/api/debug/logs` - Retrieve and filter log entries
+  - `/api/debug/test-ssh` - SSH connectivity testing with detailed diagnostics
+  - `/api/debug/report` - Generate comprehensive debug reports
+  - `/api/debug/files` - List and download debug files
+  - `/api/debug/environment` - Environment variables and configuration
+  - `/api/debug/log-analysis` - Analyze logs for patterns and issues
+
+- **Debug Tools & Scripts**:
+  - `debug.sh` - Comprehensive debug management script with 10+ commands
+  - `verify-debug.sh` - Automated testing of all debug features
+  - Enhanced error handling with unique error IDs for tracking
+
+- **System Diagnostics**:
+  - Hardware information collection (CPU, memory, disk)
+  - Environment analysis with sensitive data sanitization
+  - Directory structure and permissions analysis
+  - Multi-step SSH connectivity testing with detailed failure analysis
+
+- **Log Analysis & Reporting**:
+  - Automatic pattern detection for common errors
+  - Error frequency analysis and categorization
+  - Comprehensive debug reports with system snapshots
+  - Debug file management with automatic cleanup
+
+#### 🔧 Technical Improvements
+
+- **DebugService**: New comprehensive debugging service class
+- **Enhanced Error Middleware**: Detailed error tracking with context
+- **Request/Response Logging**: Performance monitoring with response times
+- **Security Features**: Automatic sanitization of sensitive data in logs
+- **Path Traversal Protection**: Secure debug file access restrictions
+
+#### 📚 Documentation
+
+- **DEBUG.md**: Comprehensive debug documentation with usage examples
+- **Updated README.md**: Debug features section with quick start guide
+- **Enhanced .env.example**: Detailed debug configuration examples
+
 ## [1.2.0] - 2025-07-11
 
 ### 🎨 Major UI/UX Overhaul

@@ -1,12 +1,6 @@
-# Combined PiHoleVault Dockerfile - Frontend + Backend in single container
-# Multi-architecture support: AMD64, ARM64, ARMv7
+# Local Development Dockerfile for PiHoleVault
+# Simplified version without multi-platform complexity for local builds
 
-# Build arguments for cross-platform builds (must be declared before use)
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
-
-# Use conditional platform specification - only use if BUILDPLATFORM is set
-# This allows the Dockerfile to work with both regular docker build and docker buildx
 FROM node:18-alpine as frontend-build
 
 # Build the React frontend
@@ -18,10 +12,6 @@ RUN npm run build
 
 # Main application stage
 FROM node:18-alpine
-
-# Build arguments for cross-platform builds
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
 
 # Add metadata labels
 LABEL org.opencontainers.image.title="PiHoleVault"

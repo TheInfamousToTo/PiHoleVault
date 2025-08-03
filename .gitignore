@@ -41,4 +41,5 @@ Thumbs.db
 /data/*.log
 /backups/*
 !/backups/.gitkeep
+debug-logs/
 notes.txt

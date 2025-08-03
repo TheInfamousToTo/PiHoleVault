@@ -1,4 +1,4 @@
-# PiHoleVault v1.5.0
+# PiHoleVault v1.6.0
 
 A comprehensive web-based solution for managing Pi-hole backups with automated scheduling, SSH key management, Discord notifications, global analytics, and a modern React frontend featuring advanced animations and responsive UI.
 
@@ -12,7 +12,7 @@ A comprehensive web-based solution for managing Pi-hole backups with automated s
 
 - **GitHub Repository**: [TheInfamousToTo/PiHoleVault](https://github.com/TheInfamousToTo/PiHoleVault)
 - **Docker Hub**: [theinfamoustoto/piholevault](https://hub.docker.com/r/theinfamoustoto/piholevault)
-- **Latest Release**: [v1.5.0](https://github.com/TheInfamousToTo/PiHoleVault/releases/tag/v1.5.0)
+- **Latest Release**: [v1.6.0](https://github.com/TheInfamousToTo/PiHoleVault/releases/tag/v1.6.0)
 
 ### ❤️ Support the Project
 
@@ -45,6 +45,71 @@ If you find PiHoleVault useful, consider supporting its development:
 - **💚 Health Monitoring**: Built-in health checks and status monitoring
 - **🔄 Reconfigure Option**: Easy access to setup wizard for configuration changes
 - **🚀 Production Ready**: Optimized for production deployment with proper error handling
+
+## 🎯 Version 1.6.0 Release - Comprehensive Debug Features
+
+This release introduces comprehensive debugging and troubleshooting capabilities, making it easier to diagnose and resolve issues with PiHoleVault.
+
+### ✨ New Features
+
+- **🐛 Debug Mode**: Comprehensive debug mode with environment variable control (`DEBUG_MODE=true`)
+- **📊 Enhanced Logging**: Structured logging with Winston, log rotation, and detailed error tracking
+- **🔍 Debug API Endpoints**: 9 new API endpoints for system diagnostics and troubleshooting
+- **🖥️ System Information**: Detailed hardware, memory, and environment information collection
+- **🔗 SSH Diagnostics**: Multi-step SSH connectivity testing with detailed failure analysis
+- **📈 Log Analysis**: Automatic pattern detection and error frequency analysis
+- **📋 Debug Reports**: Comprehensive system reports with sanitized sensitive data
+- **🗂️ Debug File Management**: Downloadable debug files with automatic cleanup
+- **🛠️ Debug Tools**: Command-line debug script (`debug.sh`) with 10+ management commands
+- **✅ Debug Verification**: Automated test script (`verify-debug.sh`) to validate all debug features
+- **📚 Comprehensive Documentation**: Detailed debug documentation in `DEBUG.md`
+
+### 🔧 Environment Variables
+
+- **`DEBUG_MODE`**: Enable/disable comprehensive debugging features
+- **`LOG_LEVEL`**: Control application logging verbosity (error, warn, info, debug)
+- **`DEBUG_LEVEL`**: Control debug service logging level
+
+### 📊 Debug API Endpoints
+
+When `DEBUG_MODE=true`, access these endpoints:
+- `/api/debug/status` - Debug status and basic information
+- `/api/debug/system-info` - Comprehensive system diagnostics
+- `/api/debug/health-check` - Detailed component health checks
+- `/api/debug/logs` - Retrieve and filter log entries
+- `/api/debug/test-ssh` - SSH connectivity testing with detailed diagnostics
+- `/api/debug/report` - Generate comprehensive debug reports
+- `/api/debug/files` - List and download debug files
+- `/api/debug/environment` - Environment variables and configuration
+- `/api/debug/log-analysis` - Analyze logs for patterns and issues
+
+### 🛠️ Debug Tools
+
+- **`debug.sh`**: Comprehensive debug management script
+  - Container management: `start`, `stop`, `restart`, `shell`
+  - Monitoring: `logs`, `status`, `health`
+  - Testing: `debug-api`, `build`, `cleanup`
+- **`verify-debug.sh`**: Automated testing of all debug features
+- **Enhanced Docker Compose**: Debug configuration in both regular and local compose files
+
+### 📁 Directory Structure
+
+Debug mode creates organized debug files:
+```
+data/debug/
+├── debug.log              # Detailed debug logs
+├── error-debug.log        # Debug error logs
+├── system-info-*.json     # System information snapshots
+├── debug-report-*.json    # Comprehensive debug reports
+└── ssh-test-*.json        # SSH connectivity test results
+```
+
+### 🔒 Security Features
+
+- **Automatic Data Sanitization**: Passwords, tokens, and sensitive data are automatically redacted
+- **Path Traversal Protection**: Debug file access is restricted to debug directory
+- **Production Safety**: Debug mode designed to be safely disabled in production
+- **Environment Masking**: Sensitive environment variables are masked in reports
 
 ## 🎯 Version 1.5.0 Release - Multi-Architecture Support
 
@@ -685,7 +750,84 @@ Frontend environment variables:
 5. **Retention**: Apply retention policy to old backups
 6. **Logging**: Record job status and details
 
-## 🚨 Troubleshooting
+## � Debug Features & Troubleshooting
+
+PiHoleVault includes comprehensive debug features to help diagnose and resolve issues quickly.
+
+### Quick Debug Mode Setup
+
+Enable debug mode using environment variables in your `docker-compose.yml`:
+
+```yaml
+environment:
+  - DEBUG_MODE=true
+  - LOG_LEVEL=debug
+  - DEBUG_LEVEL=debug
+```
+
+Or using a `.env` file:
+
+```bash
+# Copy the example file
+cp .env.example .env
+
+# Edit .env and set:
+DEBUG_MODE=true
+LOG_LEVEL=debug
+```
+
+### Debug Features Available
+
+When `DEBUG_MODE=true`, you get access to:
+
+- **📊 Enhanced Logging**: Detailed application logs with stack traces
+- **🔍 Debug API Endpoints**: Comprehensive troubleshooting endpoints
+- **🖥️ System Information**: Hardware, memory, and environment details  
+- **🔗 SSH Testing**: Detailed SSH connectivity diagnostics
+- **📈 Log Analysis**: Automatic pattern detection in logs
+- **📋 Debug Reports**: Comprehensive system reports
+- **🗂️ Debug Files**: Downloadable debug information
+
+### Debug API Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `/api/debug/status` | Current debug status and basic info |
+| `/api/debug/system-info` | Comprehensive system information |
+| `/api/debug/health-check` | Detailed health check of all components |
+| `/api/debug/logs` | Retrieve and filter log entries |
+| `/api/debug/test-ssh` | Test SSH connectivity with detailed debugging |
+| `/api/debug/report` | Generate comprehensive debug report |
+| `/api/debug/files` | List/download debug files |
+
+### Debug Script (Advanced Users)
+
+Use the included debug script for enhanced troubleshooting:
+
+```bash
+# Make executable
+chmod +x debug.sh
+
+# Start in debug mode
+./debug.sh start
+
+# Show status and health
+./debug.sh status
+./debug.sh health
+
+# View live logs
+./debug.sh logs
+
+# Test debug API endpoints
+./debug.sh debug-api
+
+# Access container shell
+./debug.sh shell
+```
+
+For detailed debug documentation, see [DEBUG.md](DEBUG.md).
+
+## �🚨 Troubleshooting
 
 ### Common Issues
 

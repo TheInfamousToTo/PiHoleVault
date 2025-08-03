@@ -51,16 +51,50 @@ fi
 case "${1:-help}" in
     "build")
         echo "🔨 Building PiHoleVault image locally..."
-        docker-compose -f $COMPOSE_FILE build --no-cache
-        echo "✅ Build completed!"
+        
+        # Check if buildx is available for better multi-platform support
+        if docker buildx version >/dev/null 2>&1; then
+            echo "📦 Using Docker Buildx for enhanced build support"
+            # Set default builder to ensure compatibility
+            docker buildx use default 2>/dev/null || true
+        else
+            echo "⚠️  Docker Buildx not available, using standard build"
+            echo "💡 Consider installing buildx for better multi-platform support"
+        fi
+        
+        # Build with better error handling
+        if docker-compose -f $COMPOSE_FILE build --no-cache; then
+            echo "✅ Build completed successfully!"
+        else
+            echo "❌ Build failed!"
+            echo ""
+            echo "🔧 Troubleshooting tips:"
+            echo "  1. Make sure Docker is running"
+            echo "  2. Check if you have sufficient disk space"
+            echo "  3. Try: docker system prune -f"
+            echo "  4. If using WSL2, restart Docker Desktop"
+            exit 1
+        fi
         ;;
     
     "up")
         echo "🚀 Starting PiHoleVault services..."
-        docker-compose -f $COMPOSE_FILE up -d --build
-        echo "✅ Services started!"
-        echo "🌐 Access PiHoleVault at: http://localhost:3000"
-        echo "📋 To view logs: $0 logs"
+        
+        # Check if images exist, build if needed
+        if ! docker images | grep -q piholevault-local; then
+            echo "📦 No existing image found, building first..."
+        fi
+        
+        if docker-compose -f $COMPOSE_FILE up -d --build; then
+            echo "✅ Services started successfully!"
+            echo "🌐 Access PiHoleVault at: http://localhost:3000"
+            echo "📋 To view logs: $0 logs"
+            echo "📊 To check status: $0 status"
+        else
+            echo "❌ Failed to start services!"
+            echo "📋 Check logs: $0 logs"
+            exit 1
+        fi
         ;;
     
     "down")

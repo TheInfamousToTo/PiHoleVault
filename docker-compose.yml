@@ -9,12 +9,17 @@ services:
     volumes:
       - ./data:/app/data
       - ./backups:/app/backups
+      - ./debug-logs:/app/data/debug  # Debug logs (only used when DEBUG_MODE=true)
       - ssh_keys:/root/.ssh
     environment:
       - NODE_ENV=production
       - DATA_DIR=/app/data
       - BACKUP_DIR=/app/backups
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      # Debug Configuration (set to 'true' to enable debug mode)
+      - DEBUG_MODE=false
+      - LOG_LEVEL=info
+      - DEBUG_LEVEL=info
     env_file:
       - .env
     restart: unless-stopped
