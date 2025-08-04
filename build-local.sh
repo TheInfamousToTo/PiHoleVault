@@ -6,7 +6,7 @@
 set -e
 
 # Discord webhook URL for notifications
-export DISCORD_WEBHOOK_URL="https://discord.com/api/webhooks/1393231200889344183/sUv1wnBjDk4pkmytuqJeEFfuylBgcv6cIc2c79m8afLOCEZEXRkPYkpPyqmEHUbLPQd3"
+export DISCORD_WEBHOOK_URL=""
 
 echo "🚀 PiHoleVault Local Build & Deploy Script"
 echo "======================================="
