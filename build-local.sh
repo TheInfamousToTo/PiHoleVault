@@ -5,8 +5,17 @@
 
 set -e
 
-# Discord webhook URL for notifications
-export DISCORD_WEBHOOK_URL=""
+# Load environment variables from .env file if it exists
+if [[ -f .env ]]; then
+    echo "📁 Loading environment variables from .env file..."
+    set -a  # Automatically export all variables
+    source .env
+    set +a  # Stop automatically exporting
+    echo "✅ Environment variables loaded"
+else
+    echo "⚠️  No .env file found - Discord notifications will be disabled"
+    export DISCORD_WEBHOOK_URL=""
+fi
 
 echo "🚀 PiHoleVault Local Build & Deploy Script"
 echo "======================================="
@@ -144,7 +153,12 @@ case "${1:-help}" in
         echo "🔔 Discord Webhook Configuration:"
         if [[ -n "$DISCORD_WEBHOOK_URL" ]]; then
             echo "✅ Webhook URL: ${DISCORD_WEBHOOK_URL:0:50}..." 
-            echo "📡 Discord notifications are enabled"
+            if [[ -f .env ]]; then
+                echo "� Loaded from .env file"
+            else
+                echo "🌍 Loaded from environment variable"
+            fi
+            echo "�📡 Discord notifications are enabled"
             echo "🧪 Testing webhook..."
             # Test the webhook with a simple curl command
             curl -X POST "$DISCORD_WEBHOOK_URL" \
@@ -160,6 +174,11 @@ case "${1:-help}" in
                 }' && echo "✅ Test notification sent!" || echo "❌ Test failed"
         else
             echo "❌ No Discord webhook URL configured"
+            if [[ ! -f .env ]]; then
+                echo "💡 Create a .env file with DISCORD_WEBHOOK_URL to enable notifications"
+            else
+                echo "💡 Add DISCORD_WEBHOOK_URL to your .env file to enable notifications"
+            fi
         fi
         ;;
     
