@@ -3,7 +3,7 @@ logs
 *.log
 npm-debug.log*
 /data/jobs.json
-
+build-local.sh
 # Runtime data
 pids
 *.pid
