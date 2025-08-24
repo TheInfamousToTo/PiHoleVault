@@ -55,20 +55,30 @@ RUN find /usr/share/nginx/html -type f -exec chmod 644 {} \+
 # Create necessary directories
 RUN mkdir -p /app/data /app/backups /root/.ssh /var/log/supervisor
 
-# Set proper permissions for SSH and create config
+# Set proper permissions for SSH and create config (NO KEY GENERATION)
 RUN chmod 700 /root/.ssh && \
     echo "StrictHostKeyChecking no" > /root/.ssh/config && \
     echo "UserKnownHostsFile /dev/null" >> /root/.ssh/config && \
-    chmod 600 /root/.ssh/config && \
-    ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N "" && \
-    chmod 600 /root/.ssh/id_rsa
+    chmod 600 /root/.ssh/config
 
-# Create startup script inline with debug support
+# Create startup script inline with debug support and RUNTIME SSH key generation
 RUN echo '#!/bin/sh' > /usr/local/bin/startup.sh && \
     echo 'echo "Starting PiHoleVault services..."' >> /usr/local/bin/startup.sh && \
     echo 'echo "Debug Mode: ${DEBUG_MODE:-false}"' >> /usr/local/bin/startup.sh && \
     echo 'echo "Log Level: ${LOG_LEVEL:-info}"' >> /usr/local/bin/startup.sh && \
     echo 'echo "Debug Level: ${DEBUG_LEVEL:-info}"' >> /usr/local/bin/startup.sh && \
+    echo '' >> /usr/local/bin/startup.sh && \
+    echo '# Generate SSH keys at runtime if they do not exist' >> /usr/local/bin/startup.sh && \
+    echo 'if [ ! -f /root/.ssh/id_rsa ]; then' >> /usr/local/bin/startup.sh && \
+    echo '  echo "🔑 Generating unique SSH keys for this container..."' >> /usr/local/bin/startup.sh && \
+    echo '  ssh-keygen -t rsa -b 4096 -f /root/.ssh/id_rsa -N "" -q' >> /usr/local/bin/startup.sh && \
+    echo '  chmod 600 /root/.ssh/id_rsa' >> /usr/local/bin/startup.sh && \
+    echo '  chmod 644 /root/.ssh/id_rsa.pub' >> /usr/local/bin/startup.sh && \
+    echo '  echo "✅ SSH keys generated successfully"' >> /usr/local/bin/startup.sh && \
+    echo 'else' >> /usr/local/bin/startup.sh && \
+    echo '  echo "🔑 Using existing SSH keys"' >> /usr/local/bin/startup.sh && \
+    echo 'fi' >> /usr/local/bin/startup.sh && \
+    echo '' >> /usr/local/bin/startup.sh && \
     echo 'nginx -t && echo "Nginx config OK"' >> /usr/local/bin/startup.sh && \
     echo 'if [ "$DEBUG_MODE" = "true" ]; then' >> /usr/local/bin/startup.sh && \
     echo '  echo "=== DEBUG MODE ENABLED ==="' >> /usr/local/bin/startup.sh && \

@@ -20,8 +20,6 @@ services:
       - DEBUG_MODE=false
       - LOG_LEVEL=info
       - DEBUG_LEVEL=info
-    env_file:
-      - .env
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
