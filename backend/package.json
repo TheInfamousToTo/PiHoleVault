@@ -20,7 +20,8 @@
     "winston": "^3.9.0",
     "cron-parser": "^4.8.1",
     "archiver": "^5.3.1",
-    "node-ssh": "^13.1.0"
+    "node-ssh": "^13.1.0",
+    "axios": "^1.4.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

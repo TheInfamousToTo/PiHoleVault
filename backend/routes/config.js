@@ -80,11 +80,27 @@ router.post('/save', async (req, res) => {
     const config = req.body;
     const configPath = path.join(req.app.locals.DATA_DIR, CONFIG_FILE);
     
-    // Validate required fields
-    if (!config.pihole || !config.pihole.host || !config.pihole.username) {
+    // Validate required fields based on connection method
+    if (!config.pihole || !config.pihole.host) {
       return res.status(400).json({ 
         success: false, 
-        error: 'Missing required Pi-hole configuration' 
+        error: 'Missing required Pi-hole host configuration' 
+      });
+    }
+
+    // For SSH and hybrid methods, username is required
+    if ((config.pihole.connectionMethod === 'ssh' || config.pihole.connectionMethod === 'hybrid') && !config.pihole.username) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Username is required for SSH and hybrid connection methods' 
+      });
+    }
+
+    // For web and hybrid methods, web password is required
+    if ((config.pihole.connectionMethod === 'web' || config.pihole.connectionMethod === 'hybrid') && !config.pihole.webPassword) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Web password is required for web-only and hybrid connection methods' 
       });
     }
 

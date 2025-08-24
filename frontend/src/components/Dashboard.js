@@ -442,7 +442,7 @@ const Dashboard = ({ onReconfigure }) => {
       } else {
         console.error('Failed to load configuration:', configRes.reason);
         setConfig({
-          pihole: { host: '192.168.31.230', username: 'root', port: 22 },
+          pihole: { host: '192.168.1.100', username: 'root', port: 22 },
           backup: { destinationPath: '/app/backups', maxBackups: 10 },
           schedule: { enabled: true, cronExpression: '0 3 * * *', timezone: 'GMT+3' }
         });

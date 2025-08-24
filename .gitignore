@@ -3,7 +3,6 @@ logs
 *.log
 npm-debug.log*
 /data/jobs.json
-build-local.sh
 
 # Runtime data
 pids
@@ -38,9 +37,19 @@ node_modules/
 .DS_Store
 Thumbs.db
 
-# Data and backup files
-/data/*.log
+# SECURITY: Data and configuration files containing credentials
+data/config.json
+data/instance_id.txt
+data/*.log
+debug-logs/*.json
+debug-logs/*.log
+
+# Backup files (may contain sensitive data)
 /backups/*
 !/backups/.gitkeep
-debug-logs/
+
+# Local development files  
+docker-compose.local.yml
+build-local.sh
 notes.txt
+test-*.sh

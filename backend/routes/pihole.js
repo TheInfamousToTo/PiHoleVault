@@ -2,16 +2,131 @@ const express = require('express');
 const fs = require('fs-extra');
 const path = require('path');
 const { NodeSSH } = require('node-ssh');
+const PiHoleWebService = require('../services/PiHoleWebService');
 const router = express.Router();
 
 // Test Pi-hole connection
 router.post('/test-connection', async (req, res) => {
-  const { host, username, password, port = 22 } = req.body;
+  const { 
+    host, 
+    username, 
+    password, 
+    port = 22,
+    connectionMethod = 'ssh',
+    webPort = 80,
+    useHttps = false,
+    webPassword
+  } = req.body;
   
-  if (!host || !username || !password) {
+  if (!host) {
     return res.status(400).json({ 
       success: false, 
-      error: 'Missing required connection parameters' 
+      error: 'Host is required' 
+    });
+  }
+
+  // Handle different connection methods
+  if (connectionMethod === 'hybrid') {
+    try {
+      req.app.locals.logger.info('Testing hybrid connection', { host, connectionMethod });
+      
+      const webService = new PiHoleWebService(req.app.locals.logger);
+      const result = await webService.testHybridConnection({
+        host,
+        username,
+        password,
+        port,
+        webPort,
+        useHttps,
+        webPassword
+      });
+
+      if (result.success) {
+        req.app.locals.logger.info('Hybrid connection test successful', { host });
+        res.json({ 
+          success: true, 
+          message: result.message,
+          method: 'hybrid',
+          details: result.details
+        });
+      } else {
+        res.json({ 
+          success: false, 
+          error: result.error,
+          details: result.details
+        });
+      }
+      
+    } catch (error) {
+      req.app.locals.logger.error('Hybrid connection test failed', { 
+        host, 
+        error: error.message 
+      });
+      
+      res.json({ 
+        success: false, 
+        error: `Hybrid connection test failed: ${error.message}` 
+      });
+    }
+    return;
+  } else if (connectionMethod === 'web') {
+    try {
+      req.app.locals.logger.info('Testing web-only connection', { host, connectionMethod });
+      
+      const webService = new PiHoleWebService(req.app.locals.logger);
+      const result = await webService.testWebConnection({
+        host,
+        webPort,
+        useHttps
+      });
+
+      if (result.success) {
+        // Also test authentication if password provided
+        let authResult = null;
+        if (webPassword) {
+          authResult = await webService.authenticateWeb({
+            host,
+            webPort,
+            useHttps,
+            webPassword
+          });
+        }
+
+        req.app.locals.logger.info('Web-only connection test successful', { host });
+        res.json({ 
+          success: true, 
+          message: result.message + ' (SSH not required)',
+          method: 'web-only',
+          requiresAuth: result.requiresAuth,
+          authResult: authResult,
+          sshRequired: false
+        });
+      } else {
+        res.json({ 
+          success: false, 
+          error: result.error 
+        });
+      }
+      
+    } catch (error) {
+      req.app.locals.logger.error('Web-only connection test failed', { 
+        host, 
+        error: error.message 
+      });
+      
+      res.json({ 
+        success: false, 
+        error: `Web-only connection test failed: ${error.message}` 
+      });
+    }
+    return;
+  }
+
+  // Default SSH-only connection method
+  if (!username || !password) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Username and password are required for SSH connection' 
     });
   }
 
@@ -42,7 +157,11 @@ router.post('/test-connection', async (req, res) => {
     await ssh.dispose();
     
     req.app.locals.logger.info('SSH connection test successful', { host });
-    res.json({ success: true, message: 'Connection successful' });
+    res.json({ 
+      success: true, 
+      message: 'SSH connection successful',
+      method: 'ssh'
+    });
     
   } catch (error) {
     if (ssh) {
@@ -60,7 +179,8 @@ router.post('/test-connection', async (req, res) => {
     
     res.json({ 
       success: false, 
-      error: `Connection failed: ${error.message}` 
+      error: `SSH connection failed: ${error.message}`,
+      method: 'ssh'
     });
   }
 });

@@ -1,0 +1,27 @@
+{
+  "pihole": {
+    "host": "http://192.168.1.100",
+    "connectionMethod": "web",
+    "username": "",
+    "password": "",
+    "port": 22,
+    "webPort": 80,
+    "useHttps": false,
+    "webPassword": "your-pihole-admin-password"
+  },
+  "backup": {
+    "destinationPath": "/app/backups",
+    "maxBackups": 10
+  },
+  "schedule": {
+    "enabled": true,
+    "cronExpression": "0 3 * * *",
+    "timezone": "UTC"
+  },
+  "discord": {
+    "enabled": false,
+    "webhookUrl": "",
+    "notifyOnSuccess": true,
+    "notifyOnFailure": true
+  }
+}

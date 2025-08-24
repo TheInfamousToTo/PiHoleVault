@@ -3,6 +3,72 @@ const fs = require('fs-extra');
 const path = require('path');
 const router = express.Router();
 
+// Create a new backup with specific connection parameters
+router.post('/', async (req, res) => {
+  try {
+    const { connectionId, name, description } = req.body;
+    
+    if (!connectionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'connectionId is required'
+      });
+    }
+
+    // Load configuration to get connection details
+    const configPath = path.join(req.app.locals.DATA_DIR, 'config.json');
+    let config;
+    
+    try {
+      config = await fs.readJson(configPath);
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to load configuration'
+      });
+    }
+
+    // Find the connection by ID
+    let connection;
+    if (config.pihole && (config.pihole.connectionId === connectionId || connectionId === 'pihole-web')) {
+      connection = config.pihole;
+      connection.connectionId = connectionId; // Ensure it has an ID
+    } else if (config.connections && config.connections[connectionId]) {
+      connection = config.connections[connectionId];
+    }
+
+    if (!connection) {
+      return res.status(404).json({
+        success: false,
+        error: `Connection '${connectionId}' not found`
+      });
+    }
+
+    // Use the backup service to perform the backup with specific connection
+    const backupService = req.app.locals.backupService;
+    const result = await backupService.runBackupWithConnection(connection, name, description);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        message: 'Backup completed successfully',
+        filename: result.filename,
+        size: result.size || 0,
+        jobId: result.jobId
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error
+      });
+    }
+    
+  } catch (error) {
+    req.app.locals.logger.error('Error creating backup', { error: error.message });
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Run backup now
 router.post('/run', async (req, res) => {
   try {

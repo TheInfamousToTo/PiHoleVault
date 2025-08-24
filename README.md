@@ -1,4 +1,4 @@
-# PiHoleVault v1.6.0
+# PiHoleVault v1.7.0
 
 A comprehensive web-based solution for managing Pi-hole backups with automated scheduling, SSH key management, Discord notifications, global analytics, and a modern React frontend featuring advanced animations and responsive UI.
 
@@ -12,7 +12,7 @@ A comprehensive web-based solution for managing Pi-hole backups with automated s
 
 - **GitHub Repository**: [TheInfamousToTo/PiHoleVault](https://github.com/TheInfamousToTo/PiHoleVault)
 - **Docker Hub**: [theinfamoustoto/piholevault](https://hub.docker.com/r/theinfamoustoto/piholevault)
-- **Latest Release**: [v1.6.0](https://github.com/TheInfamousToTo/PiHoleVault/releases/tag/v1.6.0)
+- **Latest Release**: [v1.7.0](https://github.com/TheInfamousToTo/PiHoleVault/releases/tag/v1.7.0)
 
 ### ❤️ Support the Project
 
@@ -25,7 +25,11 @@ If you find PiHoleVault useful, consider supporting its development:
 
 ## 🚀 Features
 
-- **🎨 Modern Animated UI**: Advanced Material-UI animations with glassmorphism effects and smooth transitions
+- **� Web-Only Connection Method**: Revolutionary new backup method for Docker Pi-hole installations that requires NO SSH access
+- **🔗 Pi-hole Modern API Support**: Native integration with Pi-hole v6.0+ API endpoints using session-based authentication
+- **🐳 Docker Pi-hole Ready**: Perfect solution for containerized Pi-hole setups where SSH is unavailable or not desired
+- **⚡ Three Connection Methods**: Choose between Web-Only, Web+SSH Hybrid, or Traditional SSH-only connections
+- **�🎨 Modern Animated UI**: Advanced Material-UI animations with glassmorphism effects and smooth transitions
 - **🌍 Global Analytics**: View worldwide PiHoleVault community statistics and track global backup trends
 - **📊 Community Insights**: See real-time statistics from all PiHoleVault instances worldwide
 - **🔄 Icon-Only AppBar**: Clean, minimalist navigation with color-coded icon buttons and tooltips
@@ -45,6 +49,75 @@ If you find PiHoleVault useful, consider supporting its development:
 - **💚 Health Monitoring**: Built-in health checks and status monitoring
 - **🔄 Reconfigure Option**: Easy access to setup wizard for configuration changes
 - **🚀 Production Ready**: Optimized for production deployment with proper error handling
+
+## 🎯 Version 1.7.0 Release - Web-Only Connection Method & Pi-hole Modern API Support
+
+This groundbreaking release introduces a revolutionary new connection method that eliminates the need for SSH access, making PiHoleVault perfect for Docker Pi-hole installations and containerized environments.
+
+### ✨ Major New Features
+
+- **🌐 Web-Only Connection Method**: 
+  - Complete backup solution requiring NO SSH access
+  - Perfect for Docker Pi-hole installations where SSH is unavailable
+  - Uses Pi-hole's modern web API for authentication and backup operations
+  - Supports both HTTP and HTTPS connections with automatic endpoint discovery
+
+- **🔗 Pi-hole Modern API Integration**:
+  - Native support for Pi-hole v6.0+ modern API endpoints
+  - Session-based authentication with SID and CSRF token handling
+  - Automatic fallback to legacy API endpoints for older Pi-hole versions
+  - Teleporter API integration for seamless backup data retrieval
+
+- **⚡ Three Connection Methods Available**:
+  1. **Web-Only**: Pure API-based connection (no SSH required)
+  2. **Web+SSH Hybrid**: Web authentication + SSH backup (enhanced security)
+  3. **Traditional SSH**: Original SSH-only method (fully backward compatible)
+
+- **🐳 Docker Pi-hole Ready**:
+  - Designed specifically for containerized Pi-hole environments
+  - No container modification or SSH daemon installation required
+  - Works with official Pi-hole Docker images out of the box
+  - Automatic network connectivity and DNS resolution
+
+### 🔧 Technical Implementation
+
+- **PiHoleWebService**: New dedicated service for Pi-hole web API interactions
+- **Session Management**: Sophisticated cookie and token handling system  
+- **Multi-Endpoint Support**: Automatic discovery and fallback across API endpoints
+- **Binary Data Handling**: Native support for Pi-hole's teleporter backup format
+- **Error Recovery**: Comprehensive error handling with detailed debugging information
+
+### 🛡️ Enhanced Security
+
+- **No SSH Dependencies**: Eliminates SSH-related security concerns for web-only setups
+- **Session-Based Auth**: Temporary authentication tokens that expire automatically
+- **Secure Credential Storage**: Pi-hole admin passwords encrypted and never logged
+- **Network Isolation**: Works within Docker networks without exposing additional ports
+
+### 🎨 User Experience Improvements
+
+- **Setup Wizard Enhancement**: New connection method selection with guided setup
+- **Real-Time Feedback**: Live connection testing during configuration
+- **Comprehensive Validation**: Automatic validation of Pi-hole URLs and credentials
+- **Error Diagnostics**: Detailed error messages with troubleshooting guidance
+
+### 📈 Performance & Reliability
+
+- **Direct API Access**: Faster backup operations without SSH overhead
+- **Automatic Retry Logic**: Built-in retry mechanisms for network failures
+- **Concurrent Processing**: Non-blocking API calls for better responsiveness
+- **Resource Efficient**: Lower memory and CPU usage compared to SSH methods
+
+### 🔄 Backward Compatibility
+
+- **Existing Configurations**: All existing SSH-based setups continue to work unchanged
+- **Seamless Migration**: Easy upgrade path from SSH to web-only connections
+- **Legacy Support**: Full support for older Pi-hole installations via API fallbacks
+- **Configuration Preservation**: No breaking changes to existing config files
+
+This release represents the most significant advancement in PiHoleVault's capability, opening up backup functionality to the entire Docker Pi-hole ecosystem while maintaining full compatibility with traditional installations.
+
+---
 
 ## 🎯 Version 1.6.0 Release - Comprehensive Debug Features & Enhanced Docker Logging
 
@@ -610,38 +683,72 @@ If you prefer to run without Docker:
 
 The first time you access the application, you'll be guided through a setup wizard:
 
-1. **Pi-hole Server Configuration**:
-   - Server IP/hostname
-   - SSH port (default: 22)
-   - Username and password
+1. **Connection Method Selection**:
+   - **Web-Only**: Perfect for Docker Pi-hole installations (no SSH required)
+   - **Web+SSH Hybrid**: Enhanced security with web authentication + SSH backup
+   - **Traditional SSH**: Original SSH-only method for full server access
 
-2. **Backup Settings**:
+2. **Pi-hole Configuration** (varies by connection method):
+   - **Web-Only**: Pi-hole URL (e.g., `http://192.168.1.100`) and admin password
+   - **SSH Methods**: Server IP/hostname, SSH port, username, and credentials
+
+3. **Backup Settings**:
    - Destination path for backups
    - Maximum number of backups to retain
 
-3. **Schedule Configuration**:
+4. **Schedule Configuration**:
    - Cron expression for automated backups
    - Timezone settings
 
-4. **Discord Notifications** (optional):
+5. **Discord Notifications** (optional):
    - Discord webhook URL configuration
    - Notification preferences for success/failure
    - Test webhook functionality
 
-5. **SSH Key Setup**:
-   - Automatic generation and deployment of SSH keys
-   - Passwordless authentication setup
+6. **Authentication Setup** (method-dependent):
+   - **Web-Only**: Automatic session management (no additional setup)
+   - **SSH Methods**: Automatic generation and deployment of SSH keys
 
 ### Manual Configuration
 
 Configuration is stored in `/data/config.json`:
 
+**Web-Only Connection Example**:
+```json
+{
+  "pihole": {
+    "host": "http://192.168.1.100",
+    "connectionMethod": "web",
+    "webPassword": "your-pihole-admin-password",
+    "webPort": 80,
+    "useHttps": false
+  },
+  "backup": {
+    "destinationPath": "/app/backups",
+    "maxBackups": 10
+  },
+  "schedule": {
+    "enabled": true,
+    "cronExpression": "0 3 * * *",
+    "timezone": "UTC"
+  },
+  "discord": {
+    "enabled": false,
+    "webhookUrl": "https://discord.com/api/webhooks/...",
+    "notifyOnSuccess": true,
+    "notifyOnFailure": true
+  }
+}
+```
+
+**Traditional SSH Connection Example**:
 ```json
 {
   "pihole": {
     "host": "192.168.1.100",
+    "connectionMethod": "ssh", 
     "username": "pi",
-    "password": "your-password",
+    "password": "your-ssh-password",
     "port": 22
   },
   "backup": {
@@ -748,8 +855,10 @@ HoleSafe supports rich Discord notifications with detailed embeds for backup ope
 
 ### Pi-hole Management
 
-- `POST /api/pihole/test-connection` - Test Pi-hole connection
+- `POST /api/pihole/test-connection` - Test Pi-hole connection (all methods)
 - `GET /api/pihole/status` - Get Pi-hole server status
+- `POST /api/pihole/test-web-auth` - Test web-only authentication
+- `POST /api/pihole/web-backup` - Execute web-only backup
 
 ### Backup Operations
 
@@ -815,6 +924,16 @@ Frontend environment variables:
 
 ## 📋 Backup Process
 
+### Web-Only Method (New in v1.7.0)
+1. **Authentication**: Connect to Pi-hole web interface using admin password
+2. **Session Management**: Establish secure session with SID and CSRF tokens  
+3. **API Call**: Execute Pi-hole's Teleporter API (`/api/teleporter`) 
+4. **Data Retrieval**: Download backup data directly from Pi-hole's API
+5. **File Creation**: Save backup file to local storage with timestamp
+6. **Cleanup**: Apply retention policy to manage old backups
+7. **Logging**: Record job status and performance metrics
+
+### Traditional SSH Method
 1. **Connection**: Connect to Pi-hole server via SSH
 2. **Generation**: Execute `pihole-FTL --teleporter` command
 3. **Transfer**: Download backup file to local storage

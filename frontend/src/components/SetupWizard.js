@@ -63,9 +63,13 @@ const SetupWizard = ({ onComplete }) => {
   const [formData, setFormData] = useState({
     pihole: {
       host: '',
+      connectionMethod: 'web', // Default to web-only
       username: '',
       password: '',
       port: 22,
+      webPort: 80,
+      useHttps: false,
+      webPassword: '',
     },
     backup: {
       destinationPath: '/app/backups',
@@ -92,8 +96,14 @@ const SetupWizard = ({ onComplete }) => {
 
   const handleNext = async () => {
     if (activeStep === steps.length - 1) {
-      // On the last step (SSH Key Setup)
-      await setupSSHKey();
+      // On the last step - handle based on connection method
+      if (formData.pihole.connectionMethod === 'web') {
+        // Skip SSH key setup for web-only connections
+        await handleFinish();
+      } else {
+        // Setup SSH key for SSH/hybrid connections
+        await setupSSHKey();
+      }
     } else {
       if (activeStep === 0) {
         await testConnection();
@@ -111,16 +121,22 @@ const SetupWizard = ({ onComplete }) => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
-  const testConnection = async () => {
+    const testConnection = async () => {
     setLoading(true);
     try {
-      const response = await api.post('/ssh/test', formData.pihole);
+      const response = await api.post('/pihole/test-connection', formData.pihole);
       if (response.data.success) {
-        setSshStatus(prev => ({ ...prev, connected: true }));
-        toast.success('Connection successful!');
+        // Update connection status
+        setSshStatus(prev => ({ 
+          ...prev, 
+          connected: true,
+          // For web-only connections, mark SSH as not required
+          keyDeployed: formData.pihole.connectionMethod === 'web' ? true : prev.keyDeployed
+        }));
+        toast.success(`${response.data.message} (${response.data.method})`);
         setActiveStep((prevActiveStep) => prevActiveStep + 1);
       } else {
-        toast.error('Connection failed: ' + response.data.error);
+        toast.error(`Connection failed: ${response.data.error}`);
       }
     } catch (error) {
       toast.error('Connection test failed: ' + error.message);
@@ -260,58 +276,187 @@ const SetupWizard = ({ onComplete }) => {
               </Box>
               
               <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <FormControl fullWidth>
+                    <InputLabel>Connection Method</InputLabel>
+                    <Select
+                      value={formData.pihole.connectionMethod}
+                      onChange={(e) => handleInputChange('pihole', 'connectionMethod', e.target.value)}
+                      label="Connection Method"
+                    >
+                      <MenuItem value="web">
+                        <Box>
+                          <Typography variant="body2" fontWeight="medium">Web/API Only</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Perfect for Docker Pi-hole - No SSH required
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                      <MenuItem value="hybrid">
+                        <Box>
+                          <Typography variant="body2" fontWeight="medium">Hybrid (Web + SSH)</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Best reliability - Requires SSH access
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                      <MenuItem value="ssh">
+                        <Box>
+                          <Typography variant="body2" fontWeight="medium">SSH Only</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            Traditional method - SSH only
+                          </Typography>
+                        </Box>
+                      </MenuItem>
+                    </Select>
+                  </FormControl>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    {formData.pihole.connectionMethod === 'ssh' && 'Traditional SSH-only method. Requires SSH access to Pi-hole server.'}
+                    {formData.pihole.connectionMethod === 'hybrid' && 'Uses Web API for status monitoring and SSH for backups. Most reliable option.'}
+                    {formData.pihole.connectionMethod === 'web' && 'Perfect for Docker-based Pi-hole installations. No SSH access required.'}
+                  </Typography>
+                </Grid>
+                
                 <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
-                    label="Pi-hole Host IP"
+                    label={formData.pihole.connectionMethod === 'web' ? 'Pi-hole URL' : 'Pi-hole Host IP'}
                     value={formData.pihole.host}
                     onChange={(e) => handleInputChange('pihole', 'host', e.target.value)}
-                    placeholder="192.168.1.100"
-                    helperText="IP address of your Pi-hole server"
+                    placeholder={formData.pihole.connectionMethod === 'web' ? 'https://192.168.1.100/admin/' : '192.168.1.100'}
+                    helperText={
+                      formData.pihole.connectionMethod === 'web' 
+                        ? 'Full URL to your Pi-hole admin interface (include /admin/ path)' 
+                        : 'IP address or hostname of your Pi-hole server'
+                    }
                   />
                 </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="SSH Port"
-                    type="number"
-                    value={formData.pihole.port}
-                    onChange={(e) => handleInputChange('pihole', 'port', parseInt(e.target.value))}
-                    helperText="Default SSH port is 22"
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="Username"
-                    value={formData.pihole.username}
-                    onChange={(e) => handleInputChange('pihole', 'username', e.target.value)}
-                    placeholder="pi"
-                    helperText="SSH username for Pi-hole server"
-                  />
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="Password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={formData.pihole.password}
-                    onChange={(e) => handleInputChange('pihole', 'password', e.target.value)}
-                    helperText="SSH password for the user"
-                    InputProps={{
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton
-                            onClick={() => setShowPassword(!showPassword)}
-                            edge="end"
-                          >
-                            {showPassword ? <VisibilityOff /> : <Visibility />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid>
+                
+                {/* SSH Configuration */}
+                {(formData.pihole.connectionMethod === 'ssh' || formData.pihole.connectionMethod === 'hybrid') && (
+                  <>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="SSH Port"
+                        type="number"
+                        value={formData.pihole.port}
+                        onChange={(e) => handleInputChange('pihole', 'port', parseInt(e.target.value))}
+                        helperText="Default SSH port is 22"
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="SSH Username"
+                        value={formData.pihole.username}
+                        onChange={(e) => handleInputChange('pihole', 'username', e.target.value)}
+                        placeholder="pi"
+                        helperText="SSH username for Pi-hole server"
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        label="SSH Password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={formData.pihole.password}
+                        onChange={(e) => handleInputChange('pihole', 'password', e.target.value)}
+                        helperText="SSH password for the user"
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <IconButton
+                                onClick={() => setShowPassword(!showPassword)}
+                                edge="end"
+                              >
+                                {showPassword ? <VisibilityOff /> : <Visibility />}
+                              </IconButton>
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    </Grid>
+                  </>
+                )}
+                
+                {/* Web API Configuration */}
+                {(formData.pihole.connectionMethod === 'web' || formData.pihole.connectionMethod === 'hybrid') && (
+                  <>
+                    <Grid item xs={12} md={4}>
+                      <TextField
+                        fullWidth
+                        label="Web Port"
+                        type="number"
+                        value={formData.pihole.webPort}
+                        onChange={(e) => handleInputChange('pihole', 'webPort', parseInt(e.target.value))}
+                        helperText="Pi-hole web interface port (usually 80 or 8080)"
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={formData.pihole.useHttps}
+                            onChange={(e) => handleInputChange('pihole', 'useHttps', e.target.checked)}
+                          />
+                        }
+                        label="Use HTTPS"
+                      />
+                      <Typography variant="body2" color="text.secondary">
+                        Enable if Pi-hole uses SSL/TLS
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <TextField
+                        fullWidth
+                        label="Web Password"
+                        type={showPassword ? 'text' : 'password'}
+                        value={formData.pihole.webPassword}
+                        onChange={(e) => handleInputChange('pihole', 'webPassword', e.target.value)}
+                        helperText={
+                          formData.pihole.connectionMethod === 'web' 
+                            ? 'Pi-hole admin password (required for web-only backups)' 
+                            : 'Pi-hole admin password (optional for monitoring)'
+                        }
+                        required={formData.pihole.connectionMethod === 'web'}
+                        InputProps={{
+                          endAdornment: (
+                            <InputAdornment position="end">
+                              <IconButton
+                                onClick={() => setShowPassword(!showPassword)}
+                                edge="end"
+                              >
+                                {showPassword ? <VisibilityOff /> : <Visibility />}
+                              </IconButton>
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    </Grid>
+                  </>
+                )}
+                
+                {/* Web-only connection URL format guidance */}
+                {formData.pihole.connectionMethod === 'web' && (
+                  <Grid item xs={12}>
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Pi-hole URL Format Guide
+                      </Typography>
+                      <Typography variant="body2" component="div">
+                        <strong>Examples:</strong>
+                        <br />• <code>https://192.168.1.100/admin/</code>
+                        <br />• <code>http://pihole.local/admin/</code>
+                        <br />• <code>https://my-pihole.domain.com/admin/</code>
+                      </Typography>
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        <strong>Note:</strong> Include the <code>/admin/</code> path for proper API access. 
+                        The system will automatically append it if missing.
+                      </Typography>
+                    </Alert>
+                  </Grid>
+                )}
               </Grid>
             </CardContent>
           </Card>
@@ -555,6 +700,52 @@ const SetupWizard = ({ onComplete }) => {
           </Card>
         );
       case 4:
+        if (formData.pihole.connectionMethod === 'web') {
+          return (
+            <Card sx={{ mt: 3 }}>
+              <CardContent sx={{ p: 4 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                  <Avatar sx={{ bgcolor: 'success.main', mr: 2 }}>
+                    <CheckCircle />
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h6" fontWeight="bold">
+                      Configuration Complete
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Web-only connection method selected - no SSH key deployment needed
+                    </Typography>
+                  </Box>
+                </Box>
+                
+                <Alert severity="info" sx={{ mb: 3 }}>
+                  You've selected web-only connection method. This provides basic Pi-hole monitoring but backup 
+                  functionality will be limited until Pi-hole adds backup APIs in future versions.
+                </Alert>
+                
+                <Alert severity="warning" sx={{ mb: 3 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    Note about backup functionality:
+                  </Typography>
+                  <Typography variant="body2">
+                    Currently, Pi-hole backups require SSH access to run the teleporter command. 
+                    Consider using the "Hybrid" method for full backup functionality.
+                  </Typography>
+                </Alert>
+                
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+                  <Typography variant="body2">Connection Status:</Typography>
+                  <Chip
+                    label="Web API Ready"
+                    color="success"
+                    size="small"
+                  />
+                </Box>
+              </CardContent>
+            </Card>
+          );
+        }
+        
         return (
           <Card sx={{ mt: 3 }}>
             <CardContent sx={{ p: 4 }}>
@@ -646,7 +837,20 @@ const SetupWizard = ({ onComplete }) => {
   const isStepValid = (step) => {
     switch (step) {
       case 0:
-        return formData.pihole.host && formData.pihole.username && formData.pihole.password;
+        // Basic validation
+        if (!formData.pihole.host) return false;
+        
+        // SSH validation
+        if (formData.pihole.connectionMethod === 'ssh' || formData.pihole.connectionMethod === 'hybrid') {
+          if (!formData.pihole.username || !formData.pihole.password) return false;
+        }
+        
+        // Web validation  
+        if (formData.pihole.connectionMethod === 'web' || formData.pihole.connectionMethod === 'hybrid') {
+          if (!formData.pihole.webPort) return false;
+        }
+        
+        return true;
       case 1:
         return formData.backup.destinationPath && formData.backup.maxBackups > 0;
       case 2:
@@ -654,6 +858,10 @@ const SetupWizard = ({ onComplete }) => {
       case 3:
         return true; // Discord notifications are optional
       case 4:
+        // SSH key deployment only required for SSH-based methods
+        if (formData.pihole.connectionMethod === 'web') {
+          return true; // No SSH key needed for web-only
+        }
         return sshStatus.keyDeployed;
       default:
         return false;
