@@ -246,6 +246,32 @@ const SetupWizard = ({ onComplete }) => {
   };
 
   const handleInputChange = (section, field, value) => {
+    // Special handling for Pi-hole host URL parsing
+    if (section === 'pihole' && field === 'host' && formData.pihole.connectionMethod === 'web') {
+      try {
+        // If user enters a full URL, parse it and update related settings
+        if (value.startsWith('http://') || value.startsWith('https://')) {
+          const url = new URL(value);
+          const isHttps = url.protocol === 'https:';
+          const port = url.port ? parseInt(url.port) : (isHttps ? 443 : 80);
+          
+          setFormData(prev => ({
+            ...prev,
+            pihole: {
+              ...prev.pihole,
+              host: value, // Keep the full URL for web-only method
+              useHttps: isHttps,
+              webPort: port
+            }
+          }));
+          return;
+        }
+      } catch (error) {
+        // If URL parsing fails, just use the value as-is
+        console.debug('URL parsing failed, using value as hostname:', error.message);
+      }
+    }
+
     setFormData(prev => ({
       ...prev,
       [section]: {
@@ -320,13 +346,13 @@ const SetupWizard = ({ onComplete }) => {
                 <Grid item xs={12} md={6}>
                   <TextField
                     fullWidth
-                    label={formData.pihole.connectionMethod === 'web' ? 'Pi-hole URL' : 'Pi-hole Host IP'}
+                    label={formData.pihole.connectionMethod === 'web' ? 'Pi-hole URL or Hostname' : 'Pi-hole Host IP'}
                     value={formData.pihole.host}
                     onChange={(e) => handleInputChange('pihole', 'host', e.target.value)}
-                    placeholder={formData.pihole.connectionMethod === 'web' ? 'https://192.168.1.100/admin/' : '192.168.1.100'}
+                    placeholder={formData.pihole.connectionMethod === 'web' ? 'https://192.168.1.100/admin/ or 192.168.1.100' : '192.168.1.100'}
                     helperText={
                       formData.pihole.connectionMethod === 'web' 
-                        ? 'Full URL to your Pi-hole admin interface (include /admin/ path)' 
+                        ? 'Full URL (https://host/admin/) or just hostname/IP - HTTPS and port will be auto-detected from URL' 
                         : 'IP address or hostname of your Pi-hole server'
                     }
                   />
@@ -442,17 +468,20 @@ const SetupWizard = ({ onComplete }) => {
                   <Grid item xs={12}>
                     <Alert severity="info" sx={{ mt: 2 }}>
                       <Typography variant="subtitle2" gutterBottom>
-                        Pi-hole URL Format Guide
+                        Pi-hole Connection Options
                       </Typography>
                       <Typography variant="body2" component="div">
-                        <strong>Examples:</strong>
-                        <br />• <code>https://192.168.1.100/admin/</code>
-                        <br />• <code>http://pihole.local/admin/</code>
-                        <br />• <code>https://my-pihole.domain.com/admin/</code>
+                        <strong>Option 1 - Full URL (Recommended):</strong>
+                        <br />• <code>https://192.168.1.100/admin/</code> (auto-detects HTTPS + port 443)
+                        <br />• <code>http://pihole.local/admin/</code> (auto-detects HTTP + port 80)
+                        <br />• <code>https://my-pihole.domain.com:8443/admin/</code> (custom port)
+                      </Typography>
+                      <Typography variant="body2" component="div" sx={{ mt: 1 }}>
+                        <strong>Option 2 - Hostname only:</strong>
+                        <br />• <code>192.168.1.100</code> (then manually set HTTPS toggle and port)
                       </Typography>
                       <Typography variant="body2" sx={{ mt: 1 }}>
-                        <strong>Note:</strong> Include the <code>/admin/</code> path for proper API access. 
-                        The system will automatically append it if missing.
+                        <strong>Note:</strong> The system will automatically handle the <code>/admin/</code> path.
                       </Typography>
                     </Alert>
                   </Grid>
