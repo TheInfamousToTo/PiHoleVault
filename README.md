@@ -100,3 +100,7 @@ MIT License - see [LICENSE](LICENSE) file
 
 **Docker Hub**: [theinfamoustoto/piholevault](https://hub.docker.com/r/theinfamoustoto/piholevault)  
 **Latest Release**: [GitHub Releases](https://github.com/TheInfamousToTo/PiHoleVault/releases)
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=TheInfamousToTo/PiHoleVault&type=date&legend=top-left)](https://www.star-history.com/#TheInfamousToTo/PiHoleVault&type=date&legend=top-left)
