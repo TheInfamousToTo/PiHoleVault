@@ -103,4 +103,4 @@ MIT License - see [LICENSE](LICENSE) file
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=TheInfamousToTo/PiHoleVault&type=date&legend=top-left)](https://www.star-history.com/#TheInfamousToTo/PiHoleVault&type=date&legend=bottom-right)
+[![Star History Chart](https://api.star-history.com/svg?repos=TheInfamousToTo/PiHoleVault&type=date&legend=bottom-right)](https://www.star-history.com/#TheInfamousToTo/PiHoleVault&type=date&legend=bottom-right)
