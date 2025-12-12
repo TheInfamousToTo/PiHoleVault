@@ -2,6 +2,22 @@
 
 All notable changes to PiHoleVault will be documented in this file.
 
+## [1.7.2] - 2025-12-12
+
+### 🐛 Bug Fixes
+
+- **Fixed corrupted backup files**: Resolved critical issue where Pi-hole backup files were being corrupted during download. The axios HTTP client was treating binary data as UTF-8 text, causing ~40% of bytes to be replaced with invalid characters (0xFD). Fixed by adding `responseType: 'arraybuffer'` to properly handle binary data streams.
+
+- **Improved backup validation**: Enhanced `isValidBackupData()` function to properly validate Buffer data by checking for valid archive magic numbers (ZIP, GZIP, TAR).
+
+### 🔧 Technical Changes
+
+- Updated `PiHoleWebService.js` to use `arraybuffer` response type for backup downloads
+- Proper ArrayBuffer to Buffer conversion for file writing
+- Improved npm install output visibility in Dockerfile for better build debugging
+
+---
+
 ## [1.6.0] - 2025-08-03
 
 ### 🐛 Comprehensive Debug Features

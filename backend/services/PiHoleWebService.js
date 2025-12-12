@@ -265,43 +265,60 @@ class PiHoleWebService {
           
           let backupResponse;
           
+          // IMPORTANT: Use responseType: 'arraybuffer' to prevent binary data corruption
+          // Without this, axios treats the response as UTF-8 text which corrupts zip files
+          const requestConfig = {
+            responseType: 'arraybuffer'
+          };
+          
           if (session.method === 'modern-api') {
             // For modern API, send a GET or POST request with session cookies
-            backupResponse = await api.get(endpoint);
+            backupResponse = await api.get(endpoint, requestConfig);
           } else {
             // For legacy, use GET with token
-            backupResponse = await api.get(endpoint);
+            backupResponse = await api.get(endpoint, requestConfig);
           }
 
           this.logger.info('Backup endpoint response', {
             endpoint,
             status: backupResponse.status,
             hasData: !!backupResponse.data,
-            dataType: typeof backupResponse.data,
+            dataType: Buffer.isBuffer(backupResponse.data) ? 'Buffer' : 
+                      (backupResponse.data instanceof ArrayBuffer ? 'ArrayBuffer' : typeof backupResponse.data),
             dataLength: backupResponse.data ? 
-              (typeof backupResponse.data === 'string' ? backupResponse.data.length : 
-               Buffer.isBuffer(backupResponse.data) ? backupResponse.data.length :
-               JSON.stringify(backupResponse.data).length) : 0,
+              (Buffer.isBuffer(backupResponse.data) ? backupResponse.data.length :
+               (backupResponse.data instanceof ArrayBuffer ? backupResponse.data.byteLength :
+               (typeof backupResponse.data === 'string' ? backupResponse.data.length : 
+               JSON.stringify(backupResponse.data).length))) : 0,
             contentType: backupResponse.headers?.['content-type']
           });
 
-          if (backupResponse.status === 200 && backupResponse.data) {
+          // Convert ArrayBuffer to Buffer if needed
+          let responseData = backupResponse.data;
+          if (responseData instanceof ArrayBuffer || 
+              (responseData && responseData.buffer instanceof ArrayBuffer && !(responseData instanceof Buffer))) {
+            responseData = Buffer.from(responseData);
+          }
+
+          if (backupResponse.status === 200 && responseData) {
             // Check if we got actual backup data
-            const isBackupData = this.isValidBackupData(backupResponse.data);
+            const isBackupData = this.isValidBackupData(responseData);
             
             this.logger.info('Backup data validation', {
               endpoint,
               isValid: isBackupData,
-              dataPreview: typeof backupResponse.data === 'string' ? 
-                backupResponse.data.substring(0, 100) + '...' : 
-                `[${typeof backupResponse.data}]`
+              dataType: Buffer.isBuffer(responseData) ? 'Buffer' : typeof responseData,
+              dataPreview: Buffer.isBuffer(responseData) ? 
+                `[Buffer: ${responseData.length} bytes, starts with: ${responseData.slice(0, 4).toString('hex')}]` :
+                (typeof responseData === 'string' ? responseData.substring(0, 100) + '...' : `[${typeof responseData}]`)
             });
             
             if (isBackupData) {
               this.logger.info('Backup retrieved successfully', { 
                 host: connection.host?.substring(0, 50),
                 endpoint,
-                dataSize: typeof backupResponse.data === 'string' ? backupResponse.data.length : JSON.stringify(backupResponse.data).length
+                dataSize: Buffer.isBuffer(responseData) ? responseData.length : 
+                  (typeof responseData === 'string' ? responseData.length : JSON.stringify(responseData).length)
               });
               
               // Save backup data to file
@@ -313,13 +330,14 @@ class PiHoleWebService {
               const filename = `pi-hole_backup_${timestamp}.zip`;
               const filePath = path.join(backupDir, filename);
               
-              // Write the backup data to file
-              if (Buffer.isBuffer(backupResponse.data)) {
-                await fs.writeFile(filePath, backupResponse.data);
-              } else if (typeof backupResponse.data === 'string') {
-                await fs.writeFile(filePath, backupResponse.data, 'binary');
+              // Write the backup data to file - use the converted responseData (Buffer)
+              if (Buffer.isBuffer(responseData)) {
+                await fs.writeFile(filePath, responseData);
+              } else if (typeof responseData === 'string') {
+                // Fallback for string data (shouldn't happen with arraybuffer responseType)
+                await fs.writeFile(filePath, responseData, 'binary');
               } else {
-                await fs.writeFile(filePath, JSON.stringify(backupResponse.data, null, 2));
+                await fs.writeFile(filePath, JSON.stringify(responseData, null, 2));
               }
               
               const stats = await fs.stat(filePath);
@@ -373,7 +391,42 @@ class PiHoleWebService {
       return false;
     }
 
-    // For binary/compressed data (like tar files), check for binary content
+    // For buffer/binary data (preferred - using arraybuffer responseType)
+    if (Buffer.isBuffer(data)) {
+      // Check minimum size
+      if (data.length < 100) {
+        this.logger.debug('Buffer too small to be valid backup');
+        return false;
+      }
+      
+      // Check for common archive magic numbers
+      const zipMagic = data.slice(0, 2).toString('hex') === '504b'; // PK
+      const gzipMagic = data.slice(0, 2).toString('hex') === '1f8b';
+      const tarMagic = data.slice(257, 262).toString() === 'ustar'; // tar has magic at offset 257
+      
+      // Check for HTML error page (starts with < character)
+      const startsWithHtml = data[0] === 0x3c; // '<' character
+      if (startsWithHtml) {
+        const preview = data.slice(0, 100).toString('utf-8').toLowerCase();
+        if (preview.includes('<!doctype') || preview.includes('<html')) {
+          this.logger.debug('Received HTML response instead of backup data');
+          return false;
+        }
+      }
+      
+      if (zipMagic || gzipMagic || tarMagic) {
+        this.logger.debug('Valid archive format detected', { 
+          zipMagic, gzipMagic, tarMagic,
+          size: data.length 
+        });
+        return true;
+      }
+      
+      // If no magic number but substantial size, might still be valid
+      return data.length > 1000;
+    }
+
+    // For string data (legacy fallback)
     if (typeof data === 'string') {
       // Check if it's a compressed file (starts with common archive magic numbers)
       const binaryMarkers = [
@@ -381,8 +434,6 @@ class PiHoleWebService {
         'PK',        // zip
         'BZ',        // bzip2
         '\x75\x73\x74\x61\x72', // tar
-        '<!DOCTYPE', // HTML error page
-        '<html',     // HTML error page
       ];
       
       // If it contains HTML tags, it's probably an error page
@@ -392,17 +443,10 @@ class PiHoleWebService {
       }
       
       // Check for binary markers or reasonable size
-      const hasBinaryMarker = binaryMarkers.some(marker => 
-        marker !== '<!DOCTYPE' && marker !== '<html' && data.startsWith(marker)
-      );
+      const hasBinaryMarker = binaryMarkers.some(marker => data.startsWith(marker));
       
       // Valid if it has binary markers or is substantial size
       return hasBinaryMarker || data.length > 1000;
-    }
-    
-    // For buffer/binary data
-    if (Buffer.isBuffer(data)) {
-      return data.length > 100; // Reasonable minimum size for backup
     }
     
     // For objects, check if it looks like backup data structure

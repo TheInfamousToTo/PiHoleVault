@@ -6,7 +6,7 @@ FROM node:18-alpine as frontend-build
 # Build the React frontend
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
-RUN npm install --silent
+RUN npm install --loglevel=info --no-audit --no-fund
 COPY frontend/ .
 RUN npm run build
 
@@ -39,7 +39,7 @@ ENV NODE_ENV=production
 
 # Copy and install backend dependencies
 COPY backend/package*.json ./
-RUN npm install --only=production --silent
+RUN npm install --only=production --loglevel=info --no-audit --no-fund
 
 # Copy backend source code
 COPY backend/ .
