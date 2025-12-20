@@ -1,5 +1,7 @@
 # PiHoleVault
 
+[![GitHub Activity](https://img.shields.io/badge/📈_Pulse-Activity-blue?logo=github)](https://github.com/TheInfamousToTo/PiHoleVault/pulse)
+
 A modern web-based Pi-hole backup manager with automated scheduling, Discord notifications, and support for Docker-based Pi-hole installations.
 
 <div align="center">
