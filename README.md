@@ -1,7 +1,5 @@
 # PiHoleVault
 
-[![GitHub Activity](https://img.shields.io/badge/📈_Pulse-Activity-blue?logo=github)](https://github.com/TheInfamousToTo/PiHoleVault/pulse)
-
 A modern web-based Pi-hole backup manager with automated scheduling, Discord notifications, and support for Docker-based Pi-hole installations.
 
 <div align="center">
@@ -106,3 +104,7 @@ MIT License - see [LICENSE](LICENSE) file
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=TheInfamousToTo/PiHoleVault&type=date&legend=bottom-right)](https://www.star-history.com/#TheInfamousToTo/PiHoleVault&type=date&legend=bottom-right)
+
+## 📊 Repository Activity
+
+![Alt](https://repobeats.axiom.co/api/embed/cfcc8c7b021140861e2e50ae0abb4d06ef2807fd.svg "Repobeats analytics image")
