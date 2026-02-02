@@ -8,7 +8,7 @@ class AnalyticsService {
   constructor(logger, dataDir) {
     this.logger = logger;
     this.dataDir = dataDir;
-    this.analyticsBaseUrl = 'https://PiHoleVault.satrawi.cc';
+    this.analyticsBaseUrl = 'https://PiHoleVault.satrawi.com';
     this.instanceId = null;
   }
 

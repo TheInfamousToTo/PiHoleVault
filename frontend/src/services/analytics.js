@@ -1,7 +1,7 @@
 // Global Analytics Service for PiHoleVault
 // Handles tracking backup jobs and fetching global statistics
 
-const ANALYTICS_API_BASE = 'https://PiHoleVault.satrawi.cc';
+const ANALYTICS_API_BASE = 'https://PiHoleVault.satrawi.com';
 
 // Generate or retrieve unique instance ID
 export const getInstanceId = () => {
