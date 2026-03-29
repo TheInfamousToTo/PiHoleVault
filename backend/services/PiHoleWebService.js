@@ -6,14 +6,51 @@ class PiHoleWebService {
     this.logger = logger;
   }
 
-  createApiClient(host, port = 80, useHttps = false) {
-    // Handle full URLs (e.g., "https://your-pihole-domain.com/admin")
-    let baseURL;
-    if (host.startsWith('http://') || host.startsWith('https://')) {
-      baseURL = host;
-    } else {
-      baseURL = `${useHttps ? 'https' : 'http'}://${host}${port !== (useHttps ? 443 : 80) ? ':' + port : ''}`;
+  /**
+   * Sanitize and validate a user-supplied host value to mitigate SSRF.
+   * Accepts only a bare hostname or IP address (no scheme, path, query, or fragment).
+   * Throws an error if the host is invalid.
+   */
+  sanitizeHost(host) {
+    if (typeof host !== 'string') {
+      throw new Error('Invalid host: host must be a string');
     }
+
+    let sanitized = host.trim();
+
+    // Strip protocol if present, but do not allow embedded paths after it.
+    if (sanitized.startsWith('http://')) {
+      sanitized = sanitized.substring('http://'.length);
+    } else if (sanitized.startsWith('https://')) {
+      sanitized = sanitized.substring('https://'.length);
+    }
+
+    // Reject anything that contains a path, query, or fragment.
+    if (sanitized.includes('/') || sanitized.includes('\\') || sanitized.includes('?') || sanitized.includes('#')) {
+      throw new Error('Invalid host: must not contain path, query, or fragment');
+    }
+
+    // Basic character whitelist: hostname / IPv4 / (simple) IPv6 literals.
+    // Allows letters, digits, dots, hyphens, colons and square brackets for IPv6.
+    const hostPattern = /^[A-Za-z0-9.\-:\[\]]+$/;
+    if (!hostPattern.test(sanitized)) {
+      throw new Error('Invalid host: contains disallowed characters');
+    }
+
+    if (sanitized.length === 0) {
+      throw new Error('Invalid host: empty value');
+    }
+
+    return sanitized;
+  }
+
+  createApiClient(host, port = 80, useHttps = false) {
+    // Sanitize user-supplied host to prevent SSRF via arbitrary schemes/paths.
+    const safeHost = this.sanitizeHost(host);
+
+    const baseURL = `${useHttps ? 'https' : 'http'}://${safeHost}${
+      port !== (useHttps ? 443 : 80) ? ':' + port : ''
+    }`;
     
     return axios.create({
       baseURL,
