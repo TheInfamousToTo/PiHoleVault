@@ -7,7 +7,7 @@ ARG BUILDPLATFORM
 
 # Use conditional platform specification - only use if BUILDPLATFORM is set
 # This allows the Dockerfile to work with both regular docker build and docker buildx
-FROM node:18-alpine as frontend-build
+FROM node:18-alpine AS frontend-build
 
 # Build the React frontend
 WORKDIR /app/frontend
