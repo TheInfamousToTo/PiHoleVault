@@ -28,7 +28,10 @@
   },
   "overrides": {
     "tar": ">=7.5.10",
-    "semver": ">=7.5.2"
+    "semver": ">=7.5.2",
+    "brace-expansion": ">=1.1.13",
+    "path-to-regexp": ">=0.1.13",
+    "picomatch": ">=2.3.2"
   },
   "keywords": [
     "pihole",
