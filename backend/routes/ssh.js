@@ -231,8 +231,8 @@ router.post('/debug', async (req, res) => {
   try {
     // Test 1: Basic network connectivity
     try {
-      const { execSync } = require('child_process');
-      const pingResult = execSync(`ping -c 1 -W 3 ${host}`, { timeout: 5000 }).toString();
+      const { execFileSync } = require('child_process');
+      const pingResult = execFileSync('ping', ['-c', '1', '-W', '3', host], { timeout: 5000 }).toString();
       debug.tests.ping = { success: true, output: pingResult.trim() };
     } catch (error) {
       debug.tests.ping = { success: false, error: error.message };
