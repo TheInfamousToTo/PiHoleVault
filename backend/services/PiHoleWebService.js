@@ -51,13 +51,13 @@ class PiHoleWebService {
     const baseURL = `${useHttps ? 'https' : 'http'}://${safeHost}${
       port !== (useHttps ? 443 : 80) ? ':' + port : ''
     }`;
-    
+
+    const httpsAgent = useHttps ? new https.Agent() : undefined;
+
     return axios.create({
       baseURL,
       timeout: 30000,
-      httpsAgent: new https.Agent({
-        rejectUnauthorized: false
-      }),
+      ...(httpsAgent && { httpsAgent }),
       headers: {
         'User-Agent': 'PiHoleVault/1.0'
       }
