@@ -3,7 +3,72 @@ const fs = require('fs-extra');
 const path = require('path');
 const { execSync } = require('child_process');
 const { NodeSSH } = require('node-ssh');
+const dns = require('dns').promises;
 const router = express.Router();
+
+// Basic validation helpers to reduce SSRF risk
+function isValidHostnameOrIP(value) {
+  if (typeof value !== 'string' || !value.trim()) {
+    return false;
+  }
+  const host = value.trim();
+  // Very simple hostname/IP check: disallow whitespace and slash characters.
+  if (/[\\s\\/]/.test(host)) {
+    return false;
+  }
+  return true;
+}
+
+function isDisallowedIp(ip) {
+  // Block localhost, private, link-local, and unspecified addresses.
+  if (ip === '127.0.0.1' || ip === '0.0.0.0') return true;
+  if (ip === '::1' || ip === '::') return true;
+  // 10.0.0.0/8
+  if (ip.startsWith('10.')) return true;
+  // 172.16.0.0/12
+  const firstOctets = ip.split('.');
+  if (firstOctets.length === 4) {
+    const first = parseInt(firstOctets[0], 10);
+    const second = parseInt(firstOctets[1], 10);
+    if (first === 172 && second >= 16 && second <= 31) {
+      return true;
+    }
+    // 192.168.0.0/16
+    if (first === 192 && second === 168) {
+      return true;
+    }
+    // 169.254.0.0/16 (link-local)
+    if (first === 169 && second === 254) {
+      return true;
+    }
+  }
+  return false;
+}
+
+async function resolveAndValidateHost(rawHost) {
+  if (!isValidHostnameOrIP(rawHost)) {
+    throw new Error('Invalid host value');
+  }
+  const host = rawHost.trim();
+  // Resolve the host to an IP address and reject disallowed ranges.
+  const lookupResult = await dns.lookup(host, { all: false });
+  const ip = lookupResult.address || lookupResult;
+  if (typeof ip !== 'string') {
+    throw new Error('Unable to resolve host');
+  }
+  if (isDisallowedIp(ip)) {
+    throw new Error('Connection to this host is not allowed');
+  }
+  return { host, ip };
+}
+
+function validatePort(rawPort) {
+  const portNum = Number(rawPort);
+  if (!Number.isInteger(portNum) || portNum < 1 || portNum > 65535) {
+    throw new Error('Invalid port value');
+  }
+  return portNum;
+}
 
 // Setup SSH key
 router.post('/setup-key', async (req, res) => {
@@ -220,10 +285,25 @@ router.post('/debug', async (req, res) => {
     });
   }
 
+  let safeHost;
+  let safeIp;
+  let safePort;
+  try {
+    const resolved = await resolveAndValidateHost(host);
+    safeHost = resolved.host;
+    safeIp = resolved.ip;
+    safePort = validatePort(port);
+  } catch (validationError) {
+    return res.status(400).json({
+      success: false,
+      error: validationError.message
+    });
+  }
+
   const debug = {
     timestamp: new Date().toISOString(),
-    host,
-    port,
+    host: safeHost,
+    port: safePort,
     username,
     tests: {}
   };
@@ -232,7 +312,7 @@ router.post('/debug', async (req, res) => {
     // Test 1: Basic network connectivity
     try {
       const { execSync } = require('child_process');
-      const pingResult = execSync(`ping -c 1 -W 3 ${host}`, { timeout: 5000 }).toString();
+      const pingResult = execSync(`ping -c 1 -W 3 ${safeHost}`, { timeout: 5000 }).toString();
       debug.tests.ping = { success: true, output: pingResult.trim() };
     } catch (error) {
       debug.tests.ping = { success: false, error: error.message };
@@ -249,7 +329,8 @@ router.post('/debug', async (req, res) => {
           reject(new Error('Connection timeout'));
         }, 5000);
 
-        socket.connect(port, host, () => {
+        // Use validated port and resolved IP address
+        socket.connect(safePort, safeIp, () => {
           clearTimeout(timeout);
           socket.destroy();
           resolve();
