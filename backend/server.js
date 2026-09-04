@@ -114,9 +114,20 @@ app.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
 app.disable('x-powered-by');
 
 app.use(helmet({
-  // The API serves JSON only. nginx sets the CSP for the HTML it serves, so
-  // helmet's default page-oriented CSP would only conflict with it.
-  contentSecurityPolicy: false,
+  // Express only ever answers with JSON here, so nothing it returns needs to
+  // load a resource of any kind. nginx sets its own, page-oriented policy on the
+  // HTML it serves and does not inherit this one into its /api/ location, so the
+  // two never collide.
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: {
+      'default-src': ["'none'"],
+      'base-uri': ["'none'"],
+      'form-action': ["'none'"],
+      'frame-ancestors': ["'none'"],
+      'sandbox': []
+    }
+  },
   crossOriginResourcePolicy: { policy: 'same-site' }
 }));
 
