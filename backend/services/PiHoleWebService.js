@@ -1,9 +1,52 @@
 const axios = require('axios');
 const https = require('https');
+const { isValidHost } = require('../utils/validate');
 
 class PiHoleWebService {
   constructor(logger = console) {
     this.logger = logger;
+  }
+
+  /**
+   * Split a configured host into a hostname and, when it carries one, a scheme.
+   *
+   * Only a bare hostname or IP address is accepted, optionally prefixed with
+   * http:// or https://. A path, query, fragment, credentials or anything
+   * outside the hostname character set is refused: the value reaches an axios
+   * baseURL, so accepting a full URL let a stored configuration point this
+   * client at any host the server can reach.
+   *
+   * The scheme is preserved rather than discarded, so an existing
+   * "https://pihole.example.com" configuration keeps using HTTPS instead of
+   * being silently downgraded to plaintext.
+   */
+  parseHost(host) {
+    if (typeof host !== 'string') {
+      throw new Error('Invalid host: host must be a string');
+    }
+
+    let hostname = host.trim();
+    let scheme = null;
+
+    if (hostname.startsWith('http://')) {
+      scheme = 'http';
+      hostname = hostname.slice('http://'.length);
+    } else if (hostname.startsWith('https://')) {
+      scheme = 'https';
+      hostname = hostname.slice('https://'.length);
+    }
+
+    // A trailing slash is the one piece of path notation worth tolerating,
+    // because the setup wizard's own example used to include it.
+    if (hostname.endsWith('/')) {
+      hostname = hostname.slice(0, -1);
+    }
+
+    if (!isValidHost(hostname)) {
+      throw new Error('Invalid host: expected a hostname or IP address without a path, port or credentials');
+    }
+
+    return { hostname, scheme };
   }
 
   /**
@@ -17,13 +60,12 @@ class PiHoleWebService {
    * ALLOW_INSECURE_TLS=true -- but it is now an explicit choice.
    */
   createApiClient(host, port = 80, useHttps = false, options = {}) {
-    // Handle full URLs (e.g., "https://your-pihole-domain.com/admin")
-    let baseURL;
-    if (host.startsWith('http://') || host.startsWith('https://')) {
-      baseURL = host;
-    } else {
-      baseURL = `${useHttps ? 'https' : 'http'}://${host}${port !== (useHttps ? 443 : 80) ? ':' + port : ''}`;
-    }
+    const { hostname, scheme } = this.parseHost(host);
+    // A scheme written into the host wins over the useHttps flag, which is what
+    // the user typed most recently for that field.
+    const https_ = scheme ? scheme === 'https' : useHttps === true;
+    const defaultPort = https_ ? 443 : 80;
+    const baseURL = `${https_ ? 'https' : 'http'}://${hostname}${port && port !== defaultPort ? ':' + port : ''}`;
 
     const allowInsecureTls =
       options.allowInsecureTls === true || process.env.ALLOW_INSECURE_TLS === 'true';

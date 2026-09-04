@@ -11,7 +11,7 @@
     "@mui/icons-material": "^5.13.0",
     "@emotion/react": "^11.11.0",
     "@emotion/styled": "^11.11.0",
-    "axios": "^1.13.5"
+    "axios": "^1.20.0"
   },
   "scripts": {
     "dev": "vite",
