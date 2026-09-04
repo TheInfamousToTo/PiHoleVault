@@ -108,11 +108,15 @@ router.get('/next-runs', async (req, res) => {
       });
       const nextRuns = [];
       
-      // Get next 10 scheduled runs
+      // Get next 10 scheduled runs. Each iteration advances the iterator once
+      // and reports that same occurrence in both fields; the previous code
+      // called prev() straight after next(), which rewound the iterator and
+      // returned the same run ten times.
       for (let i = 0; i < 10; i++) {
+        const run = interval.next();
         nextRuns.push({
-          timestamp: interval.next().toString(),
-          date: interval.prev().toDate()
+          timestamp: run.toString(),
+          date: run.toDate()
         });
       }
       
