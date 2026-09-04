@@ -16,6 +16,13 @@ services:
       - DATA_DIR=/app/data
       - BACKUP_DIR=/app/backups
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      # API authentication. When AUTH_TOKEN is set, every /api request must carry
+      # it as "Authorization: Bearer <token>"; the UI prompts for it on first use.
+      # Leaving it empty keeps the API open to anyone who can reach the port.
+      - AUTH_TOKEN=${AUTH_TOKEN:-}
+      # SSH host key policy: tofu (pin on first connection, refuse changes),
+      # strict (only already-pinned hosts) or insecure (accept any key).
+      - SSH_HOST_KEY_POLICY=${SSH_HOST_KEY_POLICY:-tofu}
       # Debug Configuration (set to 'true' to enable debug mode)
       - DEBUG_MODE=false
       - LOG_LEVEL=info

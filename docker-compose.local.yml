@@ -18,6 +18,9 @@ services:
       - DATA_DIR=/app/data
       - BACKUP_DIR=/app/backups
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      # See docker-compose.yml for what these two do.
+      - AUTH_TOKEN=${AUTH_TOKEN:-}
+      - SSH_HOST_KEY_POLICY=${SSH_HOST_KEY_POLICY:-tofu}
       # Debug Configuration (set to 'true' to enable debug mode)
       - DEBUG_MODE=true
       - LOG_LEVEL=info

@@ -1,11 +1,28 @@
 const fs = require('fs-extra');
 const path = require('path');
 const { NodeSSH } = require('node-ssh');
+const { buildConnectOptions } = require('../utils/sshSecurity');
+const { isValidHost, parsePort, resolveWithin } = require('../utils/validate');
 const DiscordService = require('./DiscordService');
 const AnalyticsService = require('./AnalyticsService');
 const PiHoleWebService = require('./PiHoleWebService');
 
 class BackupService {
+  /**
+   * Reduce a caller-supplied backup name to a safe filename component.
+   * Anything outside [A-Za-z0-9._-] is dropped, and an empty result falls back
+   * to the default name.
+   */
+  static sanitiseBaseName(name) {
+    if (typeof name !== 'string') {
+      return 'pi-hole_backup';
+    }
+
+    const cleaned = name.replace(/[^A-Za-z0-9._-]/g, '').replace(/^[.]+/, '').slice(0, 64);
+
+    return cleaned || 'pi-hole_backup';
+  }
+
   constructor(dataDir, backupDir, logger) {
     this.dataDir = dataDir;
     this.backupDir = backupDir;
@@ -209,11 +226,20 @@ class BackupService {
         throw new Error(`Connection method '${connectionMethod}' not supported yet`);
       }
 
-      // Generate filename
+      // Generate filename.
+      //
+      // customName arrives from the request body. Interpolating it straight into
+      // a path let a caller write the downloaded backup anywhere the process
+      // could reach (for example "../../root/.ssh/authorized_keys"), so it is
+      // reduced to a safe basename and the result is confined to backupDir.
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const baseName = customName || 'pi-hole_backup';
+      const baseName = BackupService.sanitiseBaseName(customName);
       const filename = `${baseName}_${timestamp}.zip`;
-      const filePath = path.join(this.backupDir, filename);
+      const filePath = resolveWithin(this.backupDir, filename);
+
+      if (!filePath) {
+        throw new Error('Refusing to write a backup outside the backup directory');
+      }
 
       // Write the backup data to file
       if (backupResult.data) {
@@ -342,43 +368,45 @@ class BackupService {
     const ssh = new NodeSSH();
     
     try {
-      const connectOptions = {
-        host: config.pihole.host,
-        username: config.pihole.username,
-        port: config.pihole.port || 22,
-        readyTimeout: 30000,
-      };
-      
-      // Use SSH key if available, otherwise use password
+      if (!isValidHost(config.pihole.host)) {
+        throw new Error('Configured Pi-hole host is not a valid hostname or IP address');
+      }
+
+      const port = parsePort(config.pihole.port, 22);
+
+      if (port === null) {
+        throw new Error('Configured Pi-hole SSH port is out of range');
+      }
+
+      // Prefer the deployed key; fall back to the stored password. Host key
+      // verification and the algorithm policy come from buildConnectOptions so
+      // that no connection can silently opt out of them.
+      const auth = {};
+
       if (config.sshKeyDeployed && config.sshKeyPath) {
         try {
-          connectOptions.privateKey = await fs.readFile(config.sshKeyPath, 'utf8');
+          auth.privateKey = await fs.readFile(config.sshKeyPath, 'utf8');
         } catch (error) {
           this.logger.error('Failed to read SSH key, falling back to password', {
             keyPath: config.sshKeyPath,
             error: error.message
           });
-          connectOptions.password = config.pihole.password;
+          auth.password = config.pihole.password;
         }
       } else {
-        connectOptions.password = config.pihole.password;
+        auth.password = config.pihole.password;
       }
-      
-      // Add keyboard-interactive fallback for better compatibility
-      connectOptions.tryKeyboard = true;
-      connectOptions.onKeyboardInteractive = (name, instructions, instructionsLang, prompts, finish) => {
-        if (prompts.length > 0 && prompts[0].prompt.toLowerCase().includes('password')) {
-          finish([config.pihole.password]);
-        }
-      };
-      
-      // Disable strict host key checking
-      connectOptions.algorithms = {
-        serverHostKey: ['ssh-rsa', 'ssh-dss', 'ecdsa-sha2-nistp256', 'ecdsa-sha2-nistp384', 'ecdsa-sha2-nistp521', 'ssh-ed25519'],
-        hmac: ['hmac-sha2-256', 'hmac-sha2-512', 'hmac-sha1'],
-        cipher: ['aes128-ctr', 'aes192-ctr', 'aes256-ctr', 'aes128-gcm', 'aes256-gcm']
-      };
-      
+
+      const connectOptions = buildConnectOptions({
+        dataDir: this.dataDir,
+        host: config.pihole.host,
+        port,
+        username: config.pihole.username,
+        logger: this.logger,
+        auth,
+        readyTimeout: 30000
+      });
+
       await ssh.connect(connectOptions);
       
       this.logger.info('Connected to Pi-hole server via SSH', { 
@@ -418,7 +446,11 @@ class BackupService {
       });
       
       // Clean up remote backup file
-      await ssh.execCommand(`rm -f "${remoteBackupFile}"`);
+      // remoteBackupFile is whatever the remote pihole-FTL printed on stdout.
+      // Interpolating it into a shell command would let a compromised Pi-hole run
+      // arbitrary commands through this cleanup step. xargs -0 reads the path
+      // from stdin as a single NUL-delimited argument, so no shell parses it.
+      await ssh.execCommand('xargs -0 rm -f --', { stdin: remoteBackupFile });
       
       // Verify local file exists and has content
       const stats = await fs.stat(localPath);

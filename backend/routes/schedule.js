@@ -1,7 +1,7 @@
 const express = require('express');
 const fs = require('fs-extra');
 const path = require('path');
-const cronParser = require('cron-parser');
+const { CronExpressionParser } = require('cron-parser');
 const router = express.Router();
 
 // Convert GMT offset format (e.g., "GMT+3") to timezone name (e.g., "Etc/GMT-3")
@@ -49,7 +49,7 @@ router.post('/validate', (req, res) => {
       // Convert GMT offset to timezone if provided
       const convertedTimezone = timezone ? convertGMTOffsetToTimezone(timezone) : 'UTC';
       
-      const interval = cronParser.parseExpression(cronExpression, {
+      const interval = CronExpressionParser.parse(cronExpression, {
         tz: convertedTimezone
       });
       const nextRuns = [];
@@ -103,7 +103,7 @@ router.get('/next-runs', async (req, res) => {
       const convertedTimezone = config.schedule.timezone ? 
         convertGMTOffsetToTimezone(config.schedule.timezone) : 'UTC';
         
-      const interval = cronParser.parseExpression(config.schedule.cronExpression, {
+      const interval = CronExpressionParser.parse(config.schedule.cronExpression, {
         tz: convertedTimezone
       });
       const nextRuns = [];

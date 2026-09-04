@@ -6,7 +6,17 @@ class PiHoleWebService {
     this.logger = logger;
   }
 
-  createApiClient(host, port = 80, useHttps = false) {
+  /**
+   * Build the axios client used for every Pi-hole web API call.
+   *
+   * TLS certificates are verified by default. The previous unconditional
+   * `rejectUnauthorized: false` meant the Pi-hole admin password was sent over a
+   * connection that any on-path attacker could impersonate. Pi-hole installs
+   * commonly use a self-signed certificate, so verification can still be waived
+   * deliberately -- per connection via `allowInsecureTls`, or globally with
+   * ALLOW_INSECURE_TLS=true -- but it is now an explicit choice.
+   */
+  createApiClient(host, port = 80, useHttps = false, options = {}) {
     // Handle full URLs (e.g., "https://your-pihole-domain.com/admin")
     let baseURL;
     if (host.startsWith('http://') || host.startsWith('https://')) {
@@ -14,12 +24,29 @@ class PiHoleWebService {
     } else {
       baseURL = `${useHttps ? 'https' : 'http'}://${host}${port !== (useHttps ? 443 : 80) ? ':' + port : ''}`;
     }
-    
+
+    const allowInsecureTls =
+      options.allowInsecureTls === true || process.env.ALLOW_INSECURE_TLS === 'true';
+
+    if (allowInsecureTls) {
+      this.logger.warn('Pi-hole TLS certificate verification is disabled', {
+        baseURL,
+        hint: 'Set allowInsecureTls to false once the Pi-hole presents a trusted certificate'
+      });
+    }
+
     return axios.create({
       baseURL,
       timeout: 30000,
+      // Cap the response so a hostile or misbehaving endpoint cannot exhaust
+      // memory through the backup download path.
+      maxContentLength: 256 * 1024 * 1024,
+      maxBodyLength: 16 * 1024 * 1024,
+      // A redirect chain is never needed to reach the Pi-hole API and is a way
+      // for a compromised host to point this client somewhere else.
+      maxRedirects: 2,
       httpsAgent: new https.Agent({
-        rejectUnauthorized: false
+        rejectUnauthorized: !allowInsecureTls
       }),
       headers: {
         'User-Agent': 'PiHoleVault/1.0'
@@ -31,7 +58,9 @@ class PiHoleWebService {
     const { host, webPort = 80, useHttps = false } = config;
     
     try {
-      const api = this.createApiClient(host, webPort, useHttps);
+      const api = this.createApiClient(host, webPort, useHttps, {
+        allowInsecureTls: config.allowInsecureTls
+      });
       const response = await api.get('/admin/');
 
       if (response && response.status === 200) {
@@ -62,8 +91,10 @@ class PiHoleWebService {
     }
 
     try {
-      const api = this.createApiClient(host, webPort, useHttps);
-      
+      const api = this.createApiClient(host, webPort, useHttps, {
+        allowInsecureTls: config.allowInsecureTls
+      });
+
       // Try different authentication methods for different Pi-hole versions
       const authEndpoints = [
         // Modern Pi-hole API (v6.0+) - try first since error message indicates this
@@ -229,7 +260,15 @@ class PiHoleWebService {
       }
 
       // Use the authenticated API client and session
-      const api = authResult.api || this.createApiClient(connection.host, connection.webPassword);
+      // The second positional argument is the port, not a credential. This
+      // previously passed connection.webPassword, producing a nonsense base URL
+      // on the fallback path.
+      const api = authResult.api || this.createApiClient(
+        connection.host,
+        connection.webPort || 80,
+        connection.useHttps === true,
+        { allowInsecureTls: connection.allowInsecureTls }
+      );
       const session = authResult.session;
       
       // Try different backup endpoints based on authentication method

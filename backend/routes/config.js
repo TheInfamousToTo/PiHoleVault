@@ -1,9 +1,45 @@
 const express = require('express');
 const fs = require('fs-extra');
 const path = require('path');
+const {
+  redactSecrets,
+  mergePreservingSecrets,
+  isValidHost,
+  isValidUsername,
+  parsePort
+} = require('../utils/validate');
+
 const router = express.Router();
 
 const CONFIG_FILE = 'config.json';
+
+/**
+ * Reject connection values that the SSH and Pi-hole routes would refuse later.
+ *
+ * Those routes validate again before they use a value, so this is not the only
+ * line of defence -- it exists so a bad host or port is refused at the point the
+ * user submits it rather than silently stored and failing at backup time.
+ * Only fields actually present are checked, so partial updates still work.
+ */
+function validateConnectionFields(pihole) {
+  if (!pihole || typeof pihole !== 'object') {
+    return null;
+  }
+
+  if (pihole.host !== undefined && !isValidHost(pihole.host)) {
+    return 'Pi-hole host must be a hostname or IP address';
+  }
+
+  if (pihole.username !== undefined && pihole.username !== '' && !isValidUsername(pihole.username)) {
+    return 'Username must not contain whitespace or control characters';
+  }
+
+  if (pihole.port !== undefined && parsePort(pihole.port, 22) === null) {
+    return 'Port must be an integer between 1 and 65535';
+  }
+
+  return null;
+}
 
 // Get configuration status
 router.get('/status', (req, res) => {
@@ -34,11 +70,11 @@ router.get('/', (req, res) => {
     if (fs.existsSync(configPath)) {
       try {
         const config = fs.readJsonSync(configPath);
-        // Remove sensitive data
-        if (config.pihole && config.pihole.password) {
-          config.pihole.password = '***';
-        }
-        res.json(config);
+
+        // Redact every credential-bearing field, not just pihole.password.
+        // webPassword, discord.webhookUrl and connections[].password were all
+        // previously served in cleartext to any caller.
+        res.json(redactSecrets(config));
       } catch (readError) {
         req.app.locals.logger.error('Error reading config file', { error: readError.message });
         
@@ -88,6 +124,12 @@ router.post('/save', async (req, res) => {
       });
     }
 
+    const invalid = validateConnectionFields(config.pihole);
+
+    if (invalid) {
+      return res.status(400).json({ success: false, error: invalid });
+    }
+
     // For SSH and hybrid methods, username is required
     if ((config.pihole.connectionMethod === 'ssh' || config.pihole.connectionMethod === 'hybrid') && !config.pihole.username) {
       return res.status(400).json({ 
@@ -104,11 +146,28 @@ router.post('/save', async (req, res) => {
       });
     }
 
-    // Add metadata
-    config.createdAt = new Date().toISOString();
-    config.updatedAt = new Date().toISOString();
-    
-    await fs.writeJson(configPath, config, { spaces: 2 });
+    // Merge over what is already stored rather than replacing it. A plain
+    // overwrite dropped sshKeyDeployed, sshKeyPath, discord and connections on
+    // every save; mergePreservingSecrets also restores any secret the client
+    // echoed back as the redaction placeholder and drops prototype-polluting keys.
+    let existingConfig = {};
+
+    if (await fs.pathExists(configPath)) {
+      try {
+        existingConfig = await fs.readJson(configPath);
+      } catch (readError) {
+        req.app.locals.logger.warn('Existing config unreadable, writing a fresh one', {
+          error: readError.message
+        });
+      }
+    }
+
+    const merged = mergePreservingSecrets(existingConfig, config);
+
+    merged.createdAt = existingConfig.createdAt || new Date().toISOString();
+    merged.updatedAt = new Date().toISOString();
+
+    await fs.writeJson(configPath, merged, { spaces: 2 });
     
     // Reinitialize scheduled jobs with new config
     if (req.app.locals.scheduleService) {
@@ -131,9 +190,15 @@ router.put('/', async (req, res) => {
     if (!fs.existsSync(configPath)) {
       return res.status(404).json({ success: false, error: 'Configuration not found' });
     }
-    
+
+    const invalid = validateConnectionFields(req.body && req.body.pihole);
+
+    if (invalid) {
+      return res.status(400).json({ success: false, error: invalid });
+    }
+
     const existingConfig = await fs.readJson(configPath);
-    const updatedConfig = { ...existingConfig, ...req.body };
+    const updatedConfig = mergePreservingSecrets(existingConfig, req.body);
     updatedConfig.updatedAt = new Date().toISOString();
     
     await fs.writeJson(configPath, updatedConfig, { spaces: 2 });

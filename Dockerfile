@@ -7,17 +7,17 @@ ARG BUILDPLATFORM
 
 # Use conditional platform specification - only use if BUILDPLATFORM is set
 # This allows the Dockerfile to work with both regular docker build and docker buildx
-FROM node:18-alpine AS frontend-build
+FROM node:22-alpine AS frontend-build
 
 # Build the React frontend
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
-RUN npm install --silent
+RUN npm ci --silent
 COPY frontend/ .
 RUN npm run build
 
 # Main application stage
-FROM node:18-alpine
+FROM node:22-alpine
 
 # Build arguments for cross-platform builds
 ARG TARGETPLATFORM
@@ -49,7 +49,7 @@ ENV NODE_ENV=production
 
 # Copy and install backend dependencies
 COPY backend/package*.json ./
-RUN npm install --only=production --silent
+RUN npm ci --omit=dev --silent
 
 # Copy backend source code
 COPY backend/ .
@@ -66,10 +66,11 @@ RUN find /usr/share/nginx/html -type f -exec chmod 644 {} \+
 RUN mkdir -p /app/data /app/backups /root/.ssh /var/log/supervisor
 
 # Set proper permissions for SSH and create config (NO KEY GENERATION)
-RUN chmod 700 /root/.ssh && \
-    echo "StrictHostKeyChecking no" > /root/.ssh/config && \
-    echo "UserKnownHostsFile /dev/null" >> /root/.ssh/config && \
-    chmod 600 /root/.ssh/config
+# The application connects over SSH through node-ssh, which verifies host keys
+# against data/known_hosts.json (see backend/utils/sshSecurity.js). The previous
+# "StrictHostKeyChecking no" / "UserKnownHostsFile /dev/null" config disabled
+# host verification for the ssh client and is deliberately not written here.
+RUN chmod 700 /root/.ssh
 
 # Create startup script inline with debug support and RUNTIME SSH key generation
 RUN echo '#!/bin/sh' > /usr/local/bin/startup.sh && \

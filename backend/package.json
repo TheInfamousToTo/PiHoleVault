@@ -9,19 +9,16 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "axios": "^1.19.0",
     "cors": "^2.8.5",
-    "body-parser": "^1.20.2",
-    "multer": "^2.1.1",
-    "node-cron": "^3.0.2",
-    "ssh2": "^1.13.0",
+    "cron-parser": "^5.10.0",
+    "express": "^4.22.2",
+    "express-rate-limit": "^8.6.2",
     "fs-extra": "^11.1.1",
-    "path": "^0.12.7",
-    "winston": "^3.9.0",
-    "cron-parser": "^4.8.1",
-    "archiver": "^5.3.1",
+    "helmet": "^8.3.0",
+    "node-cron": "^3.0.2",
     "node-ssh": "^13.1.0",
-    "axios": "^1.13.5"
+    "winston": "^3.9.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"
@@ -31,7 +28,9 @@
     "semver": "^7.5.2",
     "brace-expansion": "^1.1.13",
     "path-to-regexp": "^0.1.13",
-    "picomatch": "^2.3.2"
+    "picomatch": "^2.3.2",
+    "qs": "^6.16.0",
+    "uuid": "^11.1.1"
   },
   "keywords": [
     "pihole",
