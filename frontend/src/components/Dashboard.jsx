@@ -66,274 +66,118 @@ import {
 import { toast } from 'react-toastify';
 import api from '../services/api';
 import GlobalAnalytics from './GlobalAnalytics';
+import { ink, monoText, labelText } from '../theme';
 
-// Stats Card Component with Enhanced Animations
-const StatsCard = memo(({ title, value, icon, color, subtitle, trend, index = 0 }) => {
-  return (
-    <Grow
-      in={true}
-      style={{ transformOrigin: '0 0 0' }}
-      timeout={800 + (index * 200)}
-    >
-      <Card
-        sx={{
-          height: '100%',
-          background: `linear-gradient(135deg, ${color}15 0%, ${color}05 100%)`,
-          border: `1px solid ${color}30`,
-          backdropFilter: 'blur(10px)',
-          position: 'relative',
-          overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: `linear-gradient(45deg, ${color}10, transparent)`,
-            opacity: 0,
-            transition: 'opacity 0.3s ease',
-          },
-          '&:hover': {
-            transform: 'translateY(-8px) scale(1.02)',
-            boxShadow: `0 20px 40px ${color}25, 0 0 0 1px ${color}40`,
-            '&::before': {
-              opacity: 1,
-            },
-          },
-          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-          cursor: 'pointer',
-        }}
-      >
-        <CardContent sx={{ p: 3, position: 'relative', zIndex: 1 }}>
-          <Stack direction="row" alignItems="center" spacing={2}>
-            <Box
-              sx={{
-                p: 2,
-                borderRadius: 3,
-                backgroundColor: `${color}20`,
-                color: color,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative',
-                '&::after': {
-                  content: '""',
-                  position: 'absolute',
-                  inset: 0,
-                  borderRadius: 3,
-                  background: `linear-gradient(45deg, ${color}30, transparent)`,
-                  opacity: 0,
-                  transition: 'opacity 0.3s ease',
-                },
-                '&:hover::after': {
-                  opacity: 1,
-                },
-                transition: 'transform 0.3s ease',
-                '&:hover': {
-                  transform: 'rotate(5deg) scale(1.1)',
-                },
-              }}
-            >
-              {icon}
-            </Box>
-            <Box sx={{ flex: 1 }}>
-              <Typography 
-                variant="h4" 
-                fontWeight="bold" 
-                color="text.primary"
-                sx={{
-                  background: `linear-gradient(45deg, ${color}, ${color}80)`,
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
-                }}
-              >
-                {value}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                {title}
-              </Typography>
-              {subtitle && (
-                <Typography 
-                  variant="caption" 
-                  color={color} 
-                  sx={{ 
-                    mt: 0.5, 
-                    display: 'block',
-                    fontWeight: 600,
-                    opacity: 0.8,
-                  }}
-                >
-                  {subtitle}
-                </Typography>
-              )}
-            </Box>
-          </Stack>
-        </CardContent>
-      </Card>
-    </Grow>
-  );
-});
-
-// Enhanced Hero Section Component
-const HeroSection = memo(({ onClose, show }) => {
-  if (!show) return null;
-  
-  return (
-    <Slide direction="down" in={show} mountOnEnter unmountOnExit timeout={600}>
-      <Box
-        sx={{
-          background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-          borderRadius: 4,
-          p: 4,
-          mb: 4,
-          position: 'relative',
-          overflow: 'hidden',
-          boxShadow: '0 20px 40px rgba(59, 130, 246, 0.3)',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(255, 255, 255, 0.1)',
-            borderRadius: 4,
-            backdropFilter: 'blur(10px)',
-          },
-          '&::after': {
-            content: '""',
-            position: 'absolute',
-            top: '-50%',
-            right: '-50%',
-            width: '200%',
-            height: '200%',
-            background: 'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%)',
-            animation: 'shimmer 3s infinite',
-            '@keyframes shimmer': {
-              '0%': { transform: 'translateX(-100%) translateY(-100%) rotate(45deg)' },
-              '100%': { transform: 'translateX(100%) translateY(100%) rotate(45deg)' },
-            },
-          },
-        }}
-      >
-        <IconButton
-          onClick={onClose}
-          sx={{
-            position: 'absolute',
-            top: 16,
-            right: 16,
-            color: 'white',
-            backgroundColor: 'rgba(255, 255, 255, 0.15)',
-            backdropFilter: 'blur(10px)',
-            '&:hover': {
-              backgroundColor: 'rgba(255, 255, 255, 0.25)',
-              transform: 'scale(1.1) rotate(90deg)',
-            },
-            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-            zIndex: 3,
-          }}
-        >
-          <Close />
-        </IconButton>
-        <Stack spacing={3} sx={{ position: 'relative', zIndex: 2 }}>
-          <Zoom in={show} timeout={800}>
-            <Typography
-              variant="h3"
-              fontWeight="bold"
-              color="white"
-              sx={{
-                textShadow: '0 4px 8px rgba(0,0,0,0.3)',
-                background: 'linear-gradient(45deg, #ffffff, #e0e7ff)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              Welcome to PiHoleVault
-            </Typography>
-          </Zoom>
-          <Fade in={show} timeout={1200}>
-            <Typography
-              variant="h6"
-              color="rgba(255, 255, 255, 0.95)"
-              sx={{ 
-                maxWidth: '600px',
-                textShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                fontWeight: 400,
-                lineHeight: 1.6,
-              }}
-            >
-              Your modern Pi-hole backup solution. Automated, secure, and reliable backup management
-              for your network-wide ad blocking configuration.
-            </Typography>
-          </Fade>
-          <Box sx={{ display: 'flex', gap: 2, mt: 3, flexWrap: 'wrap' }}>
-            {[
-              { icon: <Shield />, label: "Secure", delay: 1400 },
-              { icon: <Cloud />, label: "Automated", delay: 1600 },
-              { icon: <Speed />, label: "Fast", delay: 1800 }
-            ].map((chip, index) => (
-              <Zoom key={chip.label} in={show} timeout={chip.delay}>
-                <Chip
-                  icon={chip.icon}
-                  label={chip.label}
-                  sx={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                    color: 'white',
-                    fontWeight: 600,
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 255, 255, 0.3)',
-                    '& .MuiChip-icon': { color: 'white' },
-                    '&:hover': {
-                      backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                      transform: 'translateY(-2px)',
-                    },
-                    transition: 'all 0.3s ease',
-                  }}
-                />
-              </Zoom>
-            ))}
-          </Box>
-        </Stack>
-      </Box>
-    </Slide>
-  );
-});
-
-// Enhanced Icon Button Component
-const EnhancedIconButton = memo(({ children, onClick, color = '#6c757d', tooltip, disabled = false, sx = {} }) => (
-  <Tooltip title={tooltip} placement="bottom">
-    <IconButton
-      onClick={onClick}
-      disabled={disabled}
+// One reading from the status panel.
+//
+// These were four separately tinted, animated cards: a different hue each, a
+// gradient fill, a gradient-clipped number and a lift-and-scale on hover. Four
+// colours carried no meaning, and the gradient text cost legibility on the one
+// thing worth reading. A reading is now a label, a value and a note, and the
+// panel below sets them in a row divided by hairlines.
+const StatCell = memo(({ label, value, note, mono: isMono, tone }) => (
+  <Box sx={{ px: 2.5, py: 2.25, minWidth: 0 }}>
+    <Typography sx={{ ...labelText, mb: 0.75 }}>{label}</Typography>
+    <Typography
       sx={{
-        color: disabled ? 'text.disabled' : color,
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(10px)',
-        border: `1px solid ${disabled ? 'rgba(255,255,255,0.1)' : color}40`,
-        width: 44,
-        height: 44,
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        '&:hover': {
-          backgroundColor: disabled ? 'rgba(255, 255, 255, 0.1)' : color,
-          color: disabled ? 'text.disabled' : 'white',
-          transform: disabled ? 'none' : 'translateY(-2px) scale(1.05)',
-          boxShadow: disabled ? 'none' : `0 8px 20px ${color}40`,
-          borderColor: disabled ? 'rgba(255,255,255,0.1)' : color,
-        },
-        '&:active': {
-          transform: disabled ? 'none' : 'translateY(0) scale(0.95)',
-        },
-        '&.Mui-disabled': {
-          opacity: 0.5,
-        },
-        ...sx, // Merge with custom styles
+        fontSize: isMono ? '1.125rem' : '1.5rem',
+        fontWeight: 600,
+        lineHeight: 1.2,
+        letterSpacing: '-0.02em',
+        color: tone || 'text.primary',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        ...(isMono ? monoText : { fontVariantNumeric: 'tabular-nums' })
       }}
+      title={String(value)}
     >
-      {children}
-    </IconButton>
+      {value}
+    </Typography>
+    {note && (
+      <Typography
+        sx={{
+          mt: 0.5,
+          fontSize: '0.8125rem',
+          color: ink.faint,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          ...(isMono ? monoText : null)
+        }}
+        title={String(note)}
+      >
+        {note}
+      </Typography>
+    )}
+  </Box>
+));
+
+// The four readings sit in one bordered panel split by hairlines rather than in
+// four separate cards, so they read as one instrument rather than four unrelated
+// tiles. The dividers collapse to horizontal rules when the row wraps.
+const StatusPanel = memo(({ children }) => (
+  <Box
+    sx={{
+      mb: 4,
+      display: 'grid',
+      gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(4, 1fr)' },
+      backgroundColor: ink.surface,
+      border: `1px solid ${ink.line}`,
+      borderRadius: '12px',
+      overflow: 'hidden',
+      '& > *': {
+        borderTop: `1px solid ${ink.line}`,
+        borderLeft: `1px solid ${ink.line}`
+      },
+      '& > *:nth-of-type(-n+1)': { borderTop: 'none' },
+      '& > *:nth-of-type(odd)': { borderLeft: { sm: 'none', lg: `1px solid ${ink.line}` } },
+      '& > *:first-of-type': { borderLeft: 'none' },
+      '& > *:nth-of-type(-n+2)': { borderTop: { sm: 'none', lg: undefined } },
+      '& > *:nth-of-type(-n+4)': { borderTop: { lg: 'none' } },
+      '& > *:nth-of-type(4n+1)': { borderLeft: { lg: 'none' } }
+    }}
+  >
+    {children}
+  </Box>
+));
+
+// The dashboard previously opened with a full-width purple gradient banner
+// carrying a marketing sentence and three decorative chips (Secure, Automated,
+// Fast). It occupied roughly a third of the first screen and told a returning
+// user nothing they did not already know. The status panel now opens the page,
+// so the answer to "am I backed up" is the first thing on screen.
+
+// A quiet icon button.
+//
+// Each of these used to carry its own bright colour, a translucent fill, a
+// coloured border and a lift-and-glow on hover, which turned a row of secondary
+// links into six competing focal points. They now share the muted treatment
+// every icon button gets, and only reveal themselves on hover. The `color` prop
+// is still accepted so callers need no changes, but it is applied on hover
+// only, where it identifies the destination without shouting.
+const EnhancedIconButton = memo(({ children, onClick, color, tooltip, disabled = false, sx = {} }) => (
+  <Tooltip title={tooltip} placement="bottom">
+    <span>
+      <IconButton
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={typeof tooltip === 'string' ? tooltip : undefined}
+        sx={{
+          width: 36,
+          height: 36,
+          color: 'text.secondary',
+          '&:hover': {
+            color: color || 'text.primary',
+            backgroundColor: ink.raised
+          },
+          '&.Mui-disabled': { opacity: 0.4 },
+          ...sx
+        }}
+      >
+        {children}
+      </IconButton>
+    </span>
   </Tooltip>
 ));
 
@@ -346,36 +190,10 @@ const ActionButton = memo(({ icon, label, onClick, color = 'primary', disabled =
     onClick={onClick}
     disabled={disabled}
     sx={{
-      minWidth: 140,
-      py: 1.5,
-      px: 4,
-      borderRadius: 3,
-      fontWeight: 600,
-      textTransform: 'none',
-      position: 'relative',
-      overflow: 'hidden',
-      boxShadow: variant === 'contained' ? '0 6px 20px rgba(59, 130, 246, 0.3)' : 'none',
-      '&::before': {
-        content: '""',
-        position: 'absolute',
-        top: 0,
-        left: '-100%',
-        width: '100%',
-        height: '100%',
-        background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-        transition: 'left 0.6s ease',
-      },
-      '&:hover': {
-        transform: 'translateY(-3px) scale(1.02)',
-        boxShadow: variant === 'contained' ? '0 10px 30px rgba(59, 130, 246, 0.4)' : '0 6px 20px rgba(0,0,0,0.1)',
-        '&::before': {
-          left: '100%',
-        },
-      },
-      '&:active': {
-        transform: 'translateY(-1px) scale(0.98)',
-      },
-      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      minWidth: 132,
+      py: 1,
+      px: 2.25,
+      fontWeight: 600
     }}
   >
     {label}
@@ -391,7 +209,6 @@ const Dashboard = ({ onReconfigure }) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editConfig, setEditConfig] = useState({});
   const [refreshing, setRefreshing] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(true);
   const [settingsAnchorEl, setSettingsAnchorEl] = useState(null);
   const [discordDialogOpen, setDiscordDialogOpen] = useState(false);
   const [discordConfig, setDiscordConfig] = useState({
@@ -619,21 +436,22 @@ const Dashboard = ({ onReconfigure }) => {
         return theme.palette.warning.main;
       case 'failed':
         return theme.palette.error.main;
+      // A stored file with no recorded status is a completed backup, and the
+      // label already says so; the colour should agree with it.
       default:
-        return theme.palette.text.secondary;
+        return theme.palette.success.main;
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'completed':
-        return <CheckCircle />;
       case 'running':
-        return <CircularProgress size={20} />;
+        return <CircularProgress size={16} thickness={5} />;
       case 'failed':
-        return <Error />;
+        return <Error sx={{ fontSize: 18, color: ink.bad }} />;
+      case 'completed':
       default:
-        return <Info />;
+        return <CheckCircle sx={{ fontSize: 18, color: ink.ok }} />;
     }
   };
 
@@ -646,34 +464,19 @@ const Dashboard = ({ onReconfigure }) => {
   }
 
   return (
-    <Box sx={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-    }}>
+    <Box sx={{ minHeight: '100vh', backgroundColor: ink.ground }}>
       {/* Modern App Bar with Icon-Only Buttons */}
-      <AppBar 
-        position="sticky" 
-        elevation={0}
-        sx={{
-          background: 'rgba(30, 41, 59, 0.8)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
-          zIndex: (theme) => theme.zIndex.appBar, // Ensure proper layering
-        }}
-      >
+      {/* The bar shares the page's ground and is separated by a hairline, so the
+          header reads as the top of one surface rather than a floating panel. */}
+      <AppBar position="sticky" elevation={0}>
         <Toolbar>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <img 
-              src="/logo.png" 
-              alt="PiHoleVault Logo" 
-              style={{ 
-                height: 40, 
-                width: 'auto', 
-                borderRadius: '8px',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-              }} 
+            <img
+              src="/logo.png"
+              alt=""
+              style={{ height: 28, width: 'auto', borderRadius: '6px' }}
             />
-            <Typography variant="h6" fontWeight="bold" color="white">
+            <Typography variant="h5" sx={{ letterSpacing: '-0.01em' }}>
               PiHoleVault
             </Typography>
           </Box>
@@ -686,11 +489,6 @@ const Dashboard = ({ onReconfigure }) => {
               onClick={() => window.open('https://github.com/TheInfamousToTo', '_blank')}
               tooltip="GitHub"
               color="#6e5494"
-              sx={{ 
-                '&:hover': { 
-                  backgroundColor: 'rgba(110, 84, 148, 0.2)',
-                }
-              }}
             >
               <GitHub />
             </EnhancedIconButton>
@@ -700,11 +498,6 @@ const Dashboard = ({ onReconfigure }) => {
               onClick={() => window.open('https://github.com/TheInfamousToTo/PiHoleVault', '_blank')}
               tooltip="Star on GitHub"
               color="#f59e0b"
-              sx={{ 
-                '&:hover': { 
-                  backgroundColor: 'rgba(245, 158, 11, 0.2)',
-                }
-              }}
             >
               <Star />
             </EnhancedIconButton>
@@ -714,11 +507,6 @@ const Dashboard = ({ onReconfigure }) => {
               onClick={() => window.open('https://buymeacoffee.com/theinfamoustoto', '_blank')}
               tooltip="Buy Me a Coffee"
               color="#ff813f"
-              sx={{ 
-                '&:hover': { 
-                  backgroundColor: 'rgba(255, 129, 63, 0.2)',
-                }
-              }}
             >
               <Coffee />
             </EnhancedIconButton>
@@ -728,11 +516,6 @@ const Dashboard = ({ onReconfigure }) => {
               onClick={() => window.open('https://ko-fi.com/theinfamoustoto', '_blank')}
               tooltip="Support on Ko-fi"
               color="#ff5722"
-              sx={{ 
-                '&:hover': { 
-                  backgroundColor: 'rgba(255, 87, 34, 0.2)',
-                }
-              }}
             >
               <Favorite />
             </EnhancedIconButton>
@@ -742,11 +525,6 @@ const Dashboard = ({ onReconfigure }) => {
               onClick={() => window.open('https://github.com/sponsors/TheInfamousToTo', '_blank')}
               tooltip="Sponsor"
               color="#8b5cf6"
-              sx={{ 
-                '&:hover': { 
-                  backgroundColor: 'rgba(139, 92, 246, 0.2)',
-                }
-              }}
             >
               <Favorite />
             </EnhancedIconButton>
@@ -757,11 +535,6 @@ const Dashboard = ({ onReconfigure }) => {
               disabled={refreshing}
               tooltip="Refresh"
               color="rgba(255, 255, 255, 0.8)"
-              sx={{ 
-                '&:hover': { 
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                }
-              }}
             >
               <Refresh />
             </EnhancedIconButton>
@@ -769,7 +542,7 @@ const Dashboard = ({ onReconfigure }) => {
             {/* Run Backup */}
             <ActionButton
               icon={<PlayArrow />}
-              label="Run Backup"
+              label="Run backup"
               onClick={handleRunBackup}
               disabled={runningBackup}
             />
@@ -779,11 +552,6 @@ const Dashboard = ({ onReconfigure }) => {
               onClick={handleSettingsClick}
               tooltip="Settings"
               color="rgba(255, 255, 255, 0.8)"
-              sx={{ 
-                '&:hover': { 
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                }
-              }}
             >
               <Settings />
             </EnhancedIconButton>
@@ -834,47 +602,34 @@ const Dashboard = ({ onReconfigure }) => {
       </AppBar>
 
       <Container maxWidth="xl" sx={{ py: 4 }}>
-        <HeroSection show={showWelcome} onClose={() => setShowWelcome(false)} />
 
-        {/* Stats Grid */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatsCard
-              title="Total Backups"
-              value={backups.length}
-              icon={<Storage />}
-              color={theme.palette.primary.main}
-              subtitle={`${backups.length} completed`}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatsCard
-              title="Scheduled Jobs"
-              value={jobs.length}
-              icon={<Schedule />}
-              color={theme.palette.secondary.main}
-              subtitle={`${jobs.filter(j => j.status === 'running').length} running`}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatsCard
-              title="Pi-hole Host"
-              value={config?.pihole?.host || 'Not configured'}
-              icon={<Security />}
-              color={theme.palette.success.main}
-              subtitle={`Port ${config?.pihole?.port || 22}`}
-            />
-          </Grid>
-          <Grid item xs={12} sm={6} md={3}>
-            <StatsCard
-              title="Backup Schedule"
-              value={config?.schedule?.enabled ? 'Enabled' : 'Disabled'}
-              icon={<Timeline />}
-              color={config?.schedule?.enabled ? theme.palette.success.main : theme.palette.error.main}
-              subtitle={config?.schedule?.cronExpression || 'No schedule'}
-            />
-          </Grid>
-        </Grid>
+        {/* Status panel: the four readings that answer "is my Pi-hole backed
+            up", in one instrument rather than four tiles. */}
+        <StatusPanel>
+          <StatCell
+            label="Backups"
+            value={backups.length}
+            note={backups.length === 1 ? '1 stored' : `${backups.length} stored`}
+          />
+          <StatCell
+            label="Scheduled jobs"
+            value={jobs.length}
+            note={`${jobs.filter((j) => j.status === 'running').length} running`}
+          />
+          <StatCell
+            label="Pi-hole"
+            value={config?.pihole?.host || 'Not configured'}
+            note={config?.pihole?.host ? `port ${config?.pihole?.port || 22}` : null}
+            mono={Boolean(config?.pihole?.host)}
+          />
+          <StatCell
+            label="Schedule"
+            value={config?.schedule?.enabled ? 'Enabled' : 'Disabled'}
+            tone={config?.schedule?.enabled ? ink.ok : ink.muted}
+            note={config?.schedule?.cronExpression || 'No schedule set'}
+            mono={Boolean(config?.schedule?.cronExpression)}
+          />
+        </StatusPanel>
 
         {/* Main Content Grid */}
         <Grid container spacing={4} sx={{ mb: 4 }}>
@@ -883,24 +638,18 @@ const Dashboard = ({ onReconfigure }) => {
             <Card sx={{ height: '100%' }}>
               <CardContent>
                 <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
-                  <Typography variant="h5" fontWeight="bold">
-                    Recent Backups
+                  <Typography variant="h4">Recent backups</Typography>
+                  <Typography sx={{ ...labelText, fontVariantNumeric: 'tabular-nums' }}>
+                    {backups.length} stored
                   </Typography>
-                  <Chip
-                    label={`${backups.length} total`}
-                    color="primary"
-                    size="small"
-                  />
                 </Stack>
                 
                 {backups.length === 0 ? (
-                  <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Cloud sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
-                    <Typography variant="h6" color="text.secondary">
-                      No backups yet
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Run your first backup to get started
+                  <Box sx={{ textAlign: 'center', py: 6 }}>
+                    <Cloud sx={{ fontSize: 28, color: ink.faint, mb: 1.5 }} />
+                    <Typography variant="h5" sx={{ mb: 0.5 }}>No backups yet</Typography>
+                    <Typography variant="body2">
+                      Run a backup to store your first restore point.
                     </Typography>
                   </Box>
                 ) : (
@@ -915,34 +664,25 @@ const Dashboard = ({ onReconfigure }) => {
                           sx={{
                             borderRadius: 2,
                             mb: 1,
-                            backgroundColor: 'rgba(59, 130, 246, 0.05)',
-                            border: '1px solid rgba(59, 130, 246, 0.1)',
-                            transition: 'all 0.3s ease',
-                            '&:hover': {
-                              backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                              border: '1px solid rgba(59, 130, 246, 0.2)',
-                              transform: 'translateY(-2px)',
-                              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)',
-                            }
+                            px: 1.5,
+                            border: `1px solid ${ink.line}`,
+                            '&:hover': { backgroundColor: ink.raised }
                           }}
                         >
-                        <ListItemIcon>
+                        <ListItemIcon sx={{ minWidth: 32 }}>
                           {getStatusIcon(backup.status)}
                         </ListItemIcon>
                         <ListItemText
                           primary={
                             <Stack direction="row" alignItems="center" spacing={2}>
-                              <Typography variant="subtitle1" fontWeight="medium">
+                              <Typography sx={{ ...monoText, fontSize: '0.875rem', fontWeight: 500 }}>
                                 {backup.filename || `Backup #${backup.id || index + 1}`}
                               </Typography>
                               <Chip
                                 label={backup.status || 'completed'}
                                 size="small"
-                                sx={{
-                                  backgroundColor: `${getStatusColor(backup.status)}20`,
-                                  color: getStatusColor(backup.status),
-                                  fontWeight: 'medium',
-                                }}
+                                variant="outlined"
+                                sx={{ color: getStatusColor(backup.status), borderColor: ink.line }}
                               />
                             </Stack>
                           }
@@ -952,7 +692,7 @@ const Dashboard = ({ onReconfigure }) => {
                                 {formatDate(backup.createdAt || backup.timestamp)}
                               </Typography>
                               {backup.size && (
-                                <Typography variant="body2" color="text.secondary">
+                                <Typography variant="body2" sx={{ ...monoText, color: ink.faint }}>
                                   {formatBytes(backup.size)}
                                 </Typography>
                               )}
@@ -994,28 +734,26 @@ const Dashboard = ({ onReconfigure }) => {
               {/* System Status */}
               <Card>
                 <CardContent>
-                  <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-                    System Status
-                  </Typography>
+                  <Typography variant="h4" sx={{ mb: 2 }}>System status</Typography>
                   <Stack spacing={2}>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography variant="body2">Connection Status</Typography>
+                      <Typography variant="body2">Connection</Typography>
                       <Chip
                         label="Connected"
                         size="small"
-                        color="success"
-                        icon={<CheckCircle />}
+                        variant="outlined"
+                        sx={{ color: ink.ok, borderColor: 'rgba(63, 185, 132, 0.35)' }}
                       />
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography variant="body2">Backup Storage</Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2">Storage</Typography>
+                      <Typography variant="body2" sx={{ ...monoText, color: 'text.secondary' }}>
                         {config?.backup?.destinationPath || 'Not configured'}
                       </Typography>
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography variant="body2">Max Backups</Typography>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant="body2">Keep at most</Typography>
+                      <Typography variant="body2" sx={{ ...monoText, color: 'text.secondary' }}>
                         {config?.backup?.maxBackups || 10}
                       </Typography>
                     </Box>
@@ -1026,12 +764,10 @@ const Dashboard = ({ onReconfigure }) => {
               {/* Recent Jobs */}
               <Card>
                 <CardContent>
-                  <Typography variant="h6" fontWeight="bold" sx={{ mb: 2 }}>
-                    Recent Jobs
-                  </Typography>
+                  <Typography variant="h4" sx={{ mb: 2 }}>Recent jobs</Typography>
                   {jobs.length === 0 ? (
                     <Box sx={{ textAlign: 'center', py: 2 }}>
-                      <Schedule sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
+                      <Schedule sx={{ fontSize: 24, color: ink.faint, mb: 1 }} />
                       <Typography variant="body2" color="text.secondary">
                         No jobs yet
                       </Typography>

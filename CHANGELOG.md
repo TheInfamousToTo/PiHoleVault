@@ -4,6 +4,17 @@ All notable changes to PiHoleVault will be documented in this file.
 
 ## [Unreleased]
 
+### 🎨 Interface
+
+- **Reskinned around a single accent.** The dashboard opened with a full-width gradient banner and four stat cards each tinted a different hue, none of which carried meaning. The palette is now a blue-slate ground with one accent: blue marks what you can act on and what is live, and the state colours only ever report state.
+- **The four readings sit in one panel divided by hairlines** rather than four separate cards, so they read as one instrument. The banner is gone, so the page opens with the numbers that answer "am I backed up".
+- **Inter and JetBrains Mono are now bundled with the app.** The theme previously asked for Inter without ever loading it, so the interface had been falling back to the system font. Machine values -- addresses, ports, cron expressions, paths, filenames, sizes -- are set in the monospace face, so columns line up. Neither font is fetched from a CDN: the Content-Security-Policy allows fonts from this origin only, and a Pi-hole often has no route to the internet.
+- **The community stats panel renders nothing when its service is unreachable**, instead of a full-width slab announcing its own absence.
+- Theme moved out of `App.jsx` into `frontend/src/theme.js`.
+
+No functional change: same components, props, handlers, API calls, routes and validation.
+
+
 ### 🔒 Security
 
 - **Optional API authentication**: setting `AUTH_TOKEN` now requires a bearer token on every `/api` request. The UI prompts for it and stores it in the browser. Without it the API stays open, and the server logs a warning at startup.

@@ -55,41 +55,23 @@ const GlobalAnalytics = memo(() => {
 
   if (loading && !globalStats) {
     return (
-      <Card
-        sx={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
-          borderRadius: '16px',
-          overflow: 'hidden',
-        }}
-      >
-        <CardContent sx={{ textAlign: 'center', py: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
-            <CircularProgress size={24} sx={{ color: 'white' }} />
-            <Typography variant="body1">Loading global community stats...</Typography>
+      <Card>
+        <CardContent sx={{ textAlign: 'center', py: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5 }}>
+            <CircularProgress size={16} thickness={5} />
+            <Typography variant="body2">Loading community stats</Typography>
           </Box>
         </CardContent>
       </Card>
     );
   }
 
+  // Community stats are a nice-to-have from a third-party service. When it is
+  // unreachable -- which is common on a network that deliberately blocks
+  // outbound traffic -- this rendered a full-width grey slab announcing its own
+  // absence, which was the brightest thing on the page. Say nothing instead.
   if (error && !globalStats) {
-    return (
-      <Card
-        sx={{
-          background: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
-          color: 'white',
-          borderRadius: '16px',
-          overflow: 'hidden',
-        }}
-      >
-        <CardContent sx={{ textAlign: 'center', py: 3 }}>
-          <Typography variant="body2" sx={{ opacity: 0.8 }}>
-            Global stats temporarily unavailable
-          </Typography>
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   if (!globalStats) return null;
@@ -115,34 +97,8 @@ const GlobalAnalytics = memo(() => {
   };
 
   return (
-    <Grow in={true} style={{ transformOrigin: '0 0 0' }} timeout={1000}>
-      <Card
-        sx={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
-          borderRadius: '16px',
-          overflow: 'hidden',
-          position: 'relative',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'linear-gradient(45deg, rgba(255,255,255,0.1), transparent)',
-            opacity: 0,
-            transition: 'opacity 0.3s ease',
-          },
-          '&:hover': {
-            transform: 'translateY(-4px)',
-            boxShadow: '0 20px 40px rgba(102, 126, 234, 0.3)',
-            '&::before': {
-              opacity: 1,
-            },
-          },
-        }}
-      >
+    <Grow in={true} style={{ transformOrigin: '0 0 0' }} timeout={400}>
+      <Card>
         <CardContent sx={{ p: 3 }}>
           {/* Header */}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>

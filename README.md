@@ -11,9 +11,15 @@ A modern web-based Pi-hole backup manager with automated scheduling, Discord not
 ## 🚀 Key Features
 
 - **🌐 Web-Only Mode**: No SSH required - perfect for Docker Pi-hole installations
-- **🎨 Modern UI**: Responsive React interface with Material-UI components
+- **🎨 Considered interface**: a calm dark theme built on one accent colour, with
+  addresses, ports, cron expressions and filenames set in a monospace face so
+  they line up and read as machine values. Fonts ship with the app, so it looks
+  the same on a network with no route to the internet.
 - **⏰ Automated Backups**: Configurable cron-based scheduling with timezone support
 - **📊 Dashboard**: Real-time backup statistics and job history
+- **🔒 Secured by default where it matters**: SSH host keys are verified, Pi-hole
+  TLS certificates are checked, secrets never leave the server in plaintext, and
+  the API can require a token
 - **🔔 Discord Notifications**: Rich webhook notifications for backup events
 - **🔧 Easy Setup**: Step-by-step configuration wizard
 - **🐳 Docker Ready**: Single-container deployment with nginx + Node.js
@@ -91,12 +97,27 @@ Pi-hole and its host key changes, delete that host's entry to pin the new one.
 
 ## 🛠️ Development
 
+Build and run the whole thing in a container:
+
 ```bash
-# Clone and build locally
 git clone https://github.com/TheInfamousToTo/PiHoleVault.git
 cd PiHoleVault
 docker-compose -f docker-compose.local.yml up -d --build
 ```
+
+Or run the two halves directly, which gives you hot reload on the frontend:
+
+```bash
+# Backend on :3001
+cd backend && npm ci && npm run dev
+
+# Frontend on :3000, proxying /api and /health to the backend
+cd frontend && npm ci && npm run dev
+```
+
+The frontend is built with [Vite](https://vite.dev/) and React. All of the
+styling lives in `frontend/src/theme.js`, so change the palette, the type scale
+or the component defaults there rather than in individual components.
 
 ## 🐛 Troubleshooting
 

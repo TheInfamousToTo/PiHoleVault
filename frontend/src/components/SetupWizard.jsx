@@ -42,6 +42,7 @@ import {
 } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import api from '../services/api';
+import { ink } from '../theme';
 
 const steps = [
   'Pi-hole Server Configuration',
@@ -898,11 +899,7 @@ const SetupWizard = ({ onComplete }) => {
   };
 
   return (
-    <Box sx={{ 
-      minHeight: '100vh', 
-      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-      py: 4
-    }}>
+    <Box sx={{ minHeight: '100vh', backgroundColor: ink.ground, py: 6 }}>
       <Container maxWidth="md">
         {/* Header */}
         <Box sx={{ textAlign: 'center', mb: 4 }}>
