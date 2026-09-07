@@ -46,6 +46,16 @@ class PiHoleWebService {
       throw new Error('Invalid host: expected a hostname or IP address without a path, port or credentials');
     }
 
+    // isValidHost() is the real check and is stricter than this: it enforces
+    // RFC 1123 label structure or a parseable IP address. The character class is
+    // repeated inline because it is the only form static analysis recognises as
+    // a barrier on the path from the configured host to the request URL; a call
+    // into another module is not followed, so without this the value still
+    // reads as attacker-controlled at every axios call below.
+    if (!/^[A-Za-z0-9.:[\]-]+$/.test(hostname)) {
+      throw new Error('Invalid host: contains characters that are not valid in a hostname or IP address');
+    }
+
     return { hostname, scheme };
   }
 
@@ -65,7 +75,11 @@ class PiHoleWebService {
     // the user typed most recently for that field.
     const https_ = scheme ? scheme === 'https' : useHttps === true;
     const defaultPort = https_ ? 443 : 80;
-    const baseURL = `${https_ ? 'https' : 'http'}://${hostname}${port && port !== defaultPort ? ':' + port : ''}`;
+    // A host written as "https://pi.hole" while the port field was left at its
+    // default 80 means the user set the scheme and not the port, so follow the
+    // scheme rather than emitting https://pi.hole:80, which connects nowhere.
+    const effectivePort = scheme && port === 80 ? defaultPort : port;
+    const baseURL = `${https_ ? 'https' : 'http'}://${hostname}${effectivePort && effectivePort !== defaultPort ? ':' + effectivePort : ''}`;
 
     const allowInsecureTls =
       options.allowInsecureTls === true || process.env.ALLOW_INSECURE_TLS === 'true';
