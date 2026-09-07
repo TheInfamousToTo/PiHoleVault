@@ -56,6 +56,24 @@ const api = axios.create({
   timeout: 10000, // 10 second timeout
 });
 
+// Endpoints that reach out to the Pi-hole rather than answering from local
+// state. The server allows up to 30s for the web API probe and 15s for an SSH
+// handshake, so a 10s client timeout would always fire first and report the
+// backend as unresponsive when the real problem is an unreachable Pi-hole.
+const PROBE_ENDPOINTS = [
+  '/pihole/test-connection',
+  '/ssh/test',
+  '/ssh/test-key',
+  '/ssh/debug',
+  '/ssh/setup-key',
+  '/discord/test',
+  '/discord/test-notification',
+  '/backup/run'
+];
+
+const DEFAULT_TIMEOUT = 10000;
+const PROBE_TIMEOUT = 45000;
+
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
@@ -63,6 +81,18 @@ api.interceptors.request.use(
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    const url = config.url || '';
+    const isProbe = PROBE_ENDPOINTS.some((endpoint) => url.startsWith(endpoint));
+
+    if (isProbe) {
+      config.isProbe = true;
+      // axios has already merged the instance default in by this point, so an
+      // explicit per-call timeout is respected and only the default is raised.
+      if (config.timeout === DEFAULT_TIMEOUT) {
+        config.timeout = PROBE_TIMEOUT;
+      }
     }
 
     return config;
@@ -105,7 +135,12 @@ api.interceptors.response.use(
     } else if (error.code === 'ECONNREFUSED') {
       error.message = 'Connection refused. Backend service is not accessible.';
     } else if (error.code === 'TIMEOUT' || error.code === 'ECONNABORTED') {
-      error.message = 'Request timeout. The backend service is taking too long to respond.';
+      // Blaming the backend is wrong for the endpoints that reach out to the
+      // Pi-hole: those time out because the Pi-hole did not answer, which is
+      // what the user needs to hear when they mistype its address.
+      error.message = error.config && error.config.isProbe
+        ? 'Timed out waiting for the Pi-hole to respond. Check the address, port and that it is reachable from this machine.'
+        : 'Request timeout. The backend service is taking too long to respond.';
     }
 
     return Promise.reject(error);
