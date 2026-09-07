@@ -1,5 +1,6 @@
 const axios = require('axios');
 const https = require('https');
+const { isValidHost } = require('../utils/validate');
 
 class PiHoleWebService {
   constructor(logger = console) {
@@ -7,57 +8,88 @@ class PiHoleWebService {
   }
 
   /**
-   * Sanitize and validate a user-supplied host value to mitigate SSRF.
-   * Accepts only a bare hostname or IP address (no scheme, path, query, or fragment).
-   * Throws an error if the host is invalid.
+   * Split a configured host into a hostname and, when it carries one, a scheme.
+   *
+   * Only a bare hostname or IP address is accepted, optionally prefixed with
+   * http:// or https://. A path, query, fragment, credentials or anything
+   * outside the hostname character set is refused: the value reaches an axios
+   * baseURL, so accepting a full URL let a stored configuration point this
+   * client at any host the server can reach.
+   *
+   * The scheme is preserved rather than discarded, so an existing
+   * "https://pihole.example.com" configuration keeps using HTTPS instead of
+   * being silently downgraded to plaintext.
    */
-  sanitizeHost(host) {
+  parseHost(host) {
     if (typeof host !== 'string') {
       throw new Error('Invalid host: host must be a string');
     }
 
-    let sanitized = host.trim();
+    let hostname = host.trim();
+    let scheme = null;
 
-    // Strip protocol if present, but do not allow embedded paths after it.
-    if (sanitized.startsWith('http://')) {
-      sanitized = sanitized.substring('http://'.length);
-    } else if (sanitized.startsWith('https://')) {
-      sanitized = sanitized.substring('https://'.length);
+    if (hostname.startsWith('http://')) {
+      scheme = 'http';
+      hostname = hostname.slice('http://'.length);
+    } else if (hostname.startsWith('https://')) {
+      scheme = 'https';
+      hostname = hostname.slice('https://'.length);
     }
 
-    // Reject anything that contains a path, query, or fragment.
-    if (sanitized.includes('/') || sanitized.includes('\\') || sanitized.includes('?') || sanitized.includes('#')) {
-      throw new Error('Invalid host: must not contain path, query, or fragment');
+    // A trailing slash is the one piece of path notation worth tolerating,
+    // because the setup wizard's own example used to include it.
+    if (hostname.endsWith('/')) {
+      hostname = hostname.slice(0, -1);
     }
 
-    // Basic character whitelist: hostname / IPv4 / (simple) IPv6 literals.
-    // Allows letters, digits, dots, hyphens, colons and square brackets for IPv6.
-    const hostPattern = /^[A-Za-z0-9.\-:\[\]]+$/;
-    if (!hostPattern.test(sanitized)) {
-      throw new Error('Invalid host: contains disallowed characters');
+    if (!isValidHost(hostname)) {
+      throw new Error('Invalid host: expected a hostname or IP address without a path, port or credentials');
     }
 
-    if (sanitized.length === 0) {
-      throw new Error('Invalid host: empty value');
-    }
-
-    return sanitized;
+    return { hostname, scheme };
   }
 
-  createApiClient(host, port = 80, useHttps = false) {
-    // Sanitize user-supplied host to prevent SSRF via arbitrary schemes/paths.
-    const safeHost = this.sanitizeHost(host);
+  /**
+   * Build the axios client used for every Pi-hole web API call.
+   *
+   * TLS certificates are verified by default. The previous unconditional
+   * `rejectUnauthorized: false` meant the Pi-hole admin password was sent over a
+   * connection that any on-path attacker could impersonate. Pi-hole installs
+   * commonly use a self-signed certificate, so verification can still be waived
+   * deliberately -- per connection via `allowInsecureTls`, or globally with
+   * ALLOW_INSECURE_TLS=true -- but it is now an explicit choice.
+   */
+  createApiClient(host, port = 80, useHttps = false, options = {}) {
+    const { hostname, scheme } = this.parseHost(host);
+    // A scheme written into the host wins over the useHttps flag, which is what
+    // the user typed most recently for that field.
+    const https_ = scheme ? scheme === 'https' : useHttps === true;
+    const defaultPort = https_ ? 443 : 80;
+    const baseURL = `${https_ ? 'https' : 'http'}://${hostname}${port && port !== defaultPort ? ':' + port : ''}`;
 
-    const baseURL = `${useHttps ? 'https' : 'http'}://${safeHost}${
-      port !== (useHttps ? 443 : 80) ? ':' + port : ''
-    }`;
+    const allowInsecureTls =
+      options.allowInsecureTls === true || process.env.ALLOW_INSECURE_TLS === 'true';
 
-    const httpsAgent = useHttps ? new https.Agent() : undefined;
+    if (allowInsecureTls) {
+      this.logger.warn('Pi-hole TLS certificate verification is disabled', {
+        baseURL,
+        hint: 'Set allowInsecureTls to false once the Pi-hole presents a trusted certificate'
+      });
+    }
 
     return axios.create({
       baseURL,
       timeout: 30000,
-      ...(httpsAgent && { httpsAgent }),
+      // Cap the response so a hostile or misbehaving endpoint cannot exhaust
+      // memory through the backup download path.
+      maxContentLength: 256 * 1024 * 1024,
+      maxBodyLength: 16 * 1024 * 1024,
+      // A redirect chain is never needed to reach the Pi-hole API and is a way
+      // for a compromised host to point this client somewhere else.
+      maxRedirects: 2,
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: !allowInsecureTls
+      }),
       headers: {
         'User-Agent': 'PiHoleVault/1.0'
       }
@@ -68,7 +100,9 @@ class PiHoleWebService {
     const { host, webPort = 80, useHttps = false } = config;
     
     try {
-      const api = this.createApiClient(host, webPort, useHttps);
+      const api = this.createApiClient(host, webPort, useHttps, {
+        allowInsecureTls: config.allowInsecureTls
+      });
       const response = await api.get('/admin/');
 
       if (response && response.status === 200) {
@@ -99,8 +133,10 @@ class PiHoleWebService {
     }
 
     try {
-      const api = this.createApiClient(host, webPort, useHttps);
-      
+      const api = this.createApiClient(host, webPort, useHttps, {
+        allowInsecureTls: config.allowInsecureTls
+      });
+
       // Try different authentication methods for different Pi-hole versions
       const authEndpoints = [
         // Modern Pi-hole API (v6.0+) - try first since error message indicates this
@@ -266,7 +302,15 @@ class PiHoleWebService {
       }
 
       // Use the authenticated API client and session
-      const api = authResult.api || this.createApiClient(connection.host, connection.webPassword);
+      // The second positional argument is the port, not a credential. This
+      // previously passed connection.webPassword, producing a nonsense base URL
+      // on the fallback path.
+      const api = authResult.api || this.createApiClient(
+        connection.host,
+        connection.webPort || 80,
+        connection.useHttps === true,
+        { allowInsecureTls: connection.allowInsecureTls }
+      );
       const session = authResult.session;
       
       // Try different backup endpoints based on authentication method

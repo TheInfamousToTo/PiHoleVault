@@ -1,6 +1,8 @@
 const express = require('express');
 const fs = require('fs-extra');
 const path = require('path');
+const { resolveWithin, isSafeDownloadName } = require('../utils/validate');
+
 const router = express.Router();
 
 // Create a new backup with specific connection parameters
@@ -130,17 +132,20 @@ router.get('/', async (req, res) => {
 router.get('/:filename/download', async (req, res) => {
   try {
     const { filename } = req.params;
-    const filePath = path.join(req.app.locals.BACKUP_DIR, filename);
-    
+
+    // Resolve and confine BEFORE touching the filesystem. The previous order
+    // called fs.pathExists on the unvalidated path first, which let a caller
+    // probe for arbitrary files by reading the status code.
+    const filePath = resolveWithin(req.app.locals.BACKUP_DIR, filename);
+
+    if (!filePath || !isSafeDownloadName(filename)) {
+      return res.status(400).json({ success: false, error: 'Invalid filename' });
+    }
+
     if (!await fs.pathExists(filePath)) {
       return res.status(404).json({ success: false, error: 'Backup file not found' });
     }
-    
-    // Security check: ensure filename doesn't contain path traversal
-    if (filename.includes('..') || filename.includes('/')) {
-      return res.status(400).json({ success: false, error: 'Invalid filename' });
-    }
-    
+
     res.download(filePath, filename, (error) => {
       if (error) {
         req.app.locals.logger.error('Error downloading backup', { 
@@ -163,17 +168,18 @@ router.get('/:filename/download', async (req, res) => {
 router.delete('/:filename', async (req, res) => {
   try {
     const { filename } = req.params;
-    const filePath = path.join(req.app.locals.BACKUP_DIR, filename);
-    
+
+    // Same ordering rule as the download handler: confine first, then stat.
+    const filePath = resolveWithin(req.app.locals.BACKUP_DIR, filename);
+
+    if (!filePath || !isSafeDownloadName(filename)) {
+      return res.status(400).json({ success: false, error: 'Invalid filename' });
+    }
+
     if (!await fs.pathExists(filePath)) {
       return res.status(404).json({ success: false, error: 'Backup file not found' });
     }
-    
-    // Security check: ensure filename doesn't contain path traversal
-    if (filename.includes('..') || filename.includes('/')) {
-      return res.status(400).json({ success: false, error: 'Invalid filename' });
-    }
-    
+
     await fs.remove(filePath);
     
     req.app.locals.logger.info('Backup file deleted', { filename });

@@ -43,6 +43,30 @@ DEBUG_MODE=true
 LOG_LEVEL=debug
 ```
 
+### Securing the API
+
+The API is unauthenticated by default, which means anyone who can reach port 3000
+can read your configuration, download backups and open SSH connections to your
+Pi-hole. Set `AUTH_TOKEN` to require a token on every `/api` request:
+
+```bash
+# Generate one with: openssl rand -hex 32
+AUTH_TOKEN=your-long-random-token
+```
+
+The UI asks for the token on first load and stores it in the browser. Requests
+send it as `Authorization: Bearer <token>`.
+
+Two further settings control SSH:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `SSH_HOST_KEY_POLICY` | `tofu` | `tofu` pins a host's key on first connection and refuses it if it later changes; `strict` connects only to already-pinned hosts; `insecure` accepts any key. |
+| `SSH_ALLOW_LEGACY_ALGORITHMS` | `false` | Set to `true` only for hardware that still needs `ssh-dss` or `hmac-sha1`. |
+
+Pinned host keys are stored in `data/known_hosts.json`. If you rebuild your
+Pi-hole and its host key changes, delete that host's entry to pin the new one.
+
 ## 🔧 Configuration
 
 1. **Open** http://localhost:3000

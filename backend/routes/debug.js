@@ -3,6 +3,7 @@ const router = express.Router();
 const fs = require('fs-extra');
 const path = require('path');
 const DebugService = require('../services/DebugService');
+const { resolveWithin, isSafeDownloadName } = require('../utils/validate');
 
 // Debug routes
 router.use((req, res, next) => {
@@ -17,6 +18,29 @@ router.use((req, res, next) => {
 });
 
 /**
+ * These endpoints expose logs, environment details, system information and an
+ * outbound SSH tester. They were previously reachable whenever the server was
+ * running, regardless of DEBUG_MODE. They are now off unless DEBUG_MODE=true.
+ *
+ * GET /status is exempt so the UI can discover that debugging is disabled, and
+ * it reports nothing beyond that fact when it is.
+ */
+router.use((req, res, next) => {
+  if (process.env.DEBUG_MODE === 'true') {
+    return next();
+  }
+
+  if (req.method === 'GET' && (req.path === '/status' || req.path === '/')) {
+    return next();
+  }
+
+  return res.status(404).json({
+    success: false,
+    error: 'Debug endpoints are disabled. Set DEBUG_MODE=true to enable them.'
+  });
+});
+
+/**
  * GET /api/debug/status
  * Get debug status and basic information
  */
@@ -24,15 +48,24 @@ router.get('/status', async (req, res) => {
   try {
     const debugService = req.app.locals.debugService;
     
-    const status = {
-      debugMode: process.env.DEBUG_MODE === 'true',
-      debugLevel: process.env.DEBUG_LEVEL || 'info',
-      debugDir: debugService.debugDir,
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      pid: process.pid
-    };
+    const debugMode = process.env.DEBUG_MODE === 'true';
+
+    // With debugging off, report only that fact. Uptime, memory, pid and the
+    // on-disk debug path are fingerprinting material.
+    const status = debugMode
+      ? {
+        debugMode: true,
+        debugLevel: process.env.DEBUG_LEVEL || 'info',
+        debugDir: debugService.debugDir,
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        pid: process.pid
+      }
+      : {
+        debugMode: false,
+        timestamp: new Date().toISOString()
+      };
 
     debugService.debug('Debug status requested', { ip: req.ip });
     res.json({ success: true, data: status });
@@ -262,15 +295,16 @@ router.get('/files/:filename', async (req, res) => {
     const debugService = req.app.locals.debugService;
     const filename = req.params.filename;
     
-    // Security check - ensure filename doesn't contain path traversal
-    if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Invalid filename' 
+    // Confine the path to the debug directory and require a filename that is
+    // safe to place in a Content-Disposition header without escaping.
+    const filePath = resolveWithin(debugService.debugDir, filename);
+
+    if (!filePath || !isSafeDownloadName(filename)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid filename'
       });
     }
-
-    const filePath = path.join(debugService.debugDir, filename);
     
     if (!(await fs.pathExists(filePath))) {
       return res.status(404).json({ 
@@ -345,27 +379,45 @@ router.get('/environment', async (req, res) => {
     
     debugService.debug('Environment info requested', { ip: req.ip });
     
-    // Sanitize environment variables (remove sensitive data)
-    const env = { ...process.env };
-    Object.keys(env).forEach(key => {
-      if (key.toLowerCase().includes('password') ||
-          key.toLowerCase().includes('secret') ||
-          key.toLowerCase().includes('key') ||
-          key.toLowerCase().includes('token') ||
-          key.toLowerCase().includes('webhook')) {
-        env[key] = '***REDACTED***';
+    // Report an allowlist of the application's own settings rather than the
+    // whole environment. Denylisting by substring leaked anything that did not
+    // happen to match -- database URLs and cloud credentials injected by the
+    // host, for instance -- and process.argv could carry secrets too.
+    const ALLOWED_ENV_KEYS = [
+      'NODE_ENV',
+      'PORT',
+      'DATA_DIR',
+      'BACKUP_DIR',
+      'LOG_LEVEL',
+      'DEBUG_MODE',
+      'DEBUG_LEVEL',
+      'DOCKER_ENV',
+      'TRUST_PROXY',
+      'SSH_HOST_KEY_POLICY',
+      'SSH_ALLOW_LEGACY_ALGORITHMS',
+      'RATE_LIMIT_MAX',
+      'RATE_LIMIT_SENSITIVE_MAX'
+    ];
+
+    const env = {};
+
+    ALLOWED_ENV_KEYS.forEach((key) => {
+      if (process.env[key] !== undefined) {
+        env[key] = process.env[key];
       }
     });
+
+    // Report whether the credential-bearing settings are configured, never their values.
+    env.AUTH_TOKEN = process.env.AUTH_TOKEN ? '[set]' : '[not set]';
+    env.DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL ? '[set]' : '[not set]';
+    env.CORS_ALLOWED_ORIGINS = process.env.CORS_ALLOWED_ORIGINS || '[not set]';
 
     const environment = {
       node: {
         version: process.version,
         platform: process.platform,
         arch: process.arch,
-        uptime: process.uptime(),
-        argv: process.argv,
-        execPath: process.execPath,
-        cwd: process.cwd()
+        uptime: process.uptime()
       },
       environment: env,
       config: {
@@ -373,7 +425,7 @@ router.get('/environment', async (req, res) => {
         backupDir: req.app.locals.BACKUP_DIR
       }
     };
-    
+
     res.json({ success: true, data: environment });
   } catch (error) {
     req.app.locals.debugService.error('Failed to get environment info', error, { ip: req.ip });

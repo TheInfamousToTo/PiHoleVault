@@ -1,10 +1,14 @@
+const crypto = require('crypto');
 const express = require('express');
 const cors = require('cors');
-const bodyParser = require('body-parser');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const fs = require('fs-extra');
 const path = require('path');
 const winston = require('winston');
-const cron = require('node-cron');
+
+const { createAuthMiddleware } = require('./middleware/auth');
+const { redactSecrets } = require('./utils/validate');
 
 // Import route modules
 const configRoutes = require('./routes/config');
@@ -99,29 +103,97 @@ if (process.env.NODE_ENV === 'production' || process.env.DOCKER_ENV === 'true') 
 const debugService = new DebugService(DATA_DIR, logger);
 
 // Middleware
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+
+// nginx terminates the connection and forwards X-Forwarded-For. Trusting only
+// the loopback hop keeps req.ip accurate for rate limiting without letting a
+// remote client spoof its address by sending its own X-Forwarded-For header.
+app.set('trust proxy', process.env.TRUST_PROXY || 'loopback');
+
+// Express advertises itself in every response by default; there is no reason to
+// tell an attacker which server and version they are talking to.
+app.disable('x-powered-by');
+
+app.use(helmet({
+  // Express only ever answers with JSON here, so nothing it returns needs to
+  // load a resource of any kind. nginx sets its own, page-oriented policy on the
+  // HTML it serves and does not inherit this one into its /api/ location, so the
+  // two never collide.
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: {
+      'default-src': ["'none'"],
+      'base-uri': ["'none'"],
+      'form-action': ["'none'"],
+      'frame-ancestors': ["'none'"],
+      'sandbox': []
+    }
+  },
+  crossOriginResourcePolicy: { policy: 'same-site' }
+}));
+
+// Cross-origin access is off by default. The UI is served from the same origin
+// as the API, so it needs no CORS headers at all; previously `cors()` sent
+// `Access-Control-Allow-Origin: *`, which let any website in the user's browser
+// drive this API against an unauthenticated backend.
+const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+if (allowedOrigins.length > 0) {
+  app.use(cors({
+    origin: allowedOrigins,
+    credentials: true
+  }));
+}
+
+// Cap request bodies. The largest legitimate request is a configuration save of
+// a few kilobytes, so 1mb is generous and stops trivial memory exhaustion.
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// General throttle for the whole API.
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: Number(process.env.RATE_LIMIT_MAX || 600),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many requests, please slow down' }
+});
+
+// Tighter throttle for endpoints that open outbound connections or spend real
+// work on attacker-supplied input: these are the credential-guessing and
+// port-scanning surfaces.
+const sensitiveLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: Number(process.env.RATE_LIMIT_SENSITIVE_MAX || 30),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many connection attempts, please wait before retrying' }
+});
+
+// Authentication is opt-in via AUTH_TOKEN; see middleware/auth.js.
+const requireAuth = createAuthMiddleware(logger);
 
 // Request logging with enhanced debug information
 app.use((req, res, next) => {
   const startTime = Date.now();
   
   // Enhanced logging for debug mode
-  const logData = { 
-    ip: req.ip, 
+  const logData = {
+    ip: req.ip,
     userAgent: req.get('User-Agent'),
     method: req.method,
     path: req.path,
-    query: req.query
+    query: redactSecrets(req.query)
   };
 
-  // Add body for POST/PUT requests in debug mode
-  if (process.env.DEBUG_MODE === 'true' && 
-      ['POST', 'PUT', 'PATCH'].includes(req.method) && 
-      req.path !== '/api/ssh/test' && // Don't log sensitive SSH test data
-      req.path !== '/api/config') {   // Don't log config data
-    logData.body = req.body;
+  // Add body for POST/PUT requests in debug mode. Path-based exemptions are not
+  // enough on their own -- several other routes also carry credentials -- so the
+  // body is redacted by key regardless of which route it was sent to.
+  if (process.env.DEBUG_MODE === 'true' &&
+      ['POST', 'PUT', 'PATCH'].includes(req.method)) {
+    logData.body = redactSecrets(req.body);
   }
 
   logger.info(`${req.method} ${req.path}`, logData);
@@ -156,6 +228,18 @@ app.locals.DATA_DIR = DATA_DIR;
 app.locals.BACKUP_DIR = BACKUP_DIR;
 
 // Routes
+//
+// Order matters: throttle first so a flood is dropped cheaply, then
+// authenticate, then dispatch. /health is mounted separately below and stays
+// open so container health checks keep working without a token.
+app.use('/api', apiLimiter, requireAuth);
+
+// Routes that reach out over the network on attacker-supplied input get the
+// tighter limiter on top of the general one.
+app.use('/api/ssh', sensitiveLimiter);
+app.use('/api/pihole/test-connection', sensitiveLimiter);
+app.use('/api/discord/test', sensitiveLimiter);
+
 app.use('/api/config', configRoutes);
 app.use('/api/pihole', piholeRoutes);
 app.use('/api/backup', backupRoutes);
@@ -166,10 +250,27 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/discord', discordRoutes);
 app.use('/api/debug', debugRoutes);
 
-// Health check endpoint with enhanced debug information
+// Health check endpoint.
+//
+// Deliberately unauthenticated so the container health check works without a
+// token, and therefore deliberately thin: process internals, paths and version
+// numbers are fingerprinting material and are only served to authenticated
+// callers. `authRequired` is safe to publish and lets the UI know whether it
+// should prompt for a token before making its first API call.
 app.get('/health', (req, res) => {
-  const healthData = { 
-    status: 'ok', 
+  const healthData = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    authRequired: requireAuth.enabled === true
+  };
+
+  res.json(healthData);
+});
+
+// Detailed health, behind the same throttle and token as the rest of the API.
+app.get('/api/health', (req, res) => {
+  const healthData = {
+    status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     version: require('./package.json').version,
@@ -179,7 +280,6 @@ app.get('/health', (req, res) => {
     pid: process.pid
   };
 
-  // Add debug information if debug mode is enabled
   if (process.env.DEBUG_MODE === 'true') {
     healthData.debug = {
       dataDir: DATA_DIR,
@@ -193,10 +293,20 @@ app.get('/health', (req, res) => {
   res.json(healthData);
 });
 
+// 404 handler. Registered before the error handler so that Express still has a
+// normal (non-error) middleware to fall through to; an error handler placed
+// above it would otherwise be the last thing in the stack.
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Route not found'
+  });
+});
+
 // Error handling middleware with enhanced debugging
 app.use((error, req, res, next) => {
-  const errorId = `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
+  const errorId = `error_${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
+
   const errorData = {
     errorId,
     message: error.message,
@@ -217,8 +327,8 @@ app.use((error, req, res, next) => {
       path: req.path,
       method: req.method,
       ip: req.ip,
-      query: req.query,
-      body: req.body
+      query: redactSecrets(req.query),
+      body: redactSecrets(req.body)
     });
   }
 
@@ -228,14 +338,6 @@ app.use((error, req, res, next) => {
     error: 'Internal server error',
     errorId: process.env.DEBUG_MODE === 'true' ? errorId : undefined,
     details: process.env.DEBUG_MODE === 'true' ? error.message : undefined
-  });
-});
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ 
-    success: false, 
-    error: 'Route not found' 
   });
 });
 

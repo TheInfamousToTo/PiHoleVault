@@ -2,13 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { Box, CircularProgress } from '@mui/material';
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  TextField
+} from '@mui/material';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import SetupWizard from './components/SetupWizard';
 import Dashboard from './components/Dashboard';
-import api from './services/api';
+import api, {
+  checkAuthRequired,
+  getApiToken,
+  setApiToken,
+  setUnauthorizedHandler
+} from './services/api';
 
 const theme = createTheme({
   palette: {
@@ -235,22 +250,113 @@ const theme = createTheme({
 function App() {
   const [isConfigured, setIsConfigured] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Shown when the server was started with AUTH_TOKEN and the browser has no
+  // valid token for it. Without this the whole UI would just fail with 401s and
+  // give the user nowhere to type the token in.
+  const [tokenPromptOpen, setTokenPromptOpen] = useState(false);
+  const [tokenInput, setTokenInput] = useState('');
+  const [tokenRejected, setTokenRejected] = useState(false);
 
   useEffect(() => {
-    checkConfiguration();
+    // The response interceptor clears the stored token on a 401, so reopening
+    // the prompt here is what lets the user correct a wrong or rotated token.
+    setUnauthorizedHandler(() => {
+      setTokenRejected(true);
+      setTokenPromptOpen(true);
+      setLoading(false);
+    });
+
+    start();
+
+    return () => setUnauthorizedHandler(null);
   }, []);
+
+  const start = async () => {
+    try {
+      const authRequired = await checkAuthRequired();
+
+      if (authRequired && !getApiToken()) {
+        setTokenPromptOpen(true);
+        setLoading(false);
+        return;
+      }
+    } catch (error) {
+      // /health is unreachable: fall through and let the API call below produce
+      // the error the user actually needs to see.
+      console.error('Error checking whether the API requires a token:', error);
+    }
+
+    await checkConfiguration();
+  };
 
   const checkConfiguration = async () => {
     try {
       const response = await api.get('/config/status');
       setIsConfigured(response.data.configured);
     } catch (error) {
-      console.error('Error checking configuration:', error);
-      setIsConfigured(false);
+      // A 401 is handled by the unauthorized handler above, which reopens the
+      // prompt rather than dropping the user on the setup wizard.
+      if (error.response?.status !== 401) {
+        console.error('Error checking configuration:', error);
+        setIsConfigured(false);
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  const submitToken = async (event) => {
+    event.preventDefault();
+
+    if (!tokenInput.trim()) {
+      return;
+    }
+
+    setApiToken(tokenInput.trim());
+    setTokenInput('');
+    setTokenRejected(false);
+    setTokenPromptOpen(false);
+    setLoading(true);
+    await checkConfiguration();
+  };
+
+  const tokenDialog = (
+    <Dialog open={tokenPromptOpen} maxWidth="xs" fullWidth disableEscapeKeyDown>
+      <form onSubmit={submitToken}>
+        <DialogTitle>API token required</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            {tokenRejected
+              ? 'That token was rejected. Enter the AUTH_TOKEN this PiHoleVault was started with.'
+              : 'This PiHoleVault requires an API token. Enter the AUTH_TOKEN it was started with.'}
+          </DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            type="password"
+            label="API token"
+            value={tokenInput}
+            onChange={(event) => setTokenInput(event.target.value)}
+            error={tokenRejected}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button type="submit" variant="contained" disabled={!tokenInput.trim()}>
+            Continue
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
+  );
+
+  if (tokenPromptOpen) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        {tokenDialog}
+      </ThemeProvider>
+    );
+  }
 
   if (loading) {
     return (

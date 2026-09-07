@@ -2,6 +2,27 @@
 
 All notable changes to PiHoleVault will be documented in this file.
 
+## [Unreleased]
+
+### 🔒 Security
+
+- **Optional API authentication**: setting `AUTH_TOKEN` now requires a bearer token on every `/api` request. The UI prompts for it and stores it in the browser. Without it the API stays open, and the server logs a warning at startup.
+- **SSH host key verification**: SSH connections now verify the Pi-hole's host key. The default `tofu` policy pins the key on first connection and refuses it if it later changes; `SSH_HOST_KEY_POLICY=strict` requires a pre-pinned host, and `insecure` restores the old behaviour. Pins live in `data/known_hosts.json`. The Docker images no longer write `StrictHostKeyChecking no`.
+- **TLS verification for the Pi-hole web API**: certificates are verified by default instead of unconditionally accepted. Self-signed setups can waive it per connection or with `ALLOW_INSECURE_TLS=true`.
+- **CORS closed by default**: the API no longer sends `Access-Control-Allow-Origin: *`. Cross-origin access is opt-in through `CORS_ALLOWED_ORIGINS`.
+- **Rate limiting**: 600 requests per 15 minutes per IP across `/api`, and 30 for the endpoints that open outbound connections (`RATE_LIMIT_MAX`, `RATE_LIMIT_SENSITIVE_MAX`).
+- **Secrets redacted in API responses**: `GET /api/config` returns `***REDACTED***` for credential fields, and saving that placeholder back keeps the stored value. The debug endpoint reports an allowlist of environment variables and only whether the credential-bearing ones are set.
+- **Input validation**: hosts, usernames, ports and backup filenames are validated at both the config-save and connection paths; download paths are resolved inside the backup directory.
+- **Security headers**: nginx sends CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` and `Permissions-Policy`, hides its version, and marks API responses `no-store`. Helmet covers the API. No web fonts are loaded from third-party origins.
+- **Dependency updates**: the frontend moved from `react-scripts` to Vite and `react-router-dom` to 7.x, and the backend pins `qs`, `uuid`, `tar`, `semver`, `brace-expansion`, `path-to-regexp` and `picomatch` through npm overrides. `npm audit` reports 0 vulnerabilities in both packages.
+
+### 🔧 Technical Changes
+
+- Frontend build switched from Create React App to Vite; `.js` component files renamed to `.jsx`.
+- New `backend/middleware/auth.js`, `backend/utils/validate.js` and `backend/utils/sshSecurity.js`.
+
+---
+
 ## [1.7.2] - 2025-12-12
 
 ### 🐛 Bug Fixes

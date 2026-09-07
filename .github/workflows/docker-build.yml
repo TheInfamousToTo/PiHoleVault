@@ -11,6 +11,12 @@ on:
     types:
       - completed
 
+# The job only checks out the repository and pushes to Docker Hub with its own
+# credentials, so the GITHUB_TOKEN needs nothing beyond read access. Without
+# this block it inherits the repository default, which may be write-all.
+permissions:
+  contents: read
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest

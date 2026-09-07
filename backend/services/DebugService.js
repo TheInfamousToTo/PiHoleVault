@@ -2,6 +2,8 @@ const fs = require('fs-extra');
 const path = require('path');
 const winston = require('winston');
 const { NodeSSH } = require('node-ssh');
+const { buildConnectOptions } = require('../utils/sshSecurity');
+const { isValidHost, parsePort } = require('../utils/validate');
 
 /**
  * DebugService - Comprehensive debugging and logging service
@@ -352,28 +354,37 @@ class DebugService {
       // Step 3: SSH Authentication
       testResult.steps.push({ step: 'ssh_auth', status: 'attempting' });
       
-      const connectOptions = {
-        host: config.host,
-        username: config.username,
-        port: config.port || 22,
-        readyTimeout: 30000,
-        algorithms: {
-          kex: ['diffie-hellman-group14-sha256', 'diffie-hellman-group14-sha1', 'ecdh-sha2-nistp256'],
-          cipher: ['aes128-ctr', 'aes192-ctr', 'aes256-ctr'],
-          serverHostKey: ['ssh-rsa', 'ssh-ed25519', 'ecdsa-sha2-nistp256'],
-          hmac: ['hmac-sha2-256', 'hmac-sha2-512', 'hmac-sha1']
-        }
-      };
+      if (!isValidHost(config.host)) {
+        throw new Error('Invalid host: expected a hostname or IP address');
+      }
+
+      const sshPort = parsePort(config.port, 22);
+
+      if (sshPort === null) {
+        throw new Error('Invalid port: expected an integer between 1 and 65535');
+      }
+
+      const auth = {};
 
       if (config.sshKeyPath && await fs.pathExists(config.sshKeyPath)) {
-        connectOptions.privateKey = await fs.readFile(config.sshKeyPath, 'utf8');
+        auth.privateKey = await fs.readFile(config.sshKeyPath, 'utf8');
         testResult.authMethod = 'key';
       } else if (config.password) {
-        connectOptions.password = config.password;
+        auth.password = config.password;
         testResult.authMethod = 'password';
       } else {
         throw new Error('No authentication method available');
       }
+
+      const connectOptions = buildConnectOptions({
+        dataDir: this.dataDir,
+        host: config.host,
+        port: sshPort,
+        username: config.username,
+        logger: this.logger,
+        auth,
+        readyTimeout: 30000
+      });
 
       await ssh.connect(connectOptions);
       testResult.steps[2].status = 'success';

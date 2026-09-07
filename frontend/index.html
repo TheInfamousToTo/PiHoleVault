@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#14130F" />
+    <meta
+      name="description"
+      content="PiHoleVault - scheduled backups and restore points for your Pi-hole configuration"
+    />
+
+    <!--
+      No web fonts are loaded. The theme in App.jsx asks for Inter and falls back
+      to the system stack, and the Content-Security-Policy in nginx.conf allows
+      styles and fonts from this origin only -- a Google Fonts <link> would be
+      blocked there anyway, and would leak every visitor's IP to a third party
+      from a tool that is meant to run on a private network.
+    -->
+
+    <title>PiHoleVault</title>
+  </head>
+  <body>
+    <noscript>PiHoleVault needs JavaScript enabled to run.</noscript>
+    <div id="root"></div>
+    <script type="module" src="/src/index.jsx"></script>
+  </body>
+</html>
