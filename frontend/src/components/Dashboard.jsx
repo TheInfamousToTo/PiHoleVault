@@ -1,16 +1,11 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, memo } from 'react';
 import {
   Container,
   Grid,
   Typography,
   Button,
-  Card,
-  CardContent,
   Box,
   Chip,
-  List,
-  ListItem,
-  ListItemText,
   ListItemIcon,
   IconButton,
   Dialog,
@@ -21,158 +16,134 @@ import {
   CircularProgress,
   AppBar,
   Toolbar,
-  Avatar,
   Stack,
-  useTheme,
-  useMediaQuery,
   Tooltip,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   Menu,
-  Fade,
-  Grow,
-  Slide,
-  Zoom,
+  Divider,
   FormControlLabel,
   Switch,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import {
   PlayArrow,
   Schedule,
-  Storage,
   Settings,
   Download,
-  Delete,
+  DeleteOutline,
   Refresh,
   CheckCircle,
-  Error,
-  Info,
+  ErrorOutline,
   Shield,
-  Cloud,
-  Timeline,
-  Speed,
-  Security,
+  CloudOff,
   GitHub,
   Coffee,
   Favorite,
   Star,
-  LaunchOutlined,
-  Close,
-  MoreVert,
   Notifications,
+  Dns,
+  Inventory2,
+  History,
+  FolderOpen,
+  WarningAmber,
+  VolunteerActivism,
+  OpenInNew
 } from '@mui/icons-material';
+import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import api from '../services/api';
 import GlobalAnalytics from './GlobalAnalytics';
-import { ink, monoText, labelText } from '../theme';
+import {
+  MotionBox,
+  GlowCard,
+  CountUp,
+  LiveDot,
+  IconTile,
+  GradientText,
+  Ring,
+  Shimmer,
+  stagger,
+  rise
+} from './ui';
+import { ink, monoText, labelText, ease } from '../theme';
+import { describeCron } from '../utils/cron';
 
-// One reading from the status panel.
-//
-// These were four separately tinted, animated cards: a different hue each, a
-// gradient fill, a gradient-clipped number and a lift-and-scale on hover. Four
-// colours carried no meaning, and the gradient text cost legibility on the one
-// thing worth reading. A reading is now a label, a value and a note, and the
-// panel below sets them in a row divided by hairlines.
-const StatCell = memo(({ label, value, note, mono: isMono, tone }) => (
-  <Box sx={{ px: 2.5, py: 2.25, minWidth: 0 }}>
-    <Typography sx={{ ...labelText, mb: 0.75 }}>{label}</Typography>
-    <Typography
-      sx={{
-        fontSize: isMono ? '1.125rem' : '1.5rem',
-        fontWeight: 600,
-        lineHeight: 1.2,
-        letterSpacing: '-0.02em',
-        color: tone || 'text.primary',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        ...(isMono ? monoText : { fontVariantNumeric: 'tabular-nums' })
-      }}
-      title={String(value)}
-    >
-      {value}
-    </Typography>
-    {note && (
-      <Typography
-        sx={{
-          mt: 0.5,
-          fontSize: '0.8125rem',
-          color: ink.faint,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          ...(isMono ? monoText : null)
-        }}
-        title={String(note)}
-      >
-        {note}
-      </Typography>
-    )}
-  </Box>
-));
+const TIMEZONES = Array.from({ length: 25 }, (_, i) => {
+  const offset = i - 12;
+  return `GMT${offset < 0 ? '' : '+'}${offset}`;
+});
 
-// The four readings sit in one bordered panel split by hairlines rather than in
-// four separate cards, so they read as one instrument rather than four unrelated
-// tiles. The dividers collapse to horizontal rules when the row wraps.
-const StatusPanel = memo(({ children }) => (
-  <Box
-    sx={{
-      mb: 4,
-      display: 'grid',
-      gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(4, 1fr)' },
-      backgroundColor: ink.surface,
-      border: `1px solid ${ink.line}`,
-      borderRadius: '12px',
-      overflow: 'hidden',
-      '& > *': {
-        borderTop: `1px solid ${ink.line}`,
-        borderLeft: `1px solid ${ink.line}`
-      },
-      '& > *:nth-of-type(-n+1)': { borderTop: 'none' },
-      '& > *:nth-of-type(odd)': { borderLeft: { sm: 'none', lg: `1px solid ${ink.line}` } },
-      '& > *:first-of-type': { borderLeft: 'none' },
-      '& > *:nth-of-type(-n+2)': { borderTop: { sm: 'none', lg: undefined } },
-      '& > *:nth-of-type(-n+4)': { borderTop: { lg: 'none' } },
-      '& > *:nth-of-type(4n+1)': { borderLeft: { lg: 'none' } }
-    }}
-  >
-    {children}
-  </Box>
-));
+const SUPPORT_LINKS = [
+  { label: 'GitHub', href: 'https://github.com/TheInfamousToTo', icon: <GitHub fontSize="small" /> },
+  { label: 'Star on GitHub', href: 'https://github.com/TheInfamousToTo/PiHoleVault', icon: <Star fontSize="small" sx={{ color: '#F5B451' }} /> },
+  { label: 'Buy Me a Coffee', href: 'https://buymeacoffee.com/theinfamoustoto', icon: <Coffee fontSize="small" sx={{ color: '#FF9D5C' }} /> },
+  { label: 'Support on Ko-fi', href: 'https://ko-fi.com/theinfamoustoto', icon: <Favorite fontSize="small" sx={{ color: '#FF6B6B' }} /> },
+  { label: 'GitHub Sponsors', href: 'https://github.com/sponsors/TheInfamousToTo', icon: <VolunteerActivism fontSize="small" sx={{ color: '#C084FC' }} /> }
+];
 
-// The dashboard previously opened with a full-width purple gradient banner
-// carrying a marketing sentence and three decorative chips (Secure, Automated,
-// Fast). It occupied roughly a third of the first screen and told a returning
-// user nothing they did not already know. The status panel now opens the page,
-// so the answer to "am I backed up" is the first thing on screen.
+// --- Formatting helpers -----------------------------------------------------
 
-// A quiet icon button.
-//
-// Each of these used to carry its own bright colour, a translucent fill, a
-// coloured border and a lift-and-glow on hover, which turned a row of secondary
-// links into six competing focal points. They now share the muted treatment
-// every icon button gets, and only reveal themselves on hover. The `color` prop
-// is still accepted so callers need no changes, but it is applied on hover
-// only, where it identifies the destination without shouting.
-const EnhancedIconButton = memo(({ children, onClick, color, tooltip, disabled = false, sx = {} }) => (
-  <Tooltip title={tooltip} placement="bottom">
+const formatDate = (dateString) => new Date(dateString).toLocaleString();
+
+const formatBytes = (bytes) => {
+  if (!bytes) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(i ? 1 : 0)) + ' ' + sizes[i];
+};
+
+const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+const relativeTime = (value) => {
+  if (!value) return null;
+  const seconds = (new Date(value).getTime() - Date.now()) / 1000;
+  if (!Number.isFinite(seconds)) return null;
+  const units = [
+    ['year', 31536000],
+    ['month', 2592000],
+    ['week', 604800],
+    ['day', 86400],
+    ['hour', 3600],
+    ['minute', 60]
+  ];
+  for (const [unit, size] of units) {
+    if (Math.abs(seconds) >= size) return rtf.format(Math.round(seconds / size), unit);
+  }
+  return 'just now';
+};
+
+// Jobs are logged as success/error by the scheduled path and completed/failed
+// by the manual one; backups listed from disk carry no status at all. Fold
+// them into three states so a failed job can never render as a green tick.
+const normaliseStatus = (status) => {
+  if (status === 'running') return 'running';
+  if (status === 'error' || status === 'failed') return 'failed';
+  return 'ok';
+};
+
+const STATUS = {
+  ok: { color: ink.ok, label: 'Completed' },
+  running: { color: ink.warn, label: 'Running' },
+  failed: { color: ink.bad, label: 'Failed' }
+};
+
+// --- Small presentational pieces -------------------------------------------
+
+const HeaderIcon = memo(({ tooltip, onClick, disabled, children, spinning }) => (
+  <Tooltip title={tooltip}>
     <span>
       <IconButton
         onClick={onClick}
         disabled={disabled}
-        aria-label={typeof tooltip === 'string' ? tooltip : undefined}
+        aria-label={tooltip}
         sx={{
-          width: 36,
-          height: 36,
-          color: 'text.secondary',
-          '&:hover': {
-            color: color || 'text.primary',
-            backgroundColor: ink.raised
-          },
-          '&.Mui-disabled': { opacity: 0.4 },
-          ...sx
+          width: 38,
+          height: 38,
+          '& svg': spinning ? { animation: 'pv-spin 0.9s linear infinite' } : undefined
         }}
       >
         {children}
@@ -181,24 +152,77 @@ const EnhancedIconButton = memo(({ children, onClick, color, tooltip, disabled =
   </Tooltip>
 ));
 
-// Action Button Component (Enhanced)
-const ActionButton = memo(({ icon, label, onClick, color = 'primary', disabled = false, variant = 'contained' }) => (
-  <Button
-    variant={variant}
-    color={color}
-    startIcon={icon}
-    onClick={onClick}
-    disabled={disabled}
-    sx={{
-      minWidth: 132,
-      py: 1,
-      px: 2.25,
-      fontWeight: 600
-    }}
+const SectionHeader = ({ icon, title, meta, tone }) => (
+  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2.5 }}>
+    <Stack direction="row" alignItems="center" spacing={1.5}>
+      <IconTile size={34} tone={tone}>{icon}</IconTile>
+      <Typography variant="h4">{title}</Typography>
+    </Stack>
+    {meta && <Typography sx={{ ...labelText, fontVariantNumeric: 'tabular-nums' }}>{meta}</Typography>}
+  </Stack>
+);
+
+const StatTile = memo(({ icon, label, children, note, tone = ink.accent }) => (
+  <GlowCard
+    whileHover={{ y: -3 }}
+    transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+    sx={{ p: 2.5, height: '100%' }}
   >
-    {label}
-  </Button>
+    <Stack direction="row" alignItems="center" spacing={1.25} sx={{ mb: 1.75 }}>
+      <IconTile size={30} tone={tone}>{icon}</IconTile>
+      <Typography sx={labelText}>{label}</Typography>
+    </Stack>
+    <Box
+      sx={{
+        fontSize: '1.625rem',
+        fontWeight: 650,
+        letterSpacing: '-0.03em',
+        lineHeight: 1.15,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+      }}
+    >
+      {children}
+    </Box>
+    {note && (
+      <Typography
+        sx={{
+          mt: 0.75,
+          fontSize: '0.8125rem',
+          color: ink.faint,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }}
+        title={typeof note === 'string' ? note : undefined}
+      >
+        {note}
+      </Typography>
+    )}
+  </GlowCard>
 ));
+
+const InfoRow = ({ label, value, mono: isMono = false }) => (
+  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2} sx={{ py: 1.25 }}>
+    <Typography variant="body2">{label}</Typography>
+    <Typography
+      variant="body2"
+      sx={{
+        color: 'text.primary',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        ...(isMono ? monoText : null)
+      }}
+      title={typeof value === 'string' ? value : undefined}
+    >
+      {value}
+    </Typography>
+  </Stack>
+);
+
+// --- Dashboard --------------------------------------------------------------
 
 const Dashboard = ({ onReconfigure }) => {
   const [config, setConfig] = useState(null);
@@ -210,6 +234,9 @@ const Dashboard = ({ onReconfigure }) => {
   const [editConfig, setEditConfig] = useState({});
   const [refreshing, setRefreshing] = useState(false);
   const [settingsAnchorEl, setSettingsAnchorEl] = useState(null);
+  const [supportAnchorEl, setSupportAnchorEl] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [scrolled, setScrolled] = useState(false);
   const [discordDialogOpen, setDiscordDialogOpen] = useState(false);
   const [discordConfig, setDiscordConfig] = useState({
     enabled: false,
@@ -220,8 +247,16 @@ const Dashboard = ({ onReconfigure }) => {
   const [discordTesting, setDiscordTesting] = useState(false);
 
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const settingsOpen = Boolean(settingsAnchorEl);
+
+  // The header turns to frosted glass once content scrolls beneath it.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const handleSettingsClick = (event) => {
     setSettingsAnchorEl(event.currentTarget);
@@ -247,7 +282,7 @@ const Dashboard = ({ onReconfigure }) => {
   const loadDashboardData = useCallback(async () => {
     try {
       setRefreshing(true);
-      
+
       const [configRes, backupsRes, jobsRes] = await Promise.allSettled([
         api.get('/config'),
         api.get('/backups'),
@@ -293,12 +328,12 @@ const Dashboard = ({ onReconfigure }) => {
 
   const handleRunBackup = async () => {
     if (runningBackup) return;
-    
+
     setRunningBackup(true);
-    
+
     try {
-      const response = await api.post('/backup/run');
-      
+      await api.post('/backup/run');
+
       toast.success('Backup started successfully!');
       setTimeout(() => {
         loadDashboardData();
@@ -313,6 +348,8 @@ const Dashboard = ({ onReconfigure }) => {
   const handleDeleteBackup = async (backupId) => {
     try {
       await api.delete(`/backups/${backupId}`);
+      // Drop the row straight away so its exit animation plays, then resync.
+      setBackups((prev) => prev.filter((b) => (b.id || b.filename) !== backupId));
       toast.success('Backup deleted successfully');
       loadDashboardData();
     } catch (error) {
@@ -328,10 +365,13 @@ const Dashboard = ({ onReconfigure }) => {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `backup-${backupId}.tar.gz`);
+      // The id is the file's own name on disk (a .zip); keep it rather than
+      // wrapping it in a made-up .tar.gz name.
+      link.setAttribute('download', String(backupId));
       document.body.appendChild(link);
       link.click();
       link.remove();
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       toast.error('Failed to download backup: ' + (error.response?.data?.message || error.message));
     }
@@ -390,7 +430,7 @@ const Dashboard = ({ onReconfigure }) => {
       const response = await api.post('/discord/test', {
         webhookUrl: discordConfig.webhookUrl
       });
-      
+
       if (response.data.success) {
         toast.success('Discord test notification sent successfully!');
       } else {
@@ -403,8 +443,6 @@ const Dashboard = ({ onReconfigure }) => {
     }
   };
 
-
-
   const handleSaveConfig = async () => {
     try {
       await api.put('/config', editConfig);
@@ -416,533 +454,728 @@ const Dashboard = ({ onReconfigure }) => {
     }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString();
-  };
+  // --- Derived state ---------------------------------------------------------
 
-  const formatBytes = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+  const latestBackup = backups[0];
+  const latestJob = jobs[0];
+  const maxBackups = config?.backup?.maxBackups || 10;
+  const totalSize = useMemo(() => backups.reduce((sum, b) => sum + (b.size || 0), 0), [backups]);
+  const runningJobs = jobs.filter((j) => j.status === 'running').length;
+  const failedJobs = jobs.filter((j) => normaliseStatus(j.status) === 'failed').length;
+  const scheduleText = describeCron(config?.schedule?.cronExpression);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'completed':
-        return theme.palette.success.main;
-      case 'running':
-        return theme.palette.warning.main;
-      case 'failed':
-        return theme.palette.error.main;
-      // A stored file with no recorded status is a completed backup, and the
-      // label already says so; the colour should agree with it.
-      default:
-        return theme.palette.success.main;
+  // One sentence that answers "am I covered?", with a colour to match.
+  const health = useMemo(() => {
+    const ageHours = latestBackup
+      ? (Date.now() - new Date(latestBackup.timestamp || latestBackup.createdAt).getTime()) / 3.6e6
+      : Infinity;
+
+    if (runningJobs > 0 || runningBackup) {
+      return { tone: ink.accent2, title: 'Backup in progress', detail: 'Taking a fresh snapshot of your Pi-hole…', pulse: true };
     }
-  };
-
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'running':
-        return <CircularProgress size={16} thickness={5} />;
-      case 'failed':
-        return <Error sx={{ fontSize: 18, color: ink.bad }} />;
-      case 'completed':
-      default:
-        return <CheckCircle sx={{ fontSize: 18, color: ink.ok }} />;
+    if (latestJob && normaliseStatus(latestJob.status) === 'failed') {
+      return { tone: ink.bad, title: 'Last backup failed', detail: latestJob.message || 'Check the job log for details.', pulse: true };
     }
-  };
+    if (!latestBackup) {
+      return { tone: ink.warn, title: 'No restore points yet', detail: 'Run your first backup to start protecting your config.', pulse: true };
+    }
+    if (ageHours > 72) {
+      return { tone: ink.warn, title: 'Backups are getting stale', detail: `Last restore point was ${relativeTime(latestBackup.timestamp || latestBackup.createdAt)}.`, pulse: true };
+    }
+    return { tone: ink.ok, title: 'Your Pi-hole is protected', detail: `Last restore point ${relativeTime(latestBackup.timestamp || latestBackup.createdAt)}.`, pulse: true };
+  }, [latestBackup, latestJob, runningJobs, runningBackup]);
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress size={60} />
-      </Box>
+      <Container maxWidth="xl" sx={{ py: 12 }}>
+        <Stack alignItems="center" spacing={2}>
+          <CircularProgress size={28} thickness={4} />
+          <Typography variant="body2">Loading your vault…</Typography>
+        </Stack>
+      </Container>
     );
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', backgroundColor: ink.ground }}>
-      {/* Modern App Bar with Icon-Only Buttons */}
-      {/* The bar shares the page's ground and is separated by a hairline, so the
-          header reads as the top of one surface rather than a floating panel. */}
-      <AppBar position="sticky" elevation={0}>
-        <Toolbar>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <img
+    <Box sx={{ minHeight: '100vh' }}>
+      {/* Header ------------------------------------------------------------ */}
+      <AppBar
+        position="sticky"
+        elevation={0}
+        sx={{
+          transition: 'background-color 300ms, border-color 300ms, backdrop-filter 300ms',
+          backgroundColor: scrolled ? 'rgba(10, 14, 21, 0.72)' : 'transparent',
+          backdropFilter: scrolled ? 'blur(16px) saturate(150%)' : 'none',
+          WebkitBackdropFilter: scrolled ? 'blur(16px) saturate(150%)' : 'none',
+          borderBottom: `1px solid ${scrolled ? ink.line : 'transparent'}`
+        }}
+      >
+        <Toolbar sx={{ gap: 1, minHeight: { xs: 60, sm: 68 } }}>
+          <motion.div
+            initial={{ opacity: 0, x: -12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, ease }}
+            style={{ display: 'flex', alignItems: 'center', gap: 12 }}
+          >
+            <Box
+              component="img"
               src="/logo.png"
               alt=""
-              style={{ height: 28, width: 'auto', borderRadius: '6px' }}
+              sx={{ height: 32, width: 32, borderRadius: '9px', boxShadow: '0 0 0 1px rgba(255,255,255,0.08), 0 6px 18px -6px rgba(91,140,255,0.6)' }}
             />
-            <Typography variant="h5" sx={{ letterSpacing: '-0.01em' }}>
+            <Typography variant="h5" sx={{ letterSpacing: '-0.02em', fontWeight: 650 }}>
               PiHoleVault
             </Typography>
-          </Box>
-          
+          </motion.div>
+
           <Box sx={{ flexGrow: 1 }} />
-          
-          <Stack direction="row" spacing={1} alignItems="center">
-            {/* GitHub */}
-            <EnhancedIconButton
-              onClick={() => window.open('https://github.com/TheInfamousToTo', '_blank')}
-              tooltip="GitHub"
-              color="#6e5494"
-            >
-              <GitHub />
-            </EnhancedIconButton>
 
-            {/* Star */}
-            <EnhancedIconButton
-              onClick={() => window.open('https://github.com/TheInfamousToTo/PiHoleVault', '_blank')}
-              tooltip="Star on GitHub"
-              color="#f59e0b"
+          <MotionBox
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease, delay: 0.1 }}
+            sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+          >
+            <Button
+              size="small"
+              variant="text"
+              onClick={(e) => setSupportAnchorEl(e.currentTarget)}
+              startIcon={<Favorite sx={{ color: '#FF6B8B' }} />}
+              sx={{ display: { xs: 'none', sm: 'inline-flex' }, mr: 0.5 }}
             >
-              <Star />
-            </EnhancedIconButton>
+              Support
+            </Button>
+            <Box sx={{ display: { xs: 'inline-flex', sm: 'none' } }}>
+              <HeaderIcon tooltip="Support the project" onClick={(e) => setSupportAnchorEl(e.currentTarget)}>
+                <Favorite sx={{ color: '#FF6B8B' }} />
+              </HeaderIcon>
+            </Box>
 
-            {/* Buy Coffee */}
-            <EnhancedIconButton
-              onClick={() => window.open('https://buymeacoffee.com/theinfamoustoto', '_blank')}
-              tooltip="Buy Me a Coffee"
-              color="#ff813f"
-            >
-              <Coffee />
-            </EnhancedIconButton>
-
-            {/* Ko-fi */}
-            <EnhancedIconButton
-              onClick={() => window.open('https://ko-fi.com/theinfamoustoto', '_blank')}
-              tooltip="Support on Ko-fi"
-              color="#ff5722"
-            >
-              <Favorite />
-            </EnhancedIconButton>
-
-            {/* Sponsor with Heart icon */}
-            <EnhancedIconButton
-              onClick={() => window.open('https://github.com/sponsors/TheInfamousToTo', '_blank')}
-              tooltip="Sponsor"
-              color="#8b5cf6"
-            >
-              <Favorite />
-            </EnhancedIconButton>
-
-            {/* Refresh */}
-            <EnhancedIconButton
-              onClick={() => loadDashboardData()}
-              disabled={refreshing}
-              tooltip="Refresh"
-              color="rgba(255, 255, 255, 0.8)"
-            >
+            <HeaderIcon tooltip="Refresh" onClick={() => loadDashboardData()} disabled={refreshing} spinning={refreshing}>
               <Refresh />
-            </EnhancedIconButton>
+            </HeaderIcon>
 
-            {/* Run Backup */}
-            <ActionButton
-              icon={<PlayArrow />}
-              label="Run backup"
-              onClick={handleRunBackup}
-              disabled={runningBackup}
-            />
-
-            {/* Settings Menu */}
-            <EnhancedIconButton
-              onClick={handleSettingsClick}
-              tooltip="Settings"
-              color="rgba(255, 255, 255, 0.8)"
-            >
+            <HeaderIcon tooltip="Settings" onClick={handleSettingsClick}>
               <Settings />
-            </EnhancedIconButton>
+            </HeaderIcon>
 
-            <Menu
-              anchorEl={settingsAnchorEl}
-              open={settingsOpen}
-              onClose={handleSettingsClose}
-              PaperProps={{
-                sx: {
-                  background: 'rgba(30, 41, 59, 0.95)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(148, 163, 184, 0.2)',
-                  borderRadius: 2,
-                  minWidth: 200,
-                  '& .MuiMenuItem-root': {
-                    color: 'white',
-                    '&:hover': {
-                      backgroundColor: 'rgba(148, 163, 184, 0.1)',
-                    }
-                  }
-                }
-              }}
-            >
-              <MenuItem onClick={handleEditConfig}>
-                <ListItemIcon sx={{ color: 'inherit', minWidth: 36 }}>
-                  <Settings fontSize="small" />
-                </ListItemIcon>
-                Configure Settings
-              </MenuItem>
-              <MenuItem onClick={handleDiscordOpen}>
-                <ListItemIcon sx={{ color: 'info.main', minWidth: 36 }}>
-                  <Notifications fontSize="small" />
-                </ListItemIcon>
-                Discord Notifications
-              </MenuItem>
-              {onReconfigure && (
-                <MenuItem onClick={handleReconfigure}>
-                  <ListItemIcon sx={{ color: 'warning.main', minWidth: 36 }}>
-                    <Shield fontSize="small" />
-                  </ListItemIcon>
-                  Reconfigure System
-                </MenuItem>
+            <AnimatePresence>
+              {scrolled && !isMobile && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9, width: 0 }}
+                  animate={{ opacity: 1, scale: 1, width: 'auto' }}
+                  exit={{ opacity: 0, scale: 0.9, width: 0 }}
+                  transition={{ duration: 0.3, ease }}
+                  style={{ overflow: 'hidden', marginLeft: 8 }}
+                >
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={runningBackup ? <CircularProgress size={14} color="inherit" /> : <PlayArrow />}
+                    onClick={handleRunBackup}
+                    disabled={runningBackup}
+                    sx={{ whiteSpace: 'nowrap' }}
+                  >
+                    Run backup
+                  </Button>
+                </motion.div>
               )}
-            </Menu>
-          </Stack>
+            </AnimatePresence>
+          </MotionBox>
+
+          <Menu
+            anchorEl={supportAnchorEl}
+            open={Boolean(supportAnchorEl)}
+            onClose={() => setSupportAnchorEl(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            <Typography sx={{ ...labelText, px: 1.5, pt: 0.75, pb: 1 }}>
+              Enjoying PiHoleVault? Help keep it going.
+            </Typography>
+            {SUPPORT_LINKS.map((link) => (
+              <MenuItem
+                key={link.href}
+                component="a"
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setSupportAnchorEl(null)}
+              >
+                <ListItemIcon sx={{ minWidth: 34 }}>{link.icon}</ListItemIcon>
+                <Box sx={{ flexGrow: 1 }}>{link.label}</Box>
+                <OpenInNew sx={{ fontSize: 14, color: ink.faint, ml: 1.5 }} />
+              </MenuItem>
+            ))}
+          </Menu>
+
+          <Menu
+            anchorEl={settingsAnchorEl}
+            open={settingsOpen}
+            onClose={handleSettingsClose}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            <MenuItem onClick={handleEditConfig}>
+              <ListItemIcon sx={{ minWidth: 34 }}>
+                <Settings fontSize="small" />
+              </ListItemIcon>
+              Configure settings
+            </MenuItem>
+            <MenuItem onClick={handleDiscordOpen}>
+              <ListItemIcon sx={{ minWidth: 34, color: '#8B9BFF' }}>
+                <Notifications fontSize="small" />
+              </ListItemIcon>
+              Discord notifications
+            </MenuItem>
+            {onReconfigure && <Divider sx={{ my: 0.5 }} />}
+            {onReconfigure && (
+              <MenuItem onClick={handleReconfigure}>
+                <ListItemIcon sx={{ minWidth: 34, color: ink.warn }}>
+                  <Shield fontSize="small" />
+                </ListItemIcon>
+                Re-run setup wizard
+              </MenuItem>
+            )}
+          </Menu>
         </Toolbar>
       </AppBar>
 
-      <Container maxWidth="xl" sx={{ py: 4 }}>
-
-        {/* Status panel: the four readings that answer "is my Pi-hole backed
-            up", in one instrument rather than four tiles. */}
-        <StatusPanel>
-          <StatCell
-            label="Backups"
-            value={backups.length}
-            note={backups.length === 1 ? '1 stored' : `${backups.length} stored`}
+      <Container
+        maxWidth="xl"
+        component={motion.main}
+        variants={stagger(0.05, 0.07)}
+        initial="hidden"
+        animate="show"
+        sx={{ py: { xs: 3, md: 4 } }}
+      >
+        {/* Hero: health + run ------------------------------------------------ */}
+        <GlowCard sx={{ mb: 3, p: { xs: 3, md: 4 } }}>
+          {/* Wash of the current health colour in the corner. */}
+          <Box
+            aria-hidden
+            sx={{
+              position: 'absolute',
+              top: -120,
+              right: -80,
+              width: 360,
+              height: 360,
+              borderRadius: '50%',
+              background: `radial-gradient(closest-side, ${health.tone}22, transparent)`,
+              transition: 'background 600ms',
+              zIndex: -1
+            }}
           />
-          <StatCell
-            label="Scheduled jobs"
-            value={jobs.length}
-            note={`${jobs.filter((j) => j.status === 'running').length} running`}
-          />
-          <StatCell
-            label="Pi-hole"
-            value={config?.pihole?.host || 'Not configured'}
-            note={config?.pihole?.host ? `port ${config?.pihole?.port || 22}` : null}
-            mono={Boolean(config?.pihole?.host)}
-          />
-          <StatCell
-            label="Schedule"
-            value={config?.schedule?.enabled ? 'Enabled' : 'Disabled'}
-            tone={config?.schedule?.enabled ? ink.ok : ink.muted}
-            note={config?.schedule?.cronExpression || 'No schedule set'}
-            mono={Boolean(config?.schedule?.cronExpression)}
-          />
-        </StatusPanel>
-
-        {/* Main Content Grid */}
-        <Grid container spacing={4} sx={{ mb: 4 }}>
-          {/* Recent Backups */}
-          <Grid item xs={12} lg={8}>
-            <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
-                  <Typography variant="h4">Recent backups</Typography>
-                  <Typography sx={{ ...labelText, fontVariantNumeric: 'tabular-nums' }}>
-                    {backups.length} stored
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            alignItems={{ xs: 'flex-start', md: 'center' }}
+            justifyContent="space-between"
+            spacing={4}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Chip
+                size="small"
+                icon={<Box sx={{ display: 'inline-flex', ml: '8px !important' }}><LiveDot color={health.tone} pulse={health.pulse} size={7} /></Box>}
+                label={config?.pihole?.host ? `Watching ${config.pihole.host}` : 'Not connected'}
+                sx={{
+                  mb: 2,
+                  maxWidth: '100%',
+                  backgroundColor: 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${ink.line}`,
+                  color: ink.muted,
+                  '& .MuiChip-label': { ...monoText, fontSize: '0.75rem' }
+                }}
+              />
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={health.title}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.35, ease }}
+                >
+                  <Typography variant="h1" component="h1" sx={{ fontSize: { xs: '1.75rem', md: '2.375rem' }, mb: 1 }}>
+                    <GradientText>{health.title}</GradientText>
                   </Typography>
-                </Stack>
-                
-                {backups.length === 0 ? (
-                  <Box sx={{ textAlign: 'center', py: 6 }}>
-                    <Cloud sx={{ fontSize: 28, color: ink.faint, mb: 1.5 }} />
-                    <Typography variant="h5" sx={{ mb: 0.5 }}>No backups yet</Typography>
-                    <Typography variant="body2">
-                      Run a backup to store your first restore point.
-                    </Typography>
-                  </Box>
-                ) : (
-                  <List>
-                    {backups.slice(0, 10).map((backup, index) => (
-                      <Grow
-                        key={backup.id || index}
-                        in={true}
-                        timeout={300 + index * 100}
-                      >
-                        <ListItem
-                          sx={{
-                            borderRadius: 2,
-                            mb: 1,
-                            px: 1.5,
-                            border: `1px solid ${ink.line}`,
-                            '&:hover': { backgroundColor: ink.raised }
-                          }}
-                        >
-                        <ListItemIcon sx={{ minWidth: 32 }}>
-                          {getStatusIcon(backup.status)}
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={
-                            <Stack direction="row" alignItems="center" spacing={2}>
-                              <Typography sx={{ ...monoText, fontSize: '0.875rem', fontWeight: 500 }}>
-                                {backup.filename || `Backup #${backup.id || index + 1}`}
-                              </Typography>
-                              <Chip
-                                label={backup.status || 'completed'}
-                                size="small"
-                                variant="outlined"
-                                sx={{ color: getStatusColor(backup.status), borderColor: ink.line }}
-                              />
-                            </Stack>
-                          }
-                          secondary={
-                            <Stack direction="row" alignItems="center" spacing={2} sx={{ mt: 1 }}>
-                              <Typography variant="body2" color="text.secondary">
-                                {formatDate(backup.createdAt || backup.timestamp)}
-                              </Typography>
-                              {backup.size && (
-                                <Typography variant="body2" sx={{ ...monoText, color: ink.faint }}>
-                                  {formatBytes(backup.size)}
-                                </Typography>
-                              )}
-                            </Stack>
-                          }
-                        />
-                        <Stack direction="row" spacing={1}>
-                          <Tooltip title="Download">
-                            <IconButton
-                              onClick={() => handleDownloadBackup(backup.id || backup.filename)}
-                              disabled={backup.status !== 'completed' && backup.status !== undefined}
-                              size="small"
-                            >
-                              <Download />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Delete">
-                            <IconButton
-                              onClick={() => handleDeleteBackup(backup.id || backup.filename)}
-                              color="error"
-                              size="small"
-                            >
-                              <Delete />
-                            </IconButton>
-                          </Tooltip>
-                        </Stack>
-                      </ListItem>
-                      </Grow>
-                    ))}
-                  </List>
+                  <Typography sx={{ color: 'text.secondary', fontSize: '1rem', maxWidth: 560 }}>
+                    {health.detail}
+                  </Typography>
+                </motion.div>
+              </AnimatePresence>
+
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mt: 3.5 }}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={handleRunBackup}
+                  disabled={runningBackup}
+                  startIcon={runningBackup ? <CircularProgress size={16} color="inherit" /> : <PlayArrow />}
+                  sx={{ position: 'relative', overflow: 'hidden', px: 3, py: 1.25 }}
+                >
+                  {runningBackup && <Shimmer />}
+                  {runningBackup ? 'Starting backup…' : 'Run backup now'}
+                </Button>
+                {latestBackup && (
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    startIcon={<Download />}
+                    onClick={() => handleDownloadBackup(latestBackup.id || latestBackup.filename)}
+                    sx={{ px: 2.5, py: 1.25 }}
+                  >
+                    Download latest
+                  </Button>
                 )}
-              </CardContent>
-            </Card>
-          </Grid>
+              </Stack>
+            </Box>
 
-          {/* System Status & Jobs */}
-          <Grid item xs={12} lg={4}>
-            <Stack spacing={3}>
-              {/* System Status */}
-              <Card>
-                <CardContent>
-                  <Typography variant="h4" sx={{ mb: 2 }}>System status</Typography>
-                  <Stack spacing={2}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography variant="body2">Connection</Typography>
-                      <Chip
-                        label="Connected"
-                        size="small"
-                        variant="outlined"
-                        sx={{ color: ink.ok, borderColor: 'rgba(63, 185, 132, 0.35)' }}
-                      />
+            <Stack direction="row" alignItems="center" spacing={3} sx={{ alignSelf: { xs: 'center', md: 'auto' } }}>
+              <Ring value={backups.length / maxBackups} size={156}>
+                <Box>
+                  <Box sx={{ fontSize: '2rem', fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1 }}>
+                    <CountUp value={backups.length} />
+                    <Box component="span" sx={{ fontSize: '1rem', color: ink.faint, fontWeight: 500 }}>
+                      /{maxBackups}
                     </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography variant="body2">Storage</Typography>
-                      <Typography variant="body2" sx={{ ...monoText, color: 'text.secondary' }}>
-                        {config?.backup?.destinationPath || 'Not configured'}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <Typography variant="body2">Keep at most</Typography>
-                      <Typography variant="body2" sx={{ ...monoText, color: 'text.secondary' }}>
-                        {config?.backup?.maxBackups || 10}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
+                  </Box>
+                  <Typography sx={{ ...labelText, fontSize: '0.75rem', mt: 0.5 }}>restore points</Typography>
+                </Box>
+              </Ring>
+            </Stack>
+          </Stack>
+        </GlowCard>
 
-              {/* Recent Jobs */}
-              <Card>
-                <CardContent>
-                  <Typography variant="h4" sx={{ mb: 2 }}>Recent jobs</Typography>
-                  {jobs.length === 0 ? (
-                    <Box sx={{ textAlign: 'center', py: 2 }}>
-                      <Schedule sx={{ fontSize: 24, color: ink.faint, mb: 1 }} />
-                      <Typography variant="body2" color="text.secondary">
-                        No jobs yet
-                      </Typography>
-                    </Box>
-                  ) : (
-                    <List dense>
-                      {jobs.slice(0, 5).map((job, index) => (
-                        <Fade
-                          key={job.id || index}
-                          in={true}
-                          timeout={400 + index * 150}
+        {/* Stat tiles ------------------------------------------------------- */}
+        <MotionBox
+          variants={stagger(0, 0.07)}
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr 1fr', lg: 'repeat(4, 1fr)' },
+            gap: { xs: 1.5, md: 2 },
+            mb: 3
+          }}
+        >
+          <StatTile icon={<Inventory2 />} label="Stored backups" note={`${formatBytes(totalSize)} on disk`}>
+            <CountUp value={backups.length} />
+          </StatTile>
+          <StatTile icon={<History />} label="Jobs logged" tone={failedJobs ? ink.bad : ink.accent2}
+            note={runningJobs ? `${runningJobs} running` : failedJobs ? `${failedJobs} failed` : 'All healthy'}>
+            <CountUp value={jobs.length} />
+          </StatTile>
+          <StatTile icon={<Dns />} label="Pi-hole" tone="#A78BFA"
+            note={config?.pihole?.host ? `${config?.pihole?.connectionMethod || 'ssh'} · port ${config?.pihole?.port || 22}` : null}>
+            <Box component="span" sx={{ ...monoText, fontSize: '1.125rem' }} title={config?.pihole?.host}>
+              {config?.pihole?.host || 'Not configured'}
+            </Box>
+          </StatTile>
+          <StatTile
+            icon={<Schedule />}
+            label="Schedule"
+            tone={config?.schedule?.enabled ? ink.ok : ink.muted}
+            note={
+              config?.schedule?.cronExpression ? (
+                <Box component="span" sx={monoText}>
+                  {config.schedule.cronExpression} · {config.schedule.timezone || 'GMT+3'}
+                </Box>
+              ) : 'No schedule set'
+            }
+          >
+            <Stack direction="row" alignItems="center" spacing={1}>
+              {config?.schedule?.enabled && <LiveDot size={8} />}
+              <Box component="span" sx={{ fontSize: scheduleText ? '1.125rem' : undefined }}>
+                {config?.schedule?.enabled ? scheduleText || 'Enabled' : 'Paused'}
+              </Box>
+            </Stack>
+          </StatTile>
+        </MotionBox>
+
+        {/* Main grid -------------------------------------------------------- */}
+        <Grid container spacing={3} sx={{ mb: 3 }}>
+          <Grid item xs={12} lg={8}>
+            <GlowCard sx={{ p: { xs: 2, md: 3 }, height: '100%' }} glow={false}>
+              <SectionHeader icon={<Inventory2 />} title="Restore points" meta={`${backups.length} stored`} />
+
+              {backups.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 8 }}>
+                  <motion.div
+                    animate={{ y: [0, -6, 0] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{ display: 'inline-block' }}
+                  >
+                    <IconTile size={56} tone={ink.faint}>
+                      <CloudOff />
+                    </IconTile>
+                  </motion.div>
+                  <Typography variant="h5" sx={{ mt: 2, mb: 0.5 }}>No backups yet</Typography>
+                  <Typography variant="body2">Run a backup to store your first restore point.</Typography>
+                </Box>
+              ) : (
+                <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
+                  <AnimatePresence initial={true}>
+                    {backups.slice(0, 10).map((backup, index) => {
+                      const id = backup.id || backup.filename || index;
+                      const state = normaliseStatus(backup.status);
+                      const when = backup.timestamp || backup.createdAt;
+                      return (
+                        <motion.li
+                          key={id}
+                          layout
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0, transition: { duration: 0.4, ease, delay: 0.15 + index * 0.05 } }}
+                          exit={{ opacity: 0, x: -40, height: 0, marginBottom: 0, transition: { duration: 0.3, ease } }}
+                          style={{ marginBottom: 8, overflow: 'hidden' }}
                         >
-                          <ListItem 
-                            sx={{ 
-                              px: 0,
-                              borderRadius: 1,
-                              transition: 'all 0.2s ease',
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1.75,
+                              px: { xs: 1.5, sm: 2 },
+                              py: 1.5,
+                              borderRadius: '12px',
+                              border: `1px solid ${ink.line}`,
+                              backgroundColor: 'rgba(255,255,255,0.015)',
+                              transition: 'background-color 200ms, border-color 200ms, transform 200ms',
                               '&:hover': {
-                                backgroundColor: 'rgba(148, 163, 184, 0.05)',
-                                transform: 'translateX(4px)',
-                              }
+                                backgroundColor: 'rgba(91,140,255,0.06)',
+                                borderColor: 'rgba(91,140,255,0.28)',
+                                transform: 'translateX(2px)'
+                              },
+                              '&:hover .row-actions': { opacity: 1 }
                             }}
                           >
-                            <ListItemIcon>
-                              {getStatusIcon(job.status)}
-                            </ListItemIcon>
-                            <ListItemText
-                              primary={job.type || 'Backup Job'}
-                              secondary={formatDate(job.createdAt || job.timestamp)}
-                              primaryTypographyProps={{ fontSize: '0.875rem' }}
-                              secondaryTypographyProps={{ fontSize: '0.75rem' }}
-                            />
-                          </ListItem>
-                        </Fade>
-                      ))}
-                    </List>
-                  )}
-                </CardContent>
-              </Card>
+                            <Box sx={{ position: 'relative', display: 'grid', placeItems: 'center', width: 36, height: 36, borderRadius: '10px', backgroundColor: `${STATUS[state].color}14`, flexShrink: 0 }}>
+                              {state === 'running' ? (
+                                <CircularProgress size={16} thickness={5} sx={{ color: STATUS.running.color }} />
+                              ) : state === 'failed' ? (
+                                <ErrorOutline sx={{ fontSize: 18, color: STATUS.failed.color }} />
+                              ) : (
+                                <CheckCircle sx={{ fontSize: 18, color: STATUS.ok.color }} />
+                              )}
+                            </Box>
+
+                            <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                              <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0 }}>
+                                <Typography
+                                  sx={{ ...monoText, fontSize: '0.8125rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                  title={backup.filename}
+                                >
+                                  {backup.filename || `Backup #${backup.id || index + 1}`}
+                                </Typography>
+                                {index === 0 && (
+                                  <Chip
+                                    label="Latest"
+                                    size="small"
+                                    sx={{ height: 20, fontSize: '0.6875rem', color: ink.accent2, backgroundColor: 'rgba(34,211,238,0.1)', border: '1px solid rgba(34,211,238,0.25)' }}
+                                  />
+                                )}
+                              </Stack>
+                              <Stack direction="row" spacing={1.5} sx={{ mt: 0.25 }}>
+                                <Tooltip title={when ? formatDate(when) : ''}>
+                                  <Typography variant="caption">{relativeTime(when) || '—'}</Typography>
+                                </Tooltip>
+                                {backup.size ? (
+                                  <Typography variant="caption" sx={{ ...monoText, color: ink.faint }}>
+                                    {formatBytes(backup.size)}
+                                  </Typography>
+                                ) : null}
+                              </Stack>
+                            </Box>
+
+                            <Stack
+                              direction="row"
+                              spacing={0.5}
+                              className="row-actions"
+                              sx={{ opacity: { xs: 1, md: 0.55 }, transition: 'opacity 200ms' }}
+                            >
+                              <Tooltip title="Download">
+                                <span>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleDownloadBackup(backup.id || backup.filename)}
+                                    disabled={state !== 'ok'}
+                                    sx={{ '&:hover': { color: ink.accent } }}
+                                  >
+                                    <Download fontSize="small" />
+                                  </IconButton>
+                                </span>
+                              </Tooltip>
+                              <Tooltip title="Delete">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => setDeleteTarget(backup)}
+                                  sx={{ '&:hover': { color: ink.bad, backgroundColor: 'rgba(242,112,106,0.1)' } }}
+                                >
+                                  <DeleteOutline fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Stack>
+                          </Box>
+                        </motion.li>
+                      );
+                    })}
+                  </AnimatePresence>
+                </Box>
+              )}
+            </GlowCard>
+          </Grid>
+
+          <Grid item xs={12} lg={4}>
+            <Stack spacing={3} sx={{ height: '100%' }}>
+              <GlowCard sx={{ p: { xs: 2, md: 3 } }}>
+                <SectionHeader icon={<FolderOpen />} title="Storage" tone={ink.accent2} />
+                <InfoRow label="Path" value={config?.backup?.destinationPath || 'Not configured'} mono />
+                <Divider />
+                <InfoRow label="Retention" value={`${maxBackups} backups`} />
+                <Divider />
+                <InfoRow label="Used" value={formatBytes(totalSize)} mono />
+                <Box sx={{ mt: 1.5, height: 6, borderRadius: 999, backgroundColor: ink.line, overflow: 'hidden' }}>
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(100, (backups.length / maxBackups) * 100)}%` }}
+                    transition={{ duration: 1.2, ease, delay: 0.4 }}
+                    style={{ height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${ink.accent}, ${ink.accent2})` }}
+                  />
+                </Box>
+                <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
+                  {Math.max(0, maxBackups - backups.length)} slots left before the oldest is rotated out
+                </Typography>
+              </GlowCard>
+
+              <GlowCard sx={{ p: { xs: 2, md: 3 }, flexGrow: 1 }}>
+                <SectionHeader icon={<History />} title="Activity" tone="#A78BFA" meta={jobs.length ? `${jobs.length} jobs` : null} />
+                {jobs.length === 0 ? (
+                  <Box sx={{ textAlign: 'center', py: 3 }}>
+                    <Typography variant="body2">No jobs yet</Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ position: 'relative', pl: 3 }}>
+                    {/* Timeline spine draws itself in. */}
+                    <motion.div
+                      initial={{ scaleY: 0 }}
+                      animate={{ scaleY: 1 }}
+                      transition={{ duration: 0.8, ease, delay: 0.3 }}
+                      style={{
+                        position: 'absolute',
+                        left: 7,
+                        top: 8,
+                        bottom: 8,
+                        width: 2,
+                        transformOrigin: 'top',
+                        background: `linear-gradient(${ink.lineStrong}, transparent)`
+                      }}
+                    />
+                    {jobs.slice(0, 6).map((job, index) => {
+                      const state = normaliseStatus(job.status);
+                      return (
+                        <motion.div
+                          key={job.id || index}
+                          initial={{ opacity: 0, x: -8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.4, ease, delay: 0.35 + index * 0.07 }}
+                          style={{ position: 'relative', paddingBottom: 14 }}
+                        >
+                          <Box sx={{ position: 'absolute', left: -21, top: 5 }}>
+                            <LiveDot color={STATUS[state].color} pulse={state === 'running'} size={10} />
+                          </Box>
+                          <Stack direction="row" alignItems="baseline" justifyContent="space-between" spacing={1}>
+                            <Typography sx={{ fontSize: '0.875rem', fontWeight: 550, color: STATUS[state].color }}>
+                              {STATUS[state].label}
+                            </Typography>
+                            <Tooltip title={formatDate(job.timestamp || job.createdAt)}>
+                              <Typography variant="caption" sx={{ whiteSpace: 'nowrap' }}>
+                                {relativeTime(job.timestamp || job.createdAt)}
+                              </Typography>
+                            </Tooltip>
+                          </Stack>
+                          <Typography
+                            variant="caption"
+                            sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', color: ink.faint }}
+                            title={job.message}
+                          >
+                            {job.message || job.type || 'Backup job'}
+                          </Typography>
+                        </motion.div>
+                      );
+                    })}
+                  </Box>
+                )}
+              </GlowCard>
             </Stack>
           </Grid>
         </Grid>
 
-        {/* Global Analytics */}
-        <Box>
+        <MotionBox variants={rise}>
           <GlobalAnalytics />
-        </Box>
+        </MotionBox>
       </Container>
 
-      {/* Configuration Edit Dialog */}
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="md" fullWidth>
+      {/* Delete confirmation ---------------------------------------------- */}
+      <Dialog open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
         <DialogTitle>
-          <Stack direction="row" alignItems="center" spacing={2}>
-            <Settings />
-            <Typography variant="h6">Edit Configuration</Typography>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <IconTile size={36} tone={ink.bad}><WarningAmber /></IconTile>
+            <span>Delete this backup?</span>
           </Stack>
         </DialogTitle>
         <DialogContent>
-          <Stack spacing={3} sx={{ mt: 2 }}>
-            <TextField
-              label="Pi-hole Host"
-              value={editConfig.pihole?.host || ''}
-              onChange={(e) => setEditConfig({
-                ...editConfig,
-                pihole: { ...editConfig.pihole, host: e.target.value }
-              })}
-              fullWidth
-            />
-            <TextField
-              label="Username"
-              value={editConfig.pihole?.username || ''}
-              onChange={(e) => setEditConfig({
-                ...editConfig,
-                pihole: { ...editConfig.pihole, username: e.target.value }
-              })}
-              fullWidth
-            />
-            <TextField
-              label="SSH Port"
-              type="number"
-              value={editConfig.pihole?.port || 22}
-              onChange={(e) => setEditConfig({
-                ...editConfig,
-                pihole: { ...editConfig.pihole, port: parseInt(e.target.value) }
-              })}
-              fullWidth
-            />
-            <TextField
-              label="Backup Path"
-              value={editConfig.backup?.destinationPath || ''}
-              onChange={(e) => setEditConfig({
-                ...editConfig,
-                backup: { ...editConfig.backup, destinationPath: e.target.value }
-              })}
-              fullWidth
-            />
-            <TextField
-              label="Max Backups"
-              type="number"
-              value={editConfig.backup?.maxBackups || 10}
-              onChange={(e) => setEditConfig({
-                ...editConfig,
-                backup: { ...editConfig.backup, maxBackups: parseInt(e.target.value) }
-              })}
-              fullWidth
-            />
-            <TextField
-              label="Cron Expression"
-              value={editConfig.schedule?.cronExpression || ''}
-              onChange={(e) => setEditConfig({
-                ...editConfig,
-                schedule: { ...editConfig.schedule, cronExpression: e.target.value }
-              })}
-              fullWidth
-              helperText="Example: 0 3 * * * (daily at 3 AM)"
-            />
-            <FormControl fullWidth>
-              <InputLabel>Timezone</InputLabel>
-              <Select
-                value={editConfig.schedule?.timezone || 'GMT+3'}
-                onChange={(e) => setEditConfig({
-                  ...editConfig,
-                  schedule: { ...editConfig.schedule, timezone: e.target.value }
-                })}
-                label="Timezone"
-              >
-                <MenuItem value="GMT-12">GMT-12</MenuItem>
-                <MenuItem value="GMT-11">GMT-11</MenuItem>
-                <MenuItem value="GMT-10">GMT-10</MenuItem>
-                <MenuItem value="GMT-9">GMT-9</MenuItem>
-                <MenuItem value="GMT-8">GMT-8</MenuItem>
-                <MenuItem value="GMT-7">GMT-7</MenuItem>
-                <MenuItem value="GMT-6">GMT-6</MenuItem>
-                <MenuItem value="GMT-5">GMT-5</MenuItem>
-                <MenuItem value="GMT-4">GMT-4</MenuItem>
-                <MenuItem value="GMT-3">GMT-3</MenuItem>
-                <MenuItem value="GMT-2">GMT-2</MenuItem>
-                <MenuItem value="GMT-1">GMT-1</MenuItem>
-                <MenuItem value="GMT+0">GMT+0</MenuItem>
-                <MenuItem value="GMT+1">GMT+1</MenuItem>
-                <MenuItem value="GMT+2">GMT+2</MenuItem>
-                <MenuItem value="GMT+3">GMT+3</MenuItem>
-                <MenuItem value="GMT+4">GMT+4</MenuItem>
-                <MenuItem value="GMT+5">GMT+5</MenuItem>
-                <MenuItem value="GMT+6">GMT+6</MenuItem>
-                <MenuItem value="GMT+7">GMT+7</MenuItem>
-                <MenuItem value="GMT+8">GMT+8</MenuItem>
-                <MenuItem value="GMT+9">GMT+9</MenuItem>
-                <MenuItem value="GMT+10">GMT+10</MenuItem>
-                <MenuItem value="GMT+11">GMT+11</MenuItem>
-                <MenuItem value="GMT+12">GMT+12</MenuItem>
-              </Select>
-            </FormControl>
-          </Stack>
+          <Typography variant="body2" sx={{ mb: 1.5 }}>
+            This restore point will be removed from disk. This can't be undone.
+          </Typography>
+          <Box sx={{ p: 1.5, borderRadius: '10px', border: `1px solid ${ink.line}`, backgroundColor: 'rgba(0,0,0,0.25)', ...monoText, fontSize: '0.8125rem', wordBreak: 'break-all' }}>
+            {deleteTarget?.filename || deleteTarget?.id}
+          </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveConfig}>
-            Save Changes
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setDeleteTarget(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<DeleteOutline />}
+            onClick={() => {
+              const target = deleteTarget;
+              setDeleteTarget(null);
+              handleDeleteBackup(target.id || target.filename);
+            }}
+            sx={{ background: ink.bad, color: '#1A0705', '&:hover': { background: '#FF8A84' } }}
+          >
+            Delete
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Discord Configuration Dialog */}
-      <Dialog open={discordDialogOpen} onClose={handleDiscordClose} maxWidth="sm" fullWidth>
+      {/* Configuration Edit Dialog ---------------------------------------- */}
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Avatar sx={{ bgcolor: 'info.main' }}>
-              <Notifications />
-            </Avatar>
-            Discord Notifications
-          </Box>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <IconTile size={36}><Settings /></IconTile>
+            <Box>
+              <Typography variant="h4">Settings</Typography>
+              <Typography variant="caption">Connection, storage and schedule</Typography>
+            </Box>
+          </Stack>
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ pt: 2 }}>
+          <Typography sx={{ ...labelText, mt: 1, mb: 1.5 }}>Pi-hole connection</Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                label="Pi-hole Host"
+                value={editConfig.pihole?.host || ''}
+                onChange={(e) => setEditConfig({
+                  ...editConfig,
+                  pihole: { ...editConfig.pihole, host: e.target.value }
+                })}
+                fullWidth
+              />
+            </Grid>
+            <Grid item xs={8} md={4}>
+              <TextField
+                label="Username"
+                value={editConfig.pihole?.username || ''}
+                onChange={(e) => setEditConfig({
+                  ...editConfig,
+                  pihole: { ...editConfig.pihole, username: e.target.value }
+                })}
+                fullWidth
+              />
+            </Grid>
+            <Grid item xs={4} md={2}>
+              <TextField
+                label="SSH Port"
+                type="number"
+                value={editConfig.pihole?.port || 22}
+                onChange={(e) => setEditConfig({
+                  ...editConfig,
+                  pihole: { ...editConfig.pihole, port: parseInt(e.target.value) }
+                })}
+                fullWidth
+              />
+            </Grid>
+          </Grid>
+
+          <Typography sx={{ ...labelText, mt: 3, mb: 1.5 }}>Storage</Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={8}>
+              <TextField
+                label="Backup Path"
+                value={editConfig.backup?.destinationPath || ''}
+                onChange={(e) => setEditConfig({
+                  ...editConfig,
+                  backup: { ...editConfig.backup, destinationPath: e.target.value }
+                })}
+                fullWidth
+              />
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <TextField
+                label="Max Backups"
+                type="number"
+                value={editConfig.backup?.maxBackups || 10}
+                onChange={(e) => setEditConfig({
+                  ...editConfig,
+                  backup: { ...editConfig.backup, maxBackups: parseInt(e.target.value) }
+                })}
+                fullWidth
+              />
+            </Grid>
+          </Grid>
+
+          <Typography sx={{ ...labelText, mt: 3, mb: 1.5 }}>Schedule</Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={8}>
+              <TextField
+                label="Cron Expression"
+                value={editConfig.schedule?.cronExpression || ''}
+                onChange={(e) => setEditConfig({
+                  ...editConfig,
+                  schedule: { ...editConfig.schedule, cronExpression: e.target.value }
+                })}
+                fullWidth
+                InputProps={{ sx: monoText }}
+                helperText={describeCron(editConfig.schedule?.cronExpression) || 'Example: 0 3 * * * (daily at 3 AM)'}
+              />
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel>Timezone</InputLabel>
+                <Select
+                  value={editConfig.schedule?.timezone || 'GMT+3'}
+                  onChange={(e) => setEditConfig({
+                    ...editConfig,
+                    schedule: { ...editConfig.schedule, timezone: e.target.value }
+                  })}
+                  label="Timezone"
+                >
+                  {TIMEZONES.map((tz) => (
+                    <MenuItem key={tz} value={tz}>{tz}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleSaveConfig}>
+            Save changes
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Discord Configuration Dialog ------------------------------------- */}
+      <Dialog open={discordDialogOpen} onClose={handleDiscordClose} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" alignItems="center" spacing={1.5}>
+            <IconTile size={36} tone="#8B9BFF"><Notifications /></IconTile>
+            <Box>
+              <Typography variant="h4">Discord notifications</Typography>
+              <Typography variant="caption">Get pinged when a backup finishes or fails</Typography>
+            </Box>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1 }}>
             <FormControlLabel
               control={
                 <Switch
@@ -951,87 +1184,71 @@ const Dashboard = ({ onReconfigure }) => {
                   color="primary"
                 />
               }
-              label="Enable Discord Notifications"
-              sx={{ mb: 3 }}
+              label="Enable Discord notifications"
             />
-            
-            {discordConfig.enabled && (
-              <Stack spacing={3}>
-                <TextField
-                  fullWidth
-                  label="Discord Webhook URL"
-                  value={discordConfig.webhookUrl}
-                  onChange={(e) => setDiscordConfig(prev => ({ ...prev, webhookUrl: e.target.value }))}
-                  placeholder="https://discord.com/api/webhooks/..."
-                  helperText="Get this from your Discord server settings > Integrations > Webhooks"
-                  type="url"
-                />
-                
-                <Box>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={discordConfig.notifyOnSuccess}
-                        onChange={(e) => setDiscordConfig(prev => ({ ...prev, notifyOnSuccess: e.target.checked }))}
-                        color="primary"
+
+            <AnimatePresence initial={false}>
+              {discordConfig.enabled && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.35, ease }}
+                  style={{ overflow: 'hidden' }}
+                >
+                  <Stack spacing={2.5} sx={{ pt: 2.5 }}>
+                    <TextField
+                      fullWidth
+                      label="Discord Webhook URL"
+                      value={discordConfig.webhookUrl}
+                      onChange={(e) => setDiscordConfig(prev => ({ ...prev, webhookUrl: e.target.value }))}
+                      placeholder="https://discord.com/api/webhooks/..."
+                      helperText="Server settings → Integrations → Webhooks → Copy URL"
+                      type="url"
+                    />
+
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={discordConfig.notifyOnSuccess}
+                            onChange={(e) => setDiscordConfig(prev => ({ ...prev, notifyOnSuccess: e.target.checked }))}
+                            color="primary"
+                          />
+                        }
+                        label="On success"
                       />
-                    }
-                    label="Notify on Successful Backup"
-                  />
-                </Box>
-                
-                <Box>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={discordConfig.notifyOnFailure}
-                        onChange={(e) => setDiscordConfig(prev => ({ ...prev, notifyOnFailure: e.target.checked }))}
-                        color="primary"
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={discordConfig.notifyOnFailure}
+                            onChange={(e) => setDiscordConfig(prev => ({ ...prev, notifyOnFailure: e.target.checked }))}
+                            color="primary"
+                          />
+                        }
+                        label="On failure"
                       />
-                    }
-                    label="Notify on Backup Failure"
-                  />
-                </Box>
-                
-                <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-                  <Typography variant="subtitle2" gutterBottom>
-                    How to get Discord Webhook URL:
-                  </Typography>
-                  <Stack spacing={1}>
-                    <Typography variant="body2" color="text.secondary">
-                      1. Go to your Discord server settings
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      2. Click on "Integrations" in the left sidebar
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      3. Click "Create Webhook" or "View Webhooks"
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      4. Copy the webhook URL and paste it above
-                    </Typography>
+                    </Stack>
+
+                    <Button
+                      variant="outlined"
+                      onClick={handleDiscordTest}
+                      disabled={discordTesting || !discordConfig.webhookUrl}
+                      startIcon={discordTesting ? <CircularProgress size={16} /> : <Notifications />}
+                      fullWidth
+                    >
+                      {discordTesting ? 'Sending…' : 'Send test notification'}
+                    </Button>
                   </Stack>
-                </Box>
-                
-                {discordConfig.webhookUrl && (
-                  <Button
-                    variant="outlined"
-                    onClick={handleDiscordTest}
-                    disabled={discordTesting}
-                    startIcon={discordTesting ? <CircularProgress size={20} /> : <Notifications />}
-                    fullWidth
-                  >
-                    {discordTesting ? 'Testing...' : 'Send Test Notification'}
-                  </Button>
-                )}
-              </Stack>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
           <Button onClick={handleDiscordClose}>Cancel</Button>
           <Button variant="contained" onClick={handleDiscordSave}>
-            Save Configuration
+            Save
           </Button>
         </DialogActions>
       </Dialog>
