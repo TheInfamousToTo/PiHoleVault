@@ -2,6 +2,14 @@
 
 All notable changes to PiHoleVault will be documented in this file.
 
+## [Unreleased]
+
+### 🐛 Bug Fixes
+
+- **The PNG logo and icons shipped in 2.0.0 were broken images.** `logo.png` (used by the README), `apple-touch-icon.png` and `favicon-32.png` were exported with a browser's broken-image placeholder instead of the logo. They are re-rendered from the SVG sources. The in-app logo and the SVG favicon were not affected.
+
+---
+
 ## [2.0.0] - 2026-10-07
 
 ### ⚠️ Upgrading from 1.x
