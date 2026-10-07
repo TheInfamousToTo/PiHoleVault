@@ -2,6 +2,14 @@
 
 All notable changes to PiHoleVault will be documented in this file.
 
+## [Unreleased]
+
+### 🔒 Security
+
+- **Dependency advisories published after 2.0.0 are fixed.** `axios` 1.20.0 (12 advisories, high), `proxy-addr` 2.0.8 (IP spoofing through IPv4-mapped IPv6 trust subnets, critical; Express uses it to resolve the client IP that rate limiting keys on), `ip-address` 10.7.3 (moderate) and, in the frontend build toolchain, `source-map-js`. `npm audit --omit=dev` reports 0 vulnerabilities in both packages. The one remaining dev-only advisory (`braces`, through `nodemon`) has no fixed release and never ships in the image.
+
+---
+
 ## [2.0.0] - 2026-10-07
 
 ### ⚠️ Upgrading from 1.x
