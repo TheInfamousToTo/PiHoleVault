@@ -2,7 +2,14 @@
 
 All notable changes to PiHoleVault will be documented in this file.
 
-## [Unreleased]
+## [2.0.1] - 2026-10-07
+
+Security and polish release. No configuration changes; upgrade in place.
+
+### 🔒 Security
+
+- **Dependency advisories published after 2.0.0 are fixed.** `axios` 1.20.0 (high: 12 advisories, including prototype-pollution gadgets and header injection; every Pi-hole API call goes through it), `proxy-addr` 2.0.8 (critical: IP spoofing through IPv4-mapped IPv6 trust subnets, CVE-2026-90711; Express uses it for the client IP that rate limiting keys on) and `ip-address` 10.7.3 (moderate). In the frontend build toolchain, `source-map-js` 1.2.2 (CVE-2026-93749). `npm audit --omit=dev` reports 0 vulnerabilities in both packages.
+- Verified against a real Pi-hole on FTL v6.7.1 with the upgraded axios: every connection and error case behaves as in 2.0.0, and 40 consecutive backups succeed.
 
 ### 🐛 Bug Fixes
 
