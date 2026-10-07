@@ -519,9 +519,9 @@ const Dashboard = ({ onReconfigure }) => {
           >
             <Box
               component="img"
-              src="/logo.png"
+              src="/favicon.svg"
               alt=""
-              sx={{ height: 32, width: 32, borderRadius: '9px', boxShadow: '0 0 0 1px rgba(255,255,255,0.08), 0 6px 18px -6px rgba(91,140,255,0.6)' }}
+              sx={{ height: 32, width: 32, borderRadius: '7px', boxShadow: '0 0 0 1px rgba(255,255,255,0.08), 0 6px 18px -6px rgba(91,140,255,0.6)' }}
             />
             <Typography variant="h5" sx={{ letterSpacing: '-0.02em', fontWeight: 650 }}>
               PiHoleVault
@@ -763,7 +763,13 @@ const Dashboard = ({ onReconfigure }) => {
             <CountUp value={jobs.length} />
           </StatTile>
           <StatTile icon={<Dns />} label="Pi-hole" tone="#A78BFA"
-            note={config?.pihole?.host ? `${config?.pihole?.connectionMethod || 'ssh'} · port ${config?.pihole?.port || 22}` : null}>
+            note={
+              config?.pihole?.host
+                ? config.pihole.connectionMethod === 'web'
+                  ? `web · ${config.pihole.useHttps ? 'https' : 'http'} :${config.pihole.webPort || (config.pihole.useHttps ? 443 : 80)}`
+                  : `${config.pihole.connectionMethod || 'ssh'} · ssh :${config.pihole.port || 22}`
+                : null
+            }>
             <Box component="span" sx={{ ...monoText, fontSize: '1.125rem' }} title={config?.pihole?.host}>
               {config?.pihole?.host || 'Not configured'}
             </Box>
@@ -943,7 +949,7 @@ const Dashboard = ({ onReconfigure }) => {
               </GlowCard>
 
               <GlowCard sx={{ p: { xs: 2, md: 3 }, flexGrow: 1 }}>
-                <SectionHeader icon={<History />} title="Activity" tone="#A78BFA" meta={jobs.length ? `${jobs.length} jobs` : null} />
+                <SectionHeader icon={<History />} title="Activity" tone="#A78BFA" meta={jobs.length ? `${jobs.length} ${jobs.length === 1 ? 'job' : 'jobs'}` : null} />
                 {jobs.length === 0 ? (
                   <Box sx={{ textAlign: 'center', py: 3 }}>
                     <Typography variant="body2">No jobs yet</Typography>
@@ -1091,6 +1097,67 @@ const Dashboard = ({ onReconfigure }) => {
                 })}
                 fullWidth
               />
+            </Grid>
+          </Grid>
+
+          <Grid container spacing={2} sx={{ mt: 0 }}>
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel>Method</InputLabel>
+                <Select
+                  label="Method"
+                  value={editConfig.pihole?.connectionMethod || 'ssh'}
+                  onChange={(e) => setEditConfig({
+                    ...editConfig,
+                    pihole: { ...editConfig.pihole, connectionMethod: e.target.value }
+                  })}
+                >
+                  <MenuItem value="web">Web / API</MenuItem>
+                  <MenuItem value="hybrid">Hybrid (web, then SSH)</MenuItem>
+                  <MenuItem value="ssh">SSH only</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={4} md={2}>
+              <TextField
+                label="Web Port"
+                type="number"
+                value={editConfig.pihole?.webPort || 80}
+                onChange={(e) => setEditConfig({
+                  ...editConfig,
+                  pihole: { ...editConfig.pihole, webPort: parseInt(e.target.value) }
+                })}
+                fullWidth
+              />
+            </Grid>
+            <Grid item xs={8} md={6}>
+              <Stack direction="row" spacing={1} sx={{ height: '100%', alignItems: 'center', flexWrap: 'wrap' }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={Boolean(editConfig.pihole?.useHttps)}
+                      onChange={(e) => setEditConfig({
+                        ...editConfig,
+                        pihole: { ...editConfig.pihole, useHttps: e.target.checked }
+                      })}
+                    />
+                  }
+                  label="HTTPS"
+                />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={Boolean(editConfig.pihole?.allowInsecureTls)}
+                      disabled={!editConfig.pihole?.useHttps}
+                      onChange={(e) => setEditConfig({
+                        ...editConfig,
+                        pihole: { ...editConfig.pihole, allowInsecureTls: e.target.checked }
+                      })}
+                    />
+                  }
+                  label="Allow self-signed cert"
+                />
+              </Stack>
             </Grid>
           </Grid>
 

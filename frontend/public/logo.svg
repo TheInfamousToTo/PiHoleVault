@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PiHoleVault">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1A2540"/>
+      <stop offset="1" stop-color="#0A0E15"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#5B8CFF"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <linearGradient id="door" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1C2848"/>
+      <stop offset="1" stop-color="#0C1322"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#10B981"/>
+      <stop offset="1" stop-color="#6EE7B7"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#5B8CFF" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#5B8CFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="8" y="8" width="496" height="496" rx="116" fill="url(#tile)"/>
+  <rect x="8.5" y="8.5" width="495" height="495" rx="115.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.09"/>
+  <circle cx="256" cy="268" r="210" fill="url(#glow)"/>
+  <rect x="241" y="96" width="30" height="34" rx="9" transform="rotate(22.5 256 268)" fill="url(#accent)"/><rect x="241" y="96" width="30" height="34" rx="9" transform="rotate(67.5 256 268)" fill="url(#accent)"/><rect x="241" y="96" width="30" height="34" rx="9" transform="rotate(112.5 256 268)" fill="url(#accent)"/><rect x="241" y="96" width="30" height="34" rx="9" transform="rotate(157.5 256 268)" fill="url(#accent)"/><rect x="241" y="96" width="30" height="34" rx="9" transform="rotate(202.5 256 268)" fill="url(#accent)"/><rect x="241" y="96" width="30" height="34" rx="9" transform="rotate(247.5 256 268)" fill="url(#accent)"/><rect x="241" y="96" width="30" height="34" rx="9" transform="rotate(292.5 256 268)" fill="url(#accent)"/><rect x="241" y="96" width="30" height="34" rx="9" transform="rotate(337.5 256 268)" fill="url(#accent)"/>
+  <circle cx="256" cy="268" r="144" fill="url(#door)" stroke="url(#accent)" stroke-width="20"/>
+  <line x1="256" y1="268" x2="321.1" y2="202.9" stroke="url(#accent)" stroke-width="15" stroke-linecap="round"/><circle cx="321.1" cy="202.9" r="15" fill="url(#accent)"/><line x1="256" y1="268" x2="190.9" y2="202.9" stroke="url(#accent)" stroke-width="15" stroke-linecap="round"/><circle cx="190.9" cy="202.9" r="15" fill="url(#accent)"/><line x1="256" y1="268" x2="190.9" y2="333.1" stroke="url(#accent)" stroke-width="15" stroke-linecap="round"/><circle cx="190.9" cy="333.1" r="15" fill="url(#accent)"/><line x1="256" y1="268" x2="321.1" y2="333.1" stroke="url(#accent)" stroke-width="15" stroke-linecap="round"/><circle cx="321.1" cy="333.1" r="15" fill="url(#accent)"/>
+  <circle cx="256" cy="268" r="46" fill="url(#accent)"/>
+  <circle cx="256" cy="268" r="21" fill="#0A0E15"/>
+  <g transform="translate(-22 22)"><path d="M352 128 C 356 84, 392 58, 440 56 C 440 104, 408 138, 362 140 Z" fill="url(#leaf)"/><path d="M360 134 C 380 110, 402 90, 428 72" fill="none" stroke="#0A0E15" stroke-opacity="0.35" stroke-width="7" stroke-linecap="round"/></g>
+</svg>

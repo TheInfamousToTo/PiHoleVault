@@ -39,6 +39,56 @@ function isValidHost(value) {
   return HOSTNAME_PATTERN.test(host);
 }
 
+// The only paths tolerated after a Pi-hole address. People paste the admin
+// page URL ("https://pi.hole/admin/"); anything deeper is refused, because the
+// result becomes an HTTP client's base URL.
+const PIHOLE_PATHS = new Set(['', '/', '/admin', '/admin/']);
+
+/**
+ * Split what a user typed for the Pi-hole address into its parts.
+ *
+ * Accepts a bare host ("192.168.1.2", "pi.hole"), or an http(s) URL with an
+ * optional port and an optional /admin path ("https://pi.hole:8443/admin/").
+ * Returns { hostname, scheme, port } -- scheme and port are null when not
+ * given -- or null when the value is not a Pi-hole address. Credentials, query
+ * strings, fragments and other paths are refused.
+ */
+function parsePiholeAddress(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const input = value.trim();
+
+  if (!/^https?:\/\//i.test(input)) {
+    const bare = input.endsWith('/') ? input.slice(0, -1) : input;
+    return isValidHost(bare) ? { hostname: bare, scheme: null, port: null } : null;
+  }
+
+  let url;
+
+  try {
+    url = new URL(input);
+  } catch (error) {
+    return null;
+  }
+
+  if (url.username || url.password || url.search || url.hash || !PIHOLE_PATHS.has(url.pathname)) {
+    return null;
+  }
+
+  // URL keeps IPv6 literals bracketed; isValidHost accepts that form.
+  if (!isValidHost(url.hostname)) {
+    return null;
+  }
+
+  return {
+    hostname: url.hostname,
+    scheme: url.protocol === 'https:' ? 'https' : 'http',
+    port: url.port ? Number(url.port) : null
+  };
+}
+
 /**
  * Normalise a port into an integer, or return null when it is out of range.
  */
@@ -195,6 +245,7 @@ function mergePreservingSecrets(base, incoming) {
 module.exports = {
   REDACTED,
   isValidHost,
+  parsePiholeAddress,
   isValidUsername,
   isSafeDownloadName,
   parsePort,

@@ -2,18 +2,55 @@
 
 All notable changes to PiHoleVault will be documented in this file.
 
-## [Unreleased]
+## [2.0.0] - 2026-10-07
+
+### ⚠️ Upgrading from 1.x
+
+2.0.0 changes several defaults so that PiHoleVault is secure out of the box. Most installs upgrade without touching anything, but check these first:
+
+- **HTTPS Pi-holes with a self-signed certificate will fail to connect.** TLS certificates are now verified, and Pi-hole v6 serves a self-signed certificate by default. Turn on *Allow self-signed certificate* in Settings, set `ALLOW_INSECURE_TLS=true`, or give the Pi-hole a trusted certificate.
+- **Pi-hole v6 is required for the web method.** v5 is end-of-life; its API never worked for backups here anyway.
+- **The SSH user must be able to read Pi-hole's config**: be `root`, be in the `pihole` group, or have password-less `sudo pihole-FTL`. The connection test now checks this.
+- **SSH host keys are pinned on first contact** (`SSH_HOST_KEY_POLICY=tofu`). If the Pi-hole is later rebuilt or its key changes, backups are refused until you remove its entry from `data/known_hosts.json`.
+- **Legacy SSH algorithms** (`ssh-rsa`, `ssh-dss`, `hmac-sha1`) are off. Only very old OpenSSH servers need `SSH_ALLOW_LEGACY_ALGORITHMS=true`.
+- **The API no longer sends `Access-Control-Allow-Origin: *`.** The bundled UI is unaffected. Only set `CORS_ALLOWED_ORIGINS` if you call the API from another origin.
+- **Recommended:** set `AUTH_TOKEN` (`openssl rand -hex 32`). Without it the API stays open, and the server logs a warning at startup.
+
+See `.env.example` for every option.
+
+### 🔌 Pi-hole v6 compatibility
+
+Tested end to end against a real Pi-hole on the current release (FTL v6.7.1, Web v6.6, Core v6.4.3), including a Pi-hole with no password, one with 2FA, and HTTPS with the default self-signed certificate.
+
+- **Backups no longer lock you out of Pi-hole.** Every run opened an API session and never closed it. Pi-hole allows 16 and keeps each for 30 minutes (and restores them after a restart), so after a handful of runs both backups *and the Pi-hole's own web login* failed with "API seats exceeded". PiHoleVault now logs out after every request; 40 consecutive backups were tested.
+- **Hybrid actually works.** The hybrid connection test and hybrid backup called functions that were never written, so hybrid failed outright. It now uses the web API first and falls back to SSH automatically, and the test checks both halves.
+- **A wrong password fails the connection test** instead of passing it and failing at the first backup. Errors now say what happened: wrong password, 2FA needs an app password, untrusted certificate, nothing listening, HTTPS on an HTTP port, out of API sessions, rate-limited.
+- **The admin URL the wizard asks for is accepted.** `https://pi.hole:8443/admin/` was rejected by the backend and could not be saved; it is now split into host, port and HTTPS on save.
+- **Two-factor authentication is supported** through Pi-hole app passwords.
+- **SSH backups work on v6.** The archive name is read from the last line of `pihole-FTL --teleporter` output (FTL prints log lines before it), a non-root user falls back to `sudo -n`, and the remote archive is cleaned up.
+- **Session auth uses the `X-FTL-SID` header**, which needs no CSRF token, and only a real zip archive is accepted as a backup.
+- `POST /api/backup` with a `connectionId` now runs the same backup path as scheduled backups; it only ever handled the web method, without writing the archive.
 
 ### 🎨 Interface
 
-- **Reskinned around a single accent.** The dashboard opened with a full-width gradient banner and four stat cards each tinted a different hue, none of which carried meaning. The palette is now a blue-slate ground with one accent: blue marks what you can act on and what is live, and the state colours only ever report state.
-- **The four readings sit in one panel divided by hairlines** rather than four separate cards, so they read as one instrument. The banner is gone, so the page opens with the numbers that answer "am I backed up".
-- **Inter and JetBrains Mono are now bundled with the app.** The theme previously asked for Inter without ever loading it, so the interface had been falling back to the system font. Machine values -- addresses, ports, cron expressions, paths, filenames, sizes -- are set in the monospace face, so columns line up. Neither font is fetched from a CDN: the Content-Security-Policy allows fonts from this origin only, and a Pi-hole often has no route to the internet.
-- **The community stats panel renders nothing when its service is unreachable**, instead of a full-width slab announcing its own absence.
-- Theme moved out of `App.jsx` into `frontend/src/theme.js`.
+- **New logo.** An original vault-door mark replaces the raspberry, which leaned on the Raspberry Pi and Pi-hole marks. It ships as SVG with a simplified favicon variant for small sizes, plus PNG and Apple touch icons.
+- **Allow self-signed certificate** switch in the wizard and in Settings, and Settings can now edit the connection method, web port and HTTPS.
 
-No functional change: same components, props, handlers, API calls, routes and validation.
+- **A new look with motion throughout.** The ground is deep slate with a slow ambient glow behind translucent glass surfaces, and a single blue-to-cyan accent marks what you can act on and what is live. Panels rise in on load, numbers count up, the retention ring draws itself in, cards pick up a pointer-following highlight, deleted backups animate out, and wizard steps slide in the direction you are moving. Motion follows the OS reduced-motion setting.
+- **The dashboard opens with an answer.** A health headline reads "protected", "getting stale", "last backup failed" or "in progress", next to a ring showing how many of your retained restore points are used. Below it are stat tiles, a storage meter with slots left before rotation, and an activity timeline.
+- **Deleting a backup asks for confirmation.** It used to be a single click.
+- **The header turns to frosted glass on scroll** and shows a Run backup button, so the main action stays in reach.
+- **The setup wizard was rebuilt:** an animated progress rail, cards for choosing the connection method, clickable cron presets with a plain-English preview ("Daily at 03:00"), and a retention preview.
+- **Support links are grouped** into one Support menu instead of five unlabelled icons.
+- **Inter and JetBrains Mono are bundled with the app** rather than fetched from a CDN. The CSP allows fonts from this origin only, and a Pi-hole often has no route to the internet. Machine values (addresses, ports, cron expressions, paths, sizes) are set in the monospace face.
+- **The community stats panel renders nothing when its service is unreachable**, instead of announcing its own absence.
 
+### 🐛 Bug Fixes
+
+- **Failed scheduled backups showed as successful.** Jobs logged as `success`/`error` were not recognised, so an error rendered as a green tick. Both naming schemes now map to completed/failed.
+- **Downloads keep the backup's real filename.** They used to save as `backup-<name>.zip.tar.gz`.
+- **The schedule "enabled" control had no label.** It is now a labelled switch.
+- **The connection test no longer blames the backend** for an unreachable Pi-hole.
 
 ### 🔒 Security
 
@@ -30,6 +67,8 @@ No functional change: same components, props, handlers, API calls, routes and va
 ### 🔧 Technical Changes
 
 - Frontend build switched from Create React App to Vite; `.js` component files renamed to `.jsx`.
+- Added `framer-motion` for animation; shared motion primitives live in `frontend/src/components/ui.jsx` and cron descriptions in `frontend/src/utils/cron.js`.
+- `package.json` versions brought back in line with the `version` file (they had stayed at 1.6.0).
 - New `backend/middleware/auth.js`, `backend/utils/validate.js` and `backend/utils/sshSecurity.js`.
 
 ---
