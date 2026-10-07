@@ -5,7 +5,6 @@ import CssBaseline from '@mui/material/CssBaseline';
 import {
   Box,
   Button,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -13,12 +12,14 @@ import {
   DialogTitle,
   TextField
 } from '@mui/material';
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer, Slide as ToastSlide } from 'react-toastify';
+import { MotionConfig, motion } from 'framer-motion';
 import 'react-toastify/dist/ReactToastify.css';
 
 import SetupWizard from './components/SetupWizard';
 import Dashboard from './components/Dashboard';
-import theme, { ink, sans } from './theme';
+import { AmbientBackground } from './components/ui';
+import theme, { ink, sans, gradient, ease } from './theme';
 import api, {
   checkAuthRequired,
   getApiToken,
@@ -105,7 +106,7 @@ function App() {
       <form onSubmit={submitToken}>
         <DialogTitle>API token required</DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ mb: 2 }}>
+          <DialogContentText sx={{ mb: 2.5 }}>
             {tokenRejected
               ? 'That token was rejected. Enter the AUTH_TOKEN this PiHoleVault was started with.'
               : 'This PiHoleVault requires an API token. Enter the AUTH_TOKEN it was started with.'}
@@ -129,113 +130,138 @@ function App() {
     </Dialog>
   );
 
+  // Every screen sits on the same ambient background, and framer-motion is
+  // told to follow the OS reduced-motion setting everywhere.
+  const shell = (children) => (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <MotionConfig reducedMotion="user">
+        <AmbientBackground />
+        <Box sx={{ position: 'relative', zIndex: 1 }}>{children}</Box>
+      </MotionConfig>
+    </ThemeProvider>
+  );
+
   if (tokenPromptOpen) {
-    return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        {tokenDialog}
-      </ThemeProvider>
-    );
+    return shell(tokenDialog);
   }
 
   if (loading) {
-    return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '100vh',
-            backgroundColor: ink.ground
-          }}
+    return shell(
+      <Box sx={{ display: 'grid', placeItems: 'center', height: '100vh' }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.92 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, ease }}
+          style={{ textAlign: 'center' }}
         >
-          <Box sx={{ textAlign: 'center' }}>
-            <Box sx={{ mb: 2.5, fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.02em' }}>
-              PiHoleVault
-            </Box>
+          <Box sx={{ position: 'relative', width: 96, height: 96, mx: 'auto', mb: 3 }}>
+            {/* Two counter-rotating arcs around the logo. */}
             <Box
               sx={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 1.5,
-                fontSize: '0.9375rem',
-                color: 'text.secondary'
+                position: 'absolute',
+                inset: 0,
+                borderRadius: '50%',
+                border: '2px solid transparent',
+                borderTopColor: ink.accent,
+                borderRightColor: ink.accent2,
+                animation: 'pv-spin 1.1s linear infinite'
               }}
-            >
-              <CircularProgress size={16} thickness={5} sx={{ color: 'primary.main' }} />
-              Loading
-            </Box>
+            />
+            <Box
+              sx={{
+                position: 'absolute',
+                inset: 10,
+                borderRadius: '50%',
+                border: '2px solid transparent',
+                borderBottomColor: 'rgba(91,140,255,0.45)',
+                animation: 'pv-spin 1.6s linear infinite reverse'
+              }}
+            />
+            <Box
+              component="img"
+              src="/logo.png"
+              alt=""
+              sx={{ position: 'absolute', inset: 24, width: 48, height: 48, borderRadius: '12px' }}
+            />
           </Box>
-        </Box>
-      </ThemeProvider>
+          <Box
+            sx={{
+              fontSize: '1.5rem',
+              fontWeight: 650,
+              letterSpacing: '-0.03em',
+              background: gradient.text,
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}
+          >
+            PiHoleVault
+          </Box>
+          <Box sx={{ mt: 0.75, fontSize: '0.875rem', color: 'text.secondary' }}>Opening the vault…</Box>
+        </motion.div>
+      </Box>
     );
   }
 
-  return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Router>
-        <div className="App">
-          <Routes>
-            <Route 
-              path="/setup" 
-              element={
-                !isConfigured ? (
-                  <SetupWizard onComplete={() => setIsConfigured(true)} />
-                ) : (
-                  <Navigate to="/dashboard" replace />
-                )
-              } 
-            />
-            <Route 
-              path="/dashboard" 
-              element={
-                isConfigured ? (
-                  <Dashboard onReconfigure={() => setIsConfigured(false)} />
-                ) : (
-                  <Navigate to="/setup" replace />
-                )
-              } 
-            />
-            <Route 
-              path="/" 
-              element={
-                <Navigate to={isConfigured ? "/dashboard" : "/setup"} replace />
-              } 
-            />
-          </Routes>
-          <ToastContainer
-            position="top-right"
-            autoClose={5000}
-            hideProgressBar={false}
-            newestOnTop={true}
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-            theme="dark"
-            style={{
-              top: '80px', // Offset to avoid AppBar
-              zIndex: 9999, // Ensure it's above other elements but not blocking AppBar
-            }}
-            toastStyle={{
-              borderRadius: '10px',
-              fontFamily: sans,
-              fontSize: '0.875rem',
-              backgroundColor: ink.raised,
-              border: `1px solid ${ink.lineStrong}`,
-              color: ink.text,
-              boxShadow: 'none',
-              margin: '8px'
-            }}
+  return shell(
+    <Router>
+      <div className="App">
+        <Routes>
+          <Route
+            path="/setup"
+            element={
+              !isConfigured ? (
+                <SetupWizard onComplete={() => setIsConfigured(true)} />
+              ) : (
+                <Navigate to="/dashboard" replace />
+              )
+            }
           />
-        </div>
-      </Router>
-    </ThemeProvider>
+          <Route
+            path="/dashboard"
+            element={
+              isConfigured ? (
+                <Dashboard onReconfigure={() => setIsConfigured(false)} />
+              ) : (
+                <Navigate to="/setup" replace />
+              )
+            }
+          />
+          <Route
+            path="/"
+            element={
+              <Navigate to={isConfigured ? "/dashboard" : "/setup"} replace />
+            }
+          />
+        </Routes>
+        <ToastContainer
+          position="bottom-right"
+          autoClose={5000}
+          hideProgressBar={false}
+          newestOnTop={true}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="dark"
+          transition={ToastSlide}
+          style={{ zIndex: 9999 }}
+          toastStyle={{
+            borderRadius: '14px',
+            fontFamily: sans,
+            fontSize: '0.875rem',
+            backgroundColor: 'rgba(22, 28, 40, 0.92)',
+            backdropFilter: 'blur(14px)',
+            border: `1px solid ${ink.lineStrong}`,
+            color: ink.text,
+            boxShadow: '0 20px 40px -20px rgba(0,0,0,0.7)',
+            margin: '8px'
+          }}
+        />
+      </div>
+    </Router>
   );
 }
 
