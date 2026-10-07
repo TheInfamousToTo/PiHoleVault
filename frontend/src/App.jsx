@@ -180,7 +180,7 @@ function App() {
             />
             <Box
               component="img"
-              src="/logo.png"
+              src="/logo.svg"
               alt=""
               sx={{ position: 'absolute', inset: 24, width: 48, height: 48, borderRadius: '12px' }}
             />

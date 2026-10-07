@@ -61,9 +61,9 @@ const STEP_META = [
 ];
 
 const METHODS = [
-  { value: 'web', title: 'Web / API', icon: <Language />, blurb: 'Best for Docker Pi-hole. No SSH needed.' },
-  { value: 'hybrid', title: 'Hybrid', icon: <SyncAlt />, blurb: 'Web for status, SSH for backups. Most reliable.' },
-  { value: 'ssh', title: 'SSH only', icon: <Terminal />, blurb: 'Traditional. Requires SSH access.' }
+  { value: 'web', title: 'Web / API', icon: <Language />, blurb: 'Recommended for Pi-hole v6. No SSH needed.' },
+  { value: 'hybrid', title: 'Hybrid', icon: <SyncAlt />, blurb: 'Web API first, SSH as an automatic fallback.' },
+  { value: 'ssh', title: 'SSH only', icon: <Terminal />, blurb: 'Runs pihole-FTL --teleporter over SSH.' }
 ];
 
 const CRON_PRESETS = [
@@ -215,6 +215,7 @@ const SetupWizard = ({ onComplete }) => {
       port: 22,
       webPort: 80,
       useHttps: false,
+      allowInsecureTls: false,
       webPassword: '',
     },
     backup: {
@@ -285,7 +286,7 @@ const SetupWizard = ({ onComplete }) => {
         toast.error(`Connection failed: ${response.data.error}`);
       }
     } catch (error) {
-      toast.error('Connection test failed: ' + error.message);
+      toast.error('Connection test failed: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
@@ -465,6 +466,7 @@ const SetupWizard = ({ onComplete }) => {
   };
 
   const method = formData.pihole.connectionMethod;
+  const usesHttps = formData.pihole.useHttps || /^https:\/\//i.test(formData.pihole.host);
   const usesSsh = method === 'ssh' || method === 'hybrid';
   const usesWeb = method === 'web' || method === 'hybrid';
 
@@ -628,6 +630,28 @@ const SetupWizard = ({ onComplete }) => {
                         }
                         label="Use HTTPS"
                       />
+                      <AnimatePresence initial={false}>
+                        {usesHttps && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.3, ease }}
+                            style={{ overflow: 'hidden' }}
+                          >
+                            <FormControlLabel
+                              control={
+                                <Switch
+                                  size="small"
+                                  checked={formData.pihole.allowInsecureTls}
+                                  onChange={(e) => handleInputChange('pihole', 'allowInsecureTls', e.target.checked)}
+                                />
+                              }
+                              label={<Typography sx={{ fontSize: '0.8125rem' }}>Allow self-signed certificate</Typography>}
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </F>
                   </Grid>
                   <Grid item xs={12} md={5}>
@@ -638,8 +662,7 @@ const SetupWizard = ({ onComplete }) => {
                         type={showPassword ? 'text' : 'password'}
                         value={formData.pihole.webPassword}
                         onChange={(e) => handleInputChange('pihole', 'webPassword', e.target.value)}
-                        helperText={method === 'web' ? 'Pi-hole admin password (required)' : 'Pi-hole admin password (optional)'}
-                        required={method === 'web'}
+                        helperText="Web interface password — or an app password if 2FA is on"
                         InputProps={{ endAdornment: passwordAdornment }}
                       />
                     </F>
@@ -884,13 +907,11 @@ const SetupWizard = ({ onComplete }) => {
                 </Panel>
               </F>
               <F>
-                <Alert severity="warning">
-                  <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Heads up: web-only backups are limited</Typography>
-                  <Typography variant="body2" sx={{ color: 'inherit' }}>
-                    Pi-hole backups currently need SSH to run the teleporter command. Pick the
-                    "Hybrid" method if you want full backup functionality.
-                  </Typography>
-                </Alert>
+                <Typography variant="body2">
+                  Backups are full Teleporter archives fetched from Pi-hole's API — the same
+                  file Settings → Teleporter gives you, ready to restore there. No SSH key is
+                  needed; finish setup to save.
+                </Typography>
               </F>
             </>
           );
@@ -989,12 +1010,12 @@ const SetupWizard = ({ onComplete }) => {
             >
               <Box
                 component="img"
-                src="/logo.png"
+                src="/logo.svg"
                 alt="PiHoleVault Logo"
                 sx={{
                   height: 76,
                   width: 'auto',
-                  borderRadius: '20px',
+                  borderRadius: '17px',
                   boxShadow: `0 0 0 1px rgba(255,255,255,0.08), 0 20px 50px -12px ${ink.accent}99`
                 }}
               />

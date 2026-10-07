@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PiHoleVault">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1A2540"/>
+      <stop offset="1" stop-color="#0A0E15"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#5B8CFF"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <linearGradient id="door" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1C2848"/>
+      <stop offset="1" stop-color="#0C1322"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#10B981"/>
+      <stop offset="1" stop-color="#6EE7B7"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#5B8CFF" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#5B8CFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="8" y="8" width="496" height="496" rx="116" fill="url(#tile)"/>
+  <rect x="8.5" y="8.5" width="495" height="495" rx="115.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.09"/>
+  <circle cx="256" cy="268" r="150" fill="url(#door)" stroke="url(#accent)" stroke-width="44"/>
+  <circle cx="256" cy="268" r="66" fill="url(#accent)"/>
+  <circle cx="256" cy="268" r="30" fill="#0A0E15"/>
+  <path d="M330 120 C 334 64, 382 30, 448 30 C 448 92, 406 136, 344 138 Z" fill="url(#leaf)"/>
+</svg>

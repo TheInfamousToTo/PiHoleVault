@@ -8,7 +8,9 @@ All notable changes to PiHoleVault will be documented in this file.
 
 2.0.0 changes several defaults so that PiHoleVault is secure out of the box. Most installs upgrade without touching anything, but check these first:
 
-- **HTTPS Pi-holes with a self-signed certificate will fail to connect.** TLS certificates are now verified, and Pi-hole v6 serves a self-signed certificate by default. Set `ALLOW_INSECURE_TLS=true` to keep the old behaviour, or give the Pi-hole a trusted certificate.
+- **HTTPS Pi-holes with a self-signed certificate will fail to connect.** TLS certificates are now verified, and Pi-hole v6 serves a self-signed certificate by default. Turn on *Allow self-signed certificate* in Settings, set `ALLOW_INSECURE_TLS=true`, or give the Pi-hole a trusted certificate.
+- **Pi-hole v6 is required for the web method.** v5 is end-of-life; its API never worked for backups here anyway.
+- **The SSH user must be able to read Pi-hole's config**: be `root`, be in the `pihole` group, or have password-less `sudo pihole-FTL`. The connection test now checks this.
 - **SSH host keys are pinned on first contact** (`SSH_HOST_KEY_POLICY=tofu`). If the Pi-hole is later rebuilt or its key changes, backups are refused until you remove its entry from `data/known_hosts.json`.
 - **Legacy SSH algorithms** (`ssh-rsa`, `ssh-dss`, `hmac-sha1`) are off. Only very old OpenSSH servers need `SSH_ALLOW_LEGACY_ALGORITHMS=true`.
 - **The API no longer sends `Access-Control-Allow-Origin: *`.** The bundled UI is unaffected. Only set `CORS_ALLOWED_ORIGINS` if you call the API from another origin.
@@ -16,7 +18,23 @@ All notable changes to PiHoleVault will be documented in this file.
 
 See `.env.example` for every option.
 
+### 🔌 Pi-hole v6 compatibility
+
+Tested end to end against a real Pi-hole on the current release (FTL v6.7.1, Web v6.6, Core v6.4.3), including a Pi-hole with no password, one with 2FA, and HTTPS with the default self-signed certificate.
+
+- **Backups no longer lock you out of Pi-hole.** Every run opened an API session and never closed it. Pi-hole allows 16 and keeps each for 30 minutes (and restores them after a restart), so after a handful of runs both backups *and the Pi-hole's own web login* failed with "API seats exceeded". PiHoleVault now logs out after every request; 40 consecutive backups were tested.
+- **Hybrid actually works.** The hybrid connection test and hybrid backup called functions that were never written, so hybrid failed outright. It now uses the web API first and falls back to SSH automatically, and the test checks both halves.
+- **A wrong password fails the connection test** instead of passing it and failing at the first backup. Errors now say what happened: wrong password, 2FA needs an app password, untrusted certificate, nothing listening, HTTPS on an HTTP port, out of API sessions, rate-limited.
+- **The admin URL the wizard asks for is accepted.** `https://pi.hole:8443/admin/` was rejected by the backend and could not be saved; it is now split into host, port and HTTPS on save.
+- **Two-factor authentication is supported** through Pi-hole app passwords.
+- **SSH backups work on v6.** The archive name is read from the last line of `pihole-FTL --teleporter` output (FTL prints log lines before it), a non-root user falls back to `sudo -n`, and the remote archive is cleaned up.
+- **Session auth uses the `X-FTL-SID` header**, which needs no CSRF token, and only a real zip archive is accepted as a backup.
+- `POST /api/backup` with a `connectionId` now runs the same backup path as scheduled backups; it only ever handled the web method, without writing the archive.
+
 ### 🎨 Interface
+
+- **New logo.** An original vault-door mark replaces the raspberry, which leaned on the Raspberry Pi and Pi-hole marks. It ships as SVG with a simplified favicon variant for small sizes, plus PNG and Apple touch icons.
+- **Allow self-signed certificate** switch in the wizard and in Settings, and Settings can now edit the connection method, web port and HTTPS.
 
 - **A new look with motion throughout.** The ground is deep slate with a slow ambient glow behind translucent glass surfaces, and a single blue-to-cyan accent marks what you can act on and what is live. Panels rise in on load, numbers count up, the retention ring draws itself in, cards pick up a pointer-following highlight, deleted backups animate out, and wizard steps slide in the direction you are moving. Motion follows the OS reduced-motion setting.
 - **The dashboard opens with an answer.** A health headline reads "protected", "getting stale", "last backup failed" or "in progress", next to a ring showing how many of your retained restore points are used. Below it are stat tiles, a storage meter with slots left before rotation, and an activity timeline.

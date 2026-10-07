@@ -10,7 +10,7 @@ A modern web-based Pi-hole backup manager with automated scheduling, Discord not
 
 ## 🚀 Key Features
 
-- **🌐 Web-Only Mode**: No SSH required - perfect for Docker Pi-hole installations
+- **🌐 Web / API Mode**: No SSH required — full Teleporter backups through Pi-hole v6's API
 - **🎨 Considered interface**: a calm dark theme built on one accent colour, with
   addresses, ports, cron expressions and filenames set in a monospace face so
   they line up and read as machine values. Fonts ship with the app, so it looks
@@ -82,11 +82,30 @@ Pi-hole and its host key changes, delete that host's entry to pin the new one.
    - Schedule configuration
    - Discord notifications (optional)
 
+### Compatibility
+
+Built and tested against **Pi-hole v6** (tested on FTL v6.7.1, Web v6.6, Core
+v6.4.3 — the current release). Pi-hole v5 is end-of-life and is not supported
+by the web method; the SSH method may still work on it but is untested.
+
 ### Connection Methods
 
-- **Web-Only**: `https://your-pihole/admin/` - No SSH needed (recommended for Docker)
-- **SSH**: Traditional method requiring SSH access
-- **Hybrid**: Combines web API for monitoring with SSH for backups
+- **Web / API** (recommended): paste the admin page URL, e.g.
+  `https://pi.hole/admin/`, and the web interface password. Backups are full
+  Teleporter archives from Pi-hole's API — the same file Settings → Teleporter
+  gives you. No SSH needed, so it suits Docker installs.
+- **SSH**: runs `pihole-FTL --teleporter` on the Pi-hole. The SSH user must be
+  `root`, be in the `pihole` group, or be allowed to run `sudo pihole-FTL`
+  without a password, because Pi-hole's config is not world-readable.
+- **Hybrid**: web API first, SSH automatically if the API is unavailable.
+
+**Two-factor authentication**: if 2FA is on, create an *app password* in
+Pi-hole (Settings → Web interface / API → Configure app password) and use it
+instead of your login password.
+
+**HTTPS**: Pi-hole v6 serves a self-signed certificate by default. Turn on
+*Allow self-signed certificate* in the wizard or in Settings, or set
+`ALLOW_INSECURE_TLS=true`.
 
 ## 📋 API Endpoints
 
@@ -127,9 +146,15 @@ or the component defaults there rather than in individual components.
 
 **Common issues**:
 
-- **Web-only connection fails**: Ensure Pi-hole admin password is correct
-- **SSH connection fails**: Verify SSH credentials and Pi-hole accessibility
-- **Backup fails**: Check Pi-hole API endpoints and authentication
+- **"Pi-hole rejected the password"**: use the web interface password, or an
+  app password if 2FA is on.
+- **"TLS certificate is not trusted"**: see *HTTPS* above.
+- **"API seats exceeded"**: Pi-hole has run out of API sessions (16 by
+  default, each lasting 30 minutes). PiHoleVault logs out after every request
+  since 2.0.0; older versions did not, so wait 30 minutes after upgrading or
+  raise `webserver.api.max_sessions`.
+- **"The SSH user cannot read Pi-hole's configuration"**: see the SSH method
+  above.
 
 ## 📄 License
 

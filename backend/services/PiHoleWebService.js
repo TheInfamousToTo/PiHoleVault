@@ -1,6 +1,9 @@
 const axios = require('axios');
 const https = require('https');
-const { isValidHost } = require('../utils/validate');
+const fs = require('fs-extra');
+const path = require('path');
+const { parsePiholeAddress } = require('../utils/validate');
+const { version: APP_VERSION } = require('../package.json');
 
 class PiHoleWebService {
   constructor(logger = console) {
@@ -8,13 +11,13 @@ class PiHoleWebService {
   }
 
   /**
-   * Split a configured host into a hostname and, when it carries one, a scheme.
+   * Split a configured host into a hostname, a scheme and a port.
    *
-   * Only a bare hostname or IP address is accepted, optionally prefixed with
-   * http:// or https://. A path, query, fragment, credentials or anything
-   * outside the hostname character set is refused: the value reaches an axios
-   * baseURL, so accepting a full URL let a stored configuration point this
-   * client at any host the server can reach.
+   * A bare hostname or IP address is accepted, or an http(s) URL with an
+   * optional port and an optional /admin path -- the form people copy from the
+   * browser. Credentials, query strings and any other path are refused: the
+   * value reaches an axios baseURL, so accepting arbitrary URLs would let a
+   * stored configuration point this client at any host the server can reach.
    *
    * The scheme is preserved rather than discarded, so an existing
    * "https://pihole.example.com" configuration keeps using HTTPS instead of
@@ -25,69 +28,55 @@ class PiHoleWebService {
       throw new Error('Invalid host: host must be a string');
     }
 
-    let hostname = host.trim();
-    let scheme = null;
+    const parsed = parsePiholeAddress(host);
 
-    if (hostname.startsWith('http://')) {
-      scheme = 'http';
-      hostname = hostname.slice('http://'.length);
-    } else if (hostname.startsWith('https://')) {
-      scheme = 'https';
-      hostname = hostname.slice('https://'.length);
+    if (!parsed) {
+      throw new Error('Invalid host: expected a hostname, IP address or http(s)://host[:port][/admin/] URL');
     }
 
-    // A trailing slash is the one piece of path notation worth tolerating,
-    // because the setup wizard's own example used to include it.
-    if (hostname.endsWith('/')) {
-      hostname = hostname.slice(0, -1);
-    }
+    const { hostname, scheme, port } = parsed;
 
-    if (!isValidHost(hostname)) {
-      throw new Error('Invalid host: expected a hostname or IP address without a path, port or credentials');
-    }
-
-    // isValidHost() is the real check and is stricter than this: it enforces
-    // RFC 1123 label structure or a parseable IP address. The character class is
-    // repeated inline because it is the only form static analysis recognises as
-    // a barrier on the path from the configured host to the request URL; a call
-    // into another module is not followed, so without this the value still
-    // reads as attacker-controlled at every axios call below.
+    // parsePiholeAddress() is the real check and is stricter than this. The
+    // character class is repeated inline because it is the only form static
+    // analysis recognises as a barrier on the path from the configured host to
+    // the request URL; a call into another module is not followed, so without
+    // this the value still reads as attacker-controlled at every axios call.
     if (!/^[A-Za-z0-9.:[\]-]+$/.test(hostname)) {
       throw new Error('Invalid host: contains characters that are not valid in a hostname or IP address');
     }
 
-    return { hostname, scheme };
+    return { hostname, scheme, port };
   }
 
   /**
    * Build the axios client used for every Pi-hole web API call.
    *
-   * TLS certificates are verified by default. The previous unconditional
-   * `rejectUnauthorized: false` meant the Pi-hole admin password was sent over a
-   * connection that any on-path attacker could impersonate. Pi-hole installs
-   * commonly use a self-signed certificate, so verification can still be waived
-   * deliberately -- per connection via `allowInsecureTls`, or globally with
-   * ALLOW_INSECURE_TLS=true -- but it is now an explicit choice.
+   * TLS certificates are verified by default. Pi-hole v6 serves a self-signed
+   * certificate out of the box, so verification can be waived deliberately --
+   * per connection via `allowInsecureTls`, or globally with
+   * ALLOW_INSECURE_TLS=true -- but it is an explicit choice.
    */
   createApiClient(host, port = 80, useHttps = false, options = {}) {
-    const { hostname, scheme } = this.parseHost(host);
+    const { hostname, scheme, port: urlPort } = this.parseHost(host);
     // A scheme written into the host wins over the useHttps flag, which is what
     // the user typed most recently for that field.
     const https_ = scheme ? scheme === 'https' : useHttps === true;
     const defaultPort = https_ ? 443 : 80;
-    // A host written as "https://pi.hole" while the port field was left at its
-    // default 80 means the user set the scheme and not the port, so follow the
-    // scheme rather than emitting https://pi.hole:80, which connects nowhere.
-    const effectivePort = scheme && port === 80 ? defaultPort : port;
-    const baseURL = `${https_ ? 'https' : 'http'}://${hostname}${effectivePort && effectivePort !== defaultPort ? ':' + effectivePort : ''}`;
+    // A port written into the URL wins. Otherwise a host written as
+    // "https://pi.hole" while the port field was left at its default 80 means
+    // the user set the scheme and not the port, so follow the scheme rather
+    // than emitting https://pi.hole:80, which connects nowhere.
+    const numericPort = Number(port) || defaultPort;
+    const effectivePort = urlPort || (scheme && numericPort === 80 ? defaultPort : numericPort);
+    const baseURL = `${https_ ? 'https' : 'http'}://${hostname}${effectivePort !== defaultPort ? ':' + effectivePort : ''}`;
 
     const allowInsecureTls =
       options.allowInsecureTls === true || process.env.ALLOW_INSECURE_TLS === 'true';
 
-    if (allowInsecureTls) {
+    if (allowInsecureTls && https_) {
       this.logger.warn('Pi-hole TLS certificate verification is disabled', {
         baseURL,
-        hint: 'Set allowInsecureTls to false once the Pi-hole presents a trusted certificate'
+        hint: 'Give the Pi-hole a trusted certificate and turn this off'
       });
     }
 
@@ -98,459 +87,284 @@ class PiHoleWebService {
       // memory through the backup download path.
       maxContentLength: 256 * 1024 * 1024,
       maxBodyLength: 16 * 1024 * 1024,
-      // A redirect chain is never needed to reach the Pi-hole API and is a way
-      // for a compromised host to point this client somewhere else.
-      maxRedirects: 2,
+      // The v6 API never redirects, and a redirect is a way for a compromised
+      // host to point this client somewhere else.
+      maxRedirects: 0,
       httpsAgent: new https.Agent({
         rejectUnauthorized: !allowInsecureTls
       }),
       headers: {
-        'User-Agent': 'PiHoleVault/1.0'
-      }
+        'User-Agent': `PiHoleVault/${APP_VERSION}`,
+        Accept: 'application/json'
+      },
+      // Let callers read 4xx bodies: the v6 API explains every refusal there.
+      validateStatus: (status) => status < 500
     });
   }
 
-  async testWebConnection(config) {
-    const { host, webPort = 80, useHttps = false } = config;
-    
+  clientFor(config) {
+    return this.createApiClient(config.host, config.webPort || 80, config.useHttps === true, {
+      allowInsecureTls: config.allowInsecureTls
+    });
+  }
+
+  /**
+   * Turn a transport failure into something a person can act on.
+   */
+  describeNetworkError(error, api) {
+    const where = api?.defaults?.baseURL || 'the Pi-hole';
+    const code = error.code || '';
+
+    if (/CERT|SELF_SIGNED|UNABLE_TO_VERIFY|ERR_TLS/i.test(code) || /certificate/i.test(error.message)) {
+      return `The Pi-hole's TLS certificate is not trusted (${code || error.message}). Pi-hole v6 uses a self-signed certificate by default: turn on "Allow self-signed certificate", set ALLOW_INSECURE_TLS=true, or connect over HTTP.`;
+    }
+    if (code === 'ECONNREFUSED') {
+      return `Nothing is listening at ${where}. Check the address, port and HTTP/HTTPS setting.`;
+    }
+    if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
+      return `Could not resolve the Pi-hole's hostname for ${where}.`;
+    }
+    if (code === 'ECONNABORTED' || code === 'ETIMEDOUT') {
+      return `Timed out talking to ${where}.`;
+    }
+    if (code === 'ECONNRESET' || /socket hang up/i.test(error.message)) {
+      return `${where} dropped the connection. If that port serves HTTPS, turn HTTPS on.`;
+    }
+    if (code === 'EPROTO' || /wrong version number/i.test(error.message)) {
+      return `${where} did not answer with TLS. Is HTTPS actually enabled on that port?`;
+    }
+    return `Could not reach ${where}: ${error.message}`;
+  }
+
+  /**
+   * Explain a non-2xx answer from the v6 API using the error body it sends.
+   */
+  describeApiRefusal(response, context) {
+    const body = response.data && typeof response.data === 'object' ? response.data : {};
+    const key = body.error?.key;
+    const message = body.error?.message || body.session?.message || '';
+
+    if (response.status === 401 && /password incorrect/i.test(message)) {
+      return 'Pi-hole rejected the password.';
+    }
+    if (response.status === 400 && /2FA|totp/i.test(message)) {
+      return 'This Pi-hole has two-factor authentication turned on. Create an app password in Pi-hole (Settings → Web interface / API → Configure app password) and use it here instead of your login password.';
+    }
+    if (response.status === 401 && /totp/i.test(message)) {
+      return 'Pi-hole asked for a 2FA code. Use an app password instead of your login password.';
+    }
+    if (response.status === 429 && key === 'api_seats_exceeded') {
+      return 'Pi-hole has no free API sessions ("API seats exceeded"). They free up after 30 minutes, or raise webserver.api.max_sessions in Pi-hole.';
+    }
+    if (response.status === 429) {
+      return `Pi-hole is rate-limiting requests${message ? `: ${message}` : ''}. Try again in a minute.`;
+    }
+    if (response.status === 404) {
+      return `${context}: no Pi-hole v6 API found here. PiHoleVault needs Pi-hole v6 or newer for web backups (on v5, use the SSH method).`;
+    }
+    return `${context}: Pi-hole answered HTTP ${response.status}${message ? ` (${message})` : ''}.`;
+  }
+
+  /**
+   * Ask the v6 API whether a login is needed. No credentials are sent.
+   */
+  async probe(api) {
+    let response;
+
     try {
-      const api = this.createApiClient(host, webPort, useHttps, {
-        allowInsecureTls: config.allowInsecureTls
-      });
-      const response = await api.get('/admin/');
-
-      if (response && response.status === 200) {
-        return {
-          success: true,
-          message: 'Pi-hole web interface is accessible'
-        };
-      }
-
-      throw new Error('No accessible endpoints found');
-      
+      response = await api.get('/api/auth');
     } catch (error) {
-      return {
-        success: false,
-        error: error.message
-      };
+      throw new Error(this.describeNetworkError(error, api));
+    }
+
+    const session = response.data && typeof response.data === 'object' ? response.data.session : null;
+
+    if (!session || (response.status !== 200 && response.status !== 401)) {
+      if (response.status >= 300 && response.status < 400) {
+        throw new Error(`${api.defaults.baseURL} redirected instead of answering. If the Pi-hole forces HTTPS, turn HTTPS on.`);
+      }
+      throw new Error(this.describeApiRefusal(response, 'Connection test'));
+    }
+
+    return { authRequired: session.valid !== true, totp: session.totp === true };
+  }
+
+  /**
+   * Log in and return a session handle. Always call close() on it: Pi-hole
+   * allows only a few concurrent API sessions (webserver.api.max_sessions,
+   * 16 by default) and keeps each for 30 minutes, so a client that never logs
+   * out locks everyone -- including the Pi-hole's own web interface -- out.
+   */
+  async openSession(config) {
+    const api = this.clientFor(config);
+    const { authRequired } = await this.probe(api);
+
+    if (!authRequired) {
+      // No password is set on this Pi-hole; every endpoint is open.
+      return { api, sid: null, close: async () => {} };
+    }
+
+    if (!config.webPassword) {
+      throw new Error('This Pi-hole requires a password. Enter its web interface password or an app password.');
+    }
+
+    let response;
+
+    try {
+      response = await api.post('/api/auth', { password: config.webPassword }, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (error) {
+      throw new Error(this.describeNetworkError(error, api));
+    }
+
+    const session = response.data?.session;
+
+    if (response.status !== 200 || !session?.valid) {
+      throw new Error(this.describeApiRefusal(response, 'Login'));
+    }
+
+    const sid = session.sid;
+
+    if (sid) {
+      // The X-FTL-SID header needs no CSRF token, unlike cookie auth.
+      api.defaults.headers.common['X-FTL-SID'] = sid;
+    }
+
+    let closed = false;
+
+    return {
+      api,
+      sid,
+      close: async () => {
+        if (closed || !sid) return;
+        closed = true;
+        try {
+          await api.delete('/api/auth');
+        } catch (error) {
+          this.logger.warn('Pi-hole logout failed; the session will expire on its own', { error: error.message });
+        }
+      }
+    };
+  }
+
+  async withSession(config, fn) {
+    const session = await this.openSession(config);
+
+    try {
+      return await fn(session.api);
+    } finally {
+      await session.close();
     }
   }
 
-  async authenticateWeb(config) {
-    const { host, webPort = 80, useHttps = false, webPassword } = config;
-    
-    if (!webPassword) {
-      return {
-        success: false,
-        error: 'Web password is required for authentication'
-      };
-    }
-
+  async readVersion(api) {
     try {
-      const api = this.createApiClient(host, webPort, useHttps, {
-        allowInsecureTls: config.allowInsecureTls
-      });
-
-      // Try different authentication methods for different Pi-hole versions
-      const authEndpoints = [
-        // Modern Pi-hole API (v6.0+) - try first since error message indicates this
-        { url: '/api/auth', method: 'post', data: { password: webPassword }, headers: { 'Content-Type': 'application/json' } },
-        // Legacy endpoints for older versions
-        { url: '/admin/api/auth', method: 'post', data: { password: webPassword }, headers: { 'Content-Type': 'application/json' } },
-        // Legacy token auth with proper params
-        { url: '/admin/api.php', method: 'get', params: { auth: webPassword, summary: '' } },
-        { url: '/api.php', method: 'get', params: { auth: webPassword, summary: '' } },
-        // Legacy with different format
-        { url: '/admin/api.php', method: 'get', params: { auth: webPassword, topItems: '10' } },
-        { url: '/api.php', method: 'get', params: { auth: webPassword, topItems: '10' } }
-      ];
-
-      for (const endpoint of authEndpoints) {
-        try {
-          let testResponse;
-          if (endpoint.method === 'post') {
-            testResponse = await api.post(endpoint.url, endpoint.data, {
-              headers: endpoint.headers || { 'Content-Type': 'application/json' }
-            });
-          } else {
-            testResponse = await api.get(endpoint.url, { params: endpoint.params });
+      const response = await api.get('/api/info/version');
+      const version = response.status === 200 ? response.data?.version : null;
+      return version
+        ? {
+            core: version.core?.local?.version || null,
+            web: version.web?.local?.version || null,
+            ftl: version.ftl?.local?.version || null
           }
-          
-          if (testResponse.status === 200) {
-            // For modern API, extract session info from response
-            let sessionInfo = {
-              valid: true,
-              token: webPassword,
-              method: endpoint.method === 'post' ? 'modern-api' : 'token',
-              endpoint: endpoint.url,
-              baseUrl: api.defaults.baseURL
-            };
-
-            // If this is a modern API response, extract session details
-            if (endpoint.method === 'post' && testResponse.data && testResponse.data.session) {
-              const session = testResponse.data.session;
-              sessionInfo = {
-                ...sessionInfo,
-                sid: session.sid,
-                csrf: session.csrf,
-                validity: session.validity,
-                totp: session.totp,
-                cookies: testResponse.headers['set-cookie'] || []
-              };
-              
-              // Update API client to use session cookies
-              if (session.sid) {
-                api.defaults.headers.Cookie = `sid=${session.sid}`;
-                if (session.csrf) {
-                  api.defaults.headers['X-CSRF-TOKEN'] = session.csrf;
-                }
-              }
-              
-              this.logger.debug('Session extracted from response body', {
-                sid: session.sid ? 'present' : 'missing',
-                csrf: session.csrf ? 'present' : 'missing',
-                cookieString: `sid=${session.sid}`
-              });
-            } else if (endpoint.method === 'post') {
-              // Fallback: Extract session info from cookies if not in response body
-              const setCookies = testResponse.headers['set-cookie'] || [];
-              let sid = null;
-              let csrf = null;
-              
-              // Parse cookies to find session ID and CSRF token  
-              setCookies.forEach(cookie => {
-                if (cookie.includes('sid=')) {
-                  const sidMatch = cookie.match(/sid=([^;]+)/);
-                  if (sidMatch) {
-                    sid = sidMatch[1];
-                  }
-                }
-                if (cookie.includes('csrf=')) {
-                  const csrfMatch = cookie.match(/csrf=([^;]+)/);
-                  if (csrfMatch) {
-                    csrf = csrfMatch[1];
-                  }
-                }
-              });
-
-              if (sid) {
-                sessionInfo = {
-                  ...sessionInfo,
-                  sid: sid,
-                  csrf: csrf,
-                  cookies: setCookies
-                };
-                
-                // Update API client to use session cookies
-                let cookieString = `sid=${sid}`;
-                if (csrf) {
-                  cookieString += `; csrf=${csrf}`;
-                }
-                api.defaults.headers.Cookie = cookieString;
-                if (csrf) {
-                  api.defaults.headers['X-CSRF-TOKEN'] = csrf;
-                }
-                
-                this.logger.debug('Session extracted from cookies', {
-                  sid: sid ? 'present' : 'missing',
-                  csrf: csrf ? 'present' : 'missing',
-                  cookieString: cookieString
-                });
-              }
-            }
-
-            this.logger.info('Pi-hole authentication successful', { 
-              host: host.substring(0, 50),
-              endpoint: endpoint.url,
-              method: endpoint.method,
-              sessionValid: sessionInfo.sid ? true : false
-            });
-            
-            return {
-              success: true,
-              session: sessionInfo,
-              message: 'Authentication successful',
-              api: api // Return the configured API client
-            };
-          }
-        } catch (error) {
-          // Continue to next endpoint
-          this.logger.debug('Auth endpoint failed', { 
-            url: endpoint.url, 
-            error: error.message,
-            status: error.response?.status
-          });
-          continue;
-        }
-      }
-
-      throw new Error('All authentication methods failed');
-
+        : null;
     } catch (error) {
-      this.logger.error('Pi-hole web authentication failed', { 
-        host: host.substring(0, 50), 
-        error: error.message
-      });
-
-      return {
-        success: false,
-        error: error.message
-      };
-    }
-  }
-
-  async performWebOnlyBackup(connection, backupDir) {
-    const fs = require('fs-extra');
-    const path = require('path');
-    
-    try {
-      this.logger.info('Starting web-only backup', { 
-        host: connection.host?.substring(0, 50), // Truncate for logging
-        backupDir: backupDir
-      });
-
-      // Authenticate first and get configured API client
-      const authResult = await this.authenticateWeb(connection);
-      if (!authResult.success) {
-        return authResult; // Return the authentication error
-      }
-
-      // Use the authenticated API client and session
-      // The second positional argument is the port, not a credential. This
-      // previously passed connection.webPassword, producing a nonsense base URL
-      // on the fallback path.
-      const api = authResult.api || this.createApiClient(
-        connection.host,
-        connection.webPort || 80,
-        connection.useHttps === true,
-        { allowInsecureTls: connection.allowInsecureTls }
-      );
-      const session = authResult.session;
-      
-      // Try different backup endpoints based on authentication method
-      let backupEndpoints = [];
-      
-      if (session.method === 'modern-api') {
-        // Modern Pi-hole API endpoints (v6.0+)
-        backupEndpoints = [
-          '/api/teleporter',
-          '/admin/api/teleporter',
-          '/api/scripts/pi-hole/php/teleporter.php',
-          '/admin/scripts/pi-hole/php/teleporter.php'
-        ];
-      } else {
-        // Legacy token-based endpoints
-        backupEndpoints = [
-          `/admin/scripts/pi-hole/php/teleporter.php?token=${session.token}`,
-          `/scripts/pi-hole/php/teleporter.php?token=${session.token}`,
-          `/admin/api.php?auth=${session.token}&action=teleporter`,
-          `/api.php?auth=${session.token}&action=teleporter`
-        ];
-      }
-
-      this.logger.info('Attempting backup retrieval with endpoints', {
-        sessionMethod: session.method,
-        endpointCount: backupEndpoints.length,
-        endpoints: backupEndpoints.slice(0, 3) // Show first 3 endpoints
-      });
-
-      for (const endpoint of backupEndpoints) {
-        try {
-          this.logger.info('Trying backup endpoint', { endpoint, sessionMethod: session.method });
-          
-          let backupResponse;
-          
-          // IMPORTANT: Use responseType: 'arraybuffer' to prevent binary data corruption
-          // Without this, axios treats the response as UTF-8 text which corrupts zip files
-          const requestConfig = {
-            responseType: 'arraybuffer'
-          };
-          
-          if (session.method === 'modern-api') {
-            // For modern API, send a GET or POST request with session cookies
-            backupResponse = await api.get(endpoint, requestConfig);
-          } else {
-            // For legacy, use GET with token
-            backupResponse = await api.get(endpoint, requestConfig);
-          }
-
-          this.logger.info('Backup endpoint response', {
-            endpoint,
-            status: backupResponse.status,
-            hasData: !!backupResponse.data,
-            dataType: Buffer.isBuffer(backupResponse.data) ? 'Buffer' : 
-                      (backupResponse.data instanceof ArrayBuffer ? 'ArrayBuffer' : typeof backupResponse.data),
-            dataLength: backupResponse.data ? 
-              (Buffer.isBuffer(backupResponse.data) ? backupResponse.data.length :
-               (backupResponse.data instanceof ArrayBuffer ? backupResponse.data.byteLength :
-               (typeof backupResponse.data === 'string' ? backupResponse.data.length : 
-               JSON.stringify(backupResponse.data).length))) : 0,
-            contentType: backupResponse.headers?.['content-type']
-          });
-
-          // Convert ArrayBuffer to Buffer if needed
-          let responseData = backupResponse.data;
-          if (responseData instanceof ArrayBuffer || 
-              (responseData && responseData.buffer instanceof ArrayBuffer && !(responseData instanceof Buffer))) {
-            responseData = Buffer.from(responseData);
-          }
-
-          if (backupResponse.status === 200 && responseData) {
-            // Check if we got actual backup data
-            const isBackupData = this.isValidBackupData(responseData);
-            
-            this.logger.info('Backup data validation', {
-              endpoint,
-              isValid: isBackupData,
-              dataType: Buffer.isBuffer(responseData) ? 'Buffer' : typeof responseData,
-              dataPreview: Buffer.isBuffer(responseData) ? 
-                `[Buffer: ${responseData.length} bytes, starts with: ${responseData.slice(0, 4).toString('hex')}]` :
-                (typeof responseData === 'string' ? responseData.substring(0, 100) + '...' : `[${typeof responseData}]`)
-            });
-            
-            if (isBackupData) {
-              this.logger.info('Backup retrieved successfully', { 
-                host: connection.host?.substring(0, 50),
-                endpoint,
-                dataSize: Buffer.isBuffer(responseData) ? responseData.length : 
-                  (typeof responseData === 'string' ? responseData.length : JSON.stringify(responseData).length)
-              });
-              
-              // Save backup data to file
-              if (!backupDir) {
-                throw new Error('Backup directory not provided');
-              }
-              
-              const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-              const filename = `pi-hole_backup_${timestamp}.zip`;
-              const filePath = path.join(backupDir, filename);
-              
-              // Write the backup data to file - use the converted responseData (Buffer)
-              if (Buffer.isBuffer(responseData)) {
-                await fs.writeFile(filePath, responseData);
-              } else if (typeof responseData === 'string') {
-                // Fallback for string data (shouldn't happen with arraybuffer responseType)
-                await fs.writeFile(filePath, responseData, 'binary');
-              } else {
-                await fs.writeFile(filePath, JSON.stringify(responseData, null, 2));
-              }
-              
-              const stats = await fs.stat(filePath);
-              
-              this.logger.info('Backup file saved', {
-                filename,
-                size: stats.size,
-                path: filePath
-              });
-              
-              return {
-                success: true,
-                filename: filename,
-                size: stats.size,
-                format: 'zip'
-              };
-            }
-          }
-        } catch (error) {
-          this.logger.info('Backup endpoint failed', { 
-            endpoint, 
-            error: error.message,
-            status: error.response?.status,
-            details: error.response?.data ? String(error.response.data).substring(0, 200) : 'No response data'
-          });
-          continue;
-        }
-      }
-
-      return {
-        success: false,
-        error: 'Failed to retrieve backup from Pi-hole API',
-        details: 'All backup endpoints failed or returned invalid data'
-      };
-
-    } catch (error) {
-      this.logger.error('Web-only backup failed', error);
-      return {
-        success: false,
-        error: 'Backup operation failed',
-        details: error.message
-      };
+      return null;
     }
   }
 
   /**
-   * Check if the response data is valid backup data
+   * Prove the configured connection will work for a backup: the API answers,
+   * the password is accepted, and the Teleporter endpoint is reachable.
    */
-  isValidBackupData(data) {
-    if (!data) {
-      return false;
-    }
+  async testWebConnection(config) {
+    try {
+      const result = await this.withSession(config, async (api) => {
+        const version = await this.readVersion(api);
+        return { version };
+      });
 
-    // For buffer/binary data (preferred - using arraybuffer responseType)
-    if (Buffer.isBuffer(data)) {
-      // Check minimum size
-      if (data.length < 100) {
-        this.logger.debug('Buffer too small to be valid backup');
-        return false;
+      const ftl = result.version?.ftl;
+
+      return {
+        success: true,
+        message: ftl ? `Connected to Pi-hole (FTL ${ftl})` : 'Connected to Pi-hole',
+        version: result.version
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Kept for callers that only need to know whether the login works.
+   */
+  async authenticateWeb(config) {
+    const result = await this.testWebConnection(config);
+    return result.success
+      ? { success: true, message: 'Authentication successful' }
+      : { success: false, error: result.error };
+  }
+
+  async performWebOnlyBackup(connection, backupDir) {
+    try {
+      if (!backupDir) {
+        throw new Error('Backup directory not provided');
       }
-      
-      // Check for common archive magic numbers
-      const zipMagic = data.slice(0, 2).toString('hex') === '504b'; // PK
-      const gzipMagic = data.slice(0, 2).toString('hex') === '1f8b';
-      const tarMagic = data.slice(257, 262).toString() === 'ustar'; // tar has magic at offset 257
-      
-      // Check for HTML error page (starts with < character)
-      const startsWithHtml = data[0] === 0x3c; // '<' character
-      if (startsWithHtml) {
-        const preview = data.slice(0, 100).toString('utf-8').toLowerCase();
-        if (preview.includes('<!doctype') || preview.includes('<html')) {
-          this.logger.debug('Received HTML response instead of backup data');
-          return false;
+
+      this.logger.info('Starting web backup', { host: String(connection.host).substring(0, 50) });
+
+      const data = await this.withSession(connection, async (api) => {
+        let response;
+
+        try {
+          // arraybuffer keeps the zip intact; the default would decode it as
+          // UTF-8 and corrupt it.
+          response = await api.get('/api/teleporter', {
+            responseType: 'arraybuffer',
+            headers: { Accept: 'application/zip' }
+          });
+        } catch (error) {
+          throw new Error(this.describeNetworkError(error, api));
         }
-      }
-      
-      if (zipMagic || gzipMagic || tarMagic) {
-        this.logger.debug('Valid archive format detected', { 
-          zipMagic, gzipMagic, tarMagic,
-          size: data.length 
-        });
-        return true;
-      }
-      
-      // If no magic number but substantial size, might still be valid
-      return data.length > 1000;
-    }
 
-    // For string data (legacy fallback)
-    if (typeof data === 'string') {
-      // Check if it's a compressed file (starts with common archive magic numbers)
-      const binaryMarkers = [
-        '\x1f\x8b', // gzip
-        'PK',        // zip
-        'BZ',        // bzip2
-        '\x75\x73\x74\x61\x72', // tar
-      ];
-      
-      // If it contains HTML tags, it's probably an error page
-      if (data.includes('<!DOCTYPE') || data.includes('<html')) {
-        this.logger.debug('Received HTML response instead of backup data');
-        return false;
+        if (response.status !== 200) {
+          let body = {};
+          try {
+            body = JSON.parse(Buffer.from(response.data).toString('utf8'));
+          } catch (error) {
+            // Not JSON; describeApiRefusal falls back to the status code.
+          }
+          throw new Error(this.describeApiRefusal({ status: response.status, data: body }, 'Teleporter export'));
+        }
+
+        return Buffer.from(response.data);
+      });
+
+      if (!this.isZip(data)) {
+        throw new Error('Pi-hole returned something other than a Teleporter zip archive');
       }
-      
-      // Check for binary markers or reasonable size
-      const hasBinaryMarker = binaryMarkers.some(marker => data.startsWith(marker));
-      
-      // Valid if it has binary markers or is substantial size
-      return hasBinaryMarker || data.length > 1000;
+
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const filename = `pi-hole_backup_${timestamp}.zip`;
+      const filePath = path.join(backupDir, filename);
+
+      await fs.writeFile(filePath, data);
+      const stats = await fs.stat(filePath);
+
+      this.logger.info('Web backup saved', { filename, size: stats.size });
+
+      return { success: true, filename, size: stats.size, format: 'zip' };
+    } catch (error) {
+      this.logger.error('Web backup failed', { error: error.message });
+      return { success: false, error: error.message };
     }
-    
-    // For objects, check if it looks like backup data structure
-    if (typeof data === 'object') {
-      // Sometimes Pi-hole returns structured data
-      return data.hasOwnProperty('data') || data.hasOwnProperty('content') || data.hasOwnProperty('backup');
-    }
-    
-    return false;
+  }
+
+  isZip(data) {
+    // Local file header signature "PK\x03\x04", and big enough to hold one.
+    return Buffer.isBuffer(data) && data.length > 22 && data.readUInt32LE(0) === 0x04034b50;
   }
 }
 

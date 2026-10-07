@@ -4,7 +4,7 @@ const path = require('path');
 const {
   redactSecrets,
   mergePreservingSecrets,
-  isValidHost,
+  parsePiholeAddress,
   isValidUsername,
   parsePort
 } = require('../utils/validate');
@@ -14,20 +14,40 @@ const router = express.Router();
 const CONFIG_FILE = 'config.json';
 
 /**
- * Reject connection values that the SSH and Pi-hole routes would refuse later.
+ * Reject connection values that the SSH and Pi-hole routes would refuse later,
+ * and normalise the host.
  *
  * Those routes validate again before they use a value, so this is not the only
  * line of defence -- it exists so a bad host or port is refused at the point the
  * user submits it rather than silently stored and failing at backup time.
  * Only fields actually present are checked, so partial updates still work.
+ *
+ * A host given as the admin page URL ("https://pi.hole:8443/admin/") is split
+ * into host, useHttps and webPort here, so everything downstream -- including
+ * the SSH half of a hybrid backup -- sees a bare hostname.
  */
 function validateConnectionFields(pihole) {
   if (!pihole || typeof pihole !== 'object') {
     return null;
   }
 
-  if (pihole.host !== undefined && !isValidHost(pihole.host)) {
-    return 'Pi-hole host must be a hostname or IP address';
+  if (pihole.host !== undefined) {
+    const address = parsePiholeAddress(pihole.host);
+
+    if (!address) {
+      return 'Pi-hole host must be a hostname, IP address or http(s)://host[:port][/admin/] URL';
+    }
+
+    if (address.scheme && pihole.connectionMethod === 'ssh') {
+      return 'The SSH method needs a hostname or IP address, not a URL';
+    }
+
+    pihole.host = address.hostname;
+
+    if (address.scheme) {
+      pihole.useHttps = address.scheme === 'https';
+      pihole.webPort = address.port || (pihole.useHttps ? 443 : 80);
+    }
   }
 
   if (pihole.username !== undefined && pihole.username !== '' && !isValidUsername(pihole.username)) {
@@ -36,6 +56,14 @@ function validateConnectionFields(pihole) {
 
   if (pihole.port !== undefined && parsePort(pihole.port, 22) === null) {
     return 'Port must be an integer between 1 and 65535';
+  }
+
+  if (pihole.webPort !== undefined && parsePort(pihole.webPort, 80) === null) {
+    return 'Web port must be an integer between 1 and 65535';
+  }
+
+  if (pihole.allowInsecureTls !== undefined) {
+    pihole.allowInsecureTls = pihole.allowInsecureTls === true;
   }
 
   return null;
@@ -138,13 +166,8 @@ router.post('/save', async (req, res) => {
       });
     }
 
-    // For web and hybrid methods, web password is required
-    if ((config.pihole.connectionMethod === 'web' || config.pihole.connectionMethod === 'hybrid') && !config.pihole.webPassword) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Web password is required for web-only and hybrid connection methods' 
-      });
-    }
+    // No web password check: a Pi-hole with no password set is reachable
+    // without one, and the connection test already proved the login works.
 
     // Merge over what is already stored rather than replacing it. A plain
     // overwrite dropped sshKeyDeployed, sshKeyPath, discord and connections on

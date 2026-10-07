@@ -2,7 +2,7 @@ const fs = require('fs-extra');
 const path = require('path');
 const { NodeSSH } = require('node-ssh');
 const { buildConnectOptions } = require('../utils/sshSecurity');
-const { isValidHost, parsePort, resolveWithin } = require('../utils/validate');
+const { isValidHost, parsePort, resolveWithin, parsePiholeAddress } = require('../utils/validate');
 const DiscordService = require('./DiscordService');
 const AnalyticsService = require('./AnalyticsService');
 const PiHoleWebService = require('./PiHoleWebService');
@@ -52,29 +52,8 @@ class BackupService {
       // Record backup start for analytics - DISABLED TO PREVENT DOUBLE COUNTING
       // await this.analyticsService.recordBackupStart(config.pihole.host);
       
-      // Determine backup method based on configuration
       const connectionMethod = config.pihole.connectionMethod || 'ssh';
-      
-      let backupResult;
-      if (connectionMethod === 'hybrid') {
-        this.logger.info('Using hybrid backup method', { jobId });
-        backupResult = await this.performHybridBackup(config, jobId);
-      } else if (connectionMethod === 'web') {
-        this.logger.info('Using web-only backup method', { jobId });
-        backupResult = await this.performWebOnlyBackup(config, jobId);
-        
-        // Debug: Check what we got from web backup
-        this.logger.info('Web backup result', {
-          jobId,
-          hasResult: !!backupResult,
-          hasFilename: !!(backupResult && backupResult.filename),
-          hasSize: !!(backupResult && backupResult.size),
-          size: backupResult ? backupResult.size : 'undefined'
-        });
-      } else {
-        this.logger.info('Using SSH-only backup method', { jobId });
-        backupResult = await this.performSSHBackup(config, jobId);
-      }
+      const backupResult = await this.performBackup(config, config.pihole, jobId);
 
       // Clean up old backups
       await this.cleanupOldBackups(config.backup?.maxBackups || 10);
@@ -196,38 +175,10 @@ class BackupService {
       // Log job start
       await this.logJob(jobId, 'running', 'Backup started with custom connection');
       
-      // Determine backup method based on connection
       const connectionMethod = connection.connectionMethod || 'ssh';
-      
-      let backupResult;
-      if (connectionMethod === 'web') {
-        this.logger.info('Using web-only backup method', { jobId });
-        const webResult = await this.webService.performWebOnlyBackup(connection);
-        
-        // Debug logging to see what we got back
-        this.logger.info('Web service returned', {
-          success: webResult.success,
-          hasData: !!webResult.data,
-          dataType: typeof webResult.data,
-          dataLength: webResult.data ? (typeof webResult.data === 'string' ? webResult.data.length : JSON.stringify(webResult.data).length) : 0,
-          error: webResult.error
-        });
-        
-        if (!webResult.success) {
-          throw new Error(webResult.error || 'Web backup failed');
-        }
-        // Extract data from web service response
-        backupResult = {
-          data: webResult.data,
-          method: 'web-only',
-          format: webResult.format || 'tar'
-        };
-      } else {
-        throw new Error(`Connection method '${connectionMethod}' not supported yet`);
-      }
+      const config = await this.loadConfig();
+      const backupResult = await this.performBackup(config, connection, jobId);
 
-      // Generate filename.
-      //
       // customName arrives from the request body. Interpolating it straight into
       // a path let a caller write the downloaded backup anywhere the process
       // could reach (for example "../../root/.ssh/authorized_keys"), so it is
@@ -236,55 +187,48 @@ class BackupService {
       const baseName = BackupService.sanitiseBaseName(customName);
       const filename = `${baseName}_${timestamp}.zip`;
       const filePath = resolveWithin(this.backupDir, filename);
+      const sourcePath = resolveWithin(this.backupDir, backupResult.filename);
 
-      if (!filePath) {
+      if (!filePath || !sourcePath) {
         throw new Error('Refusing to write a backup outside the backup directory');
       }
 
-      // Write the backup data to file
-      if (backupResult.data) {
-        if (typeof backupResult.data === 'string') {
-          await fs.writeFile(filePath, backupResult.data);
-        } else {
-          await fs.writeFile(filePath, JSON.stringify(backupResult.data, null, 2));
-        }
+      await fs.move(sourcePath, filePath);
 
-        const stats = await fs.stat(filePath);
-        const size = stats.size;
+      const size = (await fs.stat(filePath)).size;
+      const duration = Date.now() - startTime;
 
-        const duration = Date.now() - startTime;
+      await this.logJob(jobId, 'completed', 'Backup completed successfully', {
+        filename,
+        size,
+        duration,
+        method: backupResult.method || connectionMethod,
+        description
+      });
 
-        // Update job to completed
-        await this.logJob(jobId, 'completed', 'Backup completed successfully', {
-          filename,
-          size,
-          duration,
-          method: backupResult.method || connectionMethod,
-          description
-        });
+      await this.analyticsService.recordBackupSuccess({
+        filename,
+        size,
+        piholeServer: connection.host,
+        duration: duration / 1000
+      });
 
-        // Update analytics
-        await this.analyticsService.recordBackupSuccess(connection.host, size, duration);
+      this.logger.info('Backup completed successfully with custom connection', {
+        jobId,
+        filename,
+        size,
+        duration,
+        method: backupResult.method || connectionMethod
+      });
 
-        this.logger.info('Backup completed successfully with custom connection', {
-          jobId,
-          filename,
-          size,
-          duration,
-          method: backupResult.method || connectionMethod
-        });
-
-        return {
-          success: true,
-          filename,
-          size,
-          duration,
-          jobId,
-          method: backupResult.method || connectionMethod
-        };
-      } else {
-        throw new Error('No backup data received');
-      }
+      return {
+        success: true,
+        filename,
+        size,
+        duration,
+        jobId,
+        method: backupResult.method || connectionMethod
+      };
 
     } catch (error) {
       this.logger.error('Backup failed with custom connection', { 
@@ -297,7 +241,11 @@ class BackupService {
       await this.logJob(jobId, 'failed', error.message);
 
       // Update analytics
-      await this.analyticsService.recordBackupFailure(connection.host, error.message);
+      await this.analyticsService.recordBackupFailure({
+        message: error.message,
+        piholeServer: connection.host,
+        duration: (Date.now() - startTime) / 1000
+      });
 
       return {
         success: false,
@@ -308,71 +256,125 @@ class BackupService {
   }
 
   /**
-   * Perform backup using web-only method (no SSH required)
+   * Run a backup against `pihole` with whichever method it is configured for.
+   * `config` supplies the deployed SSH key, which lives at the top level.
    */
-  async performWebOnlyBackup(config, jobId) {
+  async performBackup(config, pihole, jobId) {
+    const method = pihole.connectionMethod || 'ssh';
+    this.logger.info('Running backup', { jobId, method });
+
+    if (method === 'web') {
+      return this.performWebOnlyBackup(pihole, jobId);
+    }
+    if (method === 'hybrid') {
+      return this.performHybridBackup(config, pihole, jobId);
+    }
+    return this.performSSHBackup(config, pihole, jobId);
+  }
+
+  /**
+   * Perform backup through the Pi-hole v6 web API (no SSH required).
+   */
+  async performWebOnlyBackup(pihole, jobId) {
+    const result = await this.webService.performWebOnlyBackup(pihole, this.backupDir);
+
+    if (!result || !result.success) {
+      throw new Error(result ? result.error : 'Web backup returned no result');
+    }
+
+    return { filename: result.filename, size: result.size, method: 'web' };
+  }
+
+  /**
+   * Hybrid: the web API first, because it needs no root on the Pi-hole and is
+   * what Pi-hole v6 is built around; SSH if the API is unavailable (Pi-hole
+   * restarting, out of API sessions, password changed).
+   */
+  async performHybridBackup(config, pihole, jobId) {
     try {
-      this.logger.info('Calling webService.performWebOnlyBackup', {
+      return { ...(await this.performWebOnlyBackup(pihole, jobId)), method: 'hybrid (web)' };
+    } catch (webError) {
+      this.logger.warn('Hybrid backup: web API failed, falling back to SSH', {
         jobId,
-        host: config.pihole.host
+        error: webError.message
       });
-      
-      const result = await this.webService.performWebOnlyBackup(config.pihole, this.backupDir);
-      
-      this.logger.info('webService.performWebOnlyBackup returned', {
-        jobId,
-        hasResult: !!result,
-        success: result ? result.success : 'undefined',
-        hasFilename: !!(result && result.filename),
-        hasSize: !!(result && result.size),
-        size: result ? result.size : 'undefined',
-        error: result ? result.error : 'no error'
-      });
-      
-      // Check if the web service succeeded
-      if (!result || !result.success) {
-        throw new Error(result ? result.error : 'Web service returned no result');
+
+      try {
+        return { ...(await this.performSSHBackup(config, pihole, jobId)), method: 'hybrid (ssh)' };
+      } catch (sshError) {
+        throw new Error(`Web API: ${webError.message} — SSH: ${sshError.message}`);
       }
-      
-      return {
-        filename: result.filename,
-        size: result.size,
-        method: 'web-only'
-      };
-    } catch (error) {
-      this.logger.error('performWebOnlyBackup threw error', { jobId, error: error.message });
-      throw error;
     }
   }
 
   /**
-   * Perform backup using hybrid method (Web API + SSH)
+   * Pick the archive name out of `pihole-FTL --teleporter` output.
+   *
+   * FTL prints log lines before the filename (in Docker, one per FTLCONF
+   * variable), so the last line naming a zip is the archive. Only a plain
+   * basename is accepted: the value is later used as a remote path.
    */
-  async performHybridBackup(config, jobId) {
-    try {
-      const result = await this.webService.performHybridBackup(config.pihole, this.backupDir);
-      return {
-        filename: result.filename,
-        size: result.size,
-        method: 'hybrid'
-      };
-    } catch (error) {
-      throw error;
+  static parseTeleporterOutput(stdout) {
+    const lines = String(stdout || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+
+    for (let i = lines.length - 1; i >= 0; i -= 1) {
+      if (/^[A-Za-z0-9._-]+\.zip$/.test(lines[i])) {
+        return lines[i];
+      }
     }
+
+    return null;
+  }
+
+  /**
+   * Create a Teleporter archive on the Pi-hole and return its remote filename.
+   *
+   * pihole-FTL needs to read /etc/pihole/pihole.toml, which is 0640
+   * pihole:pihole, so a non-root SSH user fails. Retry through `sudo -n`
+   * (never prompts) before giving up with an explanation.
+   */
+  async createRemoteTeleporter(ssh, jobId) {
+    const attempts = ['pihole-FTL --teleporter', 'sudo -n pihole-FTL --teleporter'];
+    const failures = [];
+
+    for (const command of attempts) {
+      const result = await ssh.execCommand(command, { cwd: '/tmp' });
+      const filename = result.code === 0 ? BackupService.parseTeleporterOutput(result.stdout) : null;
+
+      if (filename) {
+        this.logger.info('Teleporter archive created over SSH', { jobId, command, filename });
+        return `/tmp/${filename}`;
+      }
+
+      const output = `${result.stderr || ''}\n${result.stdout || ''}`.trim();
+      failures.push(output.split('\n').filter(Boolean).slice(-1)[0] || `exit code ${result.code}`);
+    }
+
+    const permission = failures.some((f) => /permission denied|heap ZIP|sudo/i.test(f));
+
+    throw new Error(
+      permission
+        ? 'The SSH user cannot read Pi-hole\'s configuration. Connect as root, add the user to the "pihole" group, or allow it to run "sudo pihole-FTL" without a password.'
+        : `pihole-FTL --teleporter failed: ${failures.join(' / ')}`
+    );
   }
 
   /**
    * Perform backup using SSH-only method (legacy)
    */
-  async performSSHBackup(config, jobId) {
+  async performSSHBackup(config, pihole, jobId) {
     const ssh = new NodeSSH();
     
     try {
-      if (!isValidHost(config.pihole.host)) {
+      // Configs saved before 2.0.0 may hold the admin page URL; SSH needs the
+      // bare hostname inside it.
+      const sshHost = parsePiholeAddress(pihole.host)?.hostname;
+
+      if (!sshHost || !isValidHost(sshHost)) {
         throw new Error('Configured Pi-hole host is not a valid hostname or IP address');
       }
 
-      const port = parsePort(config.pihole.port, 22);
+      const port = parsePort(pihole.port, 22);
 
       if (port === null) {
         throw new Error('Configured Pi-hole SSH port is out of range');
@@ -391,17 +393,17 @@ class BackupService {
             keyPath: config.sshKeyPath,
             error: error.message
           });
-          auth.password = config.pihole.password;
+          auth.password = pihole.password;
         }
       } else {
-        auth.password = config.pihole.password;
+        auth.password = pihole.password;
       }
 
       const connectOptions = buildConnectOptions({
         dataDir: this.dataDir,
-        host: config.pihole.host,
+        host: sshHost,
         port,
-        username: config.pihole.username,
+        username: pihole.username,
         logger: this.logger,
         auth,
         readyTimeout: 30000
@@ -410,28 +412,12 @@ class BackupService {
       await ssh.connect(connectOptions);
       
       this.logger.info('Connected to Pi-hole server via SSH', { 
-        host: config.pihole.host,
+        host: pihole.host,
         jobId 
       });
       
-      // Run Pi-hole Teleporter backup
-      const backupResult = await ssh.execCommand('pihole-FTL --teleporter');
-      
-      if (backupResult.code !== 0) {
-        throw new Error(`Pi-hole backup failed: ${backupResult.stderr}`);
-      }
-      
-      const remoteBackupFile = backupResult.stdout.trim();
-      
-      if (!remoteBackupFile) {
-        throw new Error('No backup file generated');
-      }
-      
-      this.logger.info('Pi-hole backup created via SSH', { 
-        remoteFile: remoteBackupFile,
-        jobId 
-      });
-      
+      const remoteBackupFile = await this.createRemoteTeleporter(ssh, jobId);
+
       // Generate local filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const localFilename = `pi-hole_backup_${timestamp}.zip`;
@@ -445,12 +431,11 @@ class BackupService {
         jobId 
       });
       
-      // Clean up remote backup file
-      // remoteBackupFile is whatever the remote pihole-FTL printed on stdout.
-      // Interpolating it into a shell command would let a compromised Pi-hole run
-      // arbitrary commands through this cleanup step. xargs -0 reads the path
-      // from stdin as a single NUL-delimited argument, so no shell parses it.
-      await ssh.execCommand('xargs -0 rm -f --', { stdin: remoteBackupFile });
+      // Clean up the remote archive. The name was checked against a strict
+      // basename pattern, and it is still read from stdin into a quoted
+      // variable rather than interpolated, so the shell never parses it as
+      // code. sudo covers an archive root created in sticky /tmp.
+      await ssh.execCommand('f=$(cat); rm -f -- "$f" 2>/dev/null || sudo -n rm -f -- "$f"', { stdin: remoteBackupFile });
       
       // Verify local file exists and has content
       const stats = await fs.stat(localPath);
