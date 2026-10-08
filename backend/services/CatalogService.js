@@ -6,6 +6,7 @@ const CATALOG_FILE = 'catalog.json';
 
 // Backup files on disk: plain Teleporter zips and their encrypted form.
 const BACKUP_FILE_PATTERN = /^[A-Za-z0-9._-]+\.zip(\.enc)?$/;
+const INCOMING_PREFIX = 'incoming_';
 
 /**
  * Metadata about each stored backup, kept beside the files in data/catalog.json.
@@ -74,7 +75,8 @@ class CatalogService {
     const backups = [];
 
     for (const filename of names) {
-      if (!BACKUP_FILE_PATTERN.test(filename)) continue;
+      // incoming_* are downloads still being verified and encrypted.
+      if (!BACKUP_FILE_PATTERN.test(filename) || filename.startsWith(INCOMING_PREFIX)) continue;
       const stats = await fs.stat(path.join(this.backupDir, filename)).catch(() => null);
       if (!stats || !stats.isFile()) continue;
 
@@ -111,5 +113,6 @@ class CatalogService {
 }
 
 CatalogService.BACKUP_FILE_PATTERN = BACKUP_FILE_PATTERN;
+CatalogService.INCOMING_PREFIX = INCOMING_PREFIX;
 
 module.exports = CatalogService;

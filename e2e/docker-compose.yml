@@ -5,6 +5,12 @@
 #
 # Without `--profile app` only the services start, for running PiHoleVault from
 # source against them (see e2e/README.md).
+#
+# Pi-hole stays on `latest` on purpose: a new Pi-hole release that breaks
+# PiHoleVault should turn CI red. The storage and notification servers are only
+# test fixtures, so they are pinned; a release of theirs must never block a
+# merge. Dependabot proposes bumps (.github/dependabot.yml), and each bump runs
+# this same test before it can be merged.
 name: piholevault-e2e
 
 services:
@@ -23,7 +29,7 @@ services:
       retries: 40
 
   s3:
-    image: chrislusf/seaweedfs:latest
+    image: chrislusf/seaweedfs:4.48
     command: ["server", "-s3", "-s3.port=8333", "-s3.config=/etc/s3cfg/s3.json"]
     volumes:
       - ./s3.json:/etc/s3cfg/s3.json:ro
@@ -36,13 +42,13 @@ services:
       retries: 40
 
   webdav:
-    image: rclone/rclone:latest
+    image: rclone/rclone:1.75.1
     command: ["serve", "webdav", "/data", "--addr", ":8080", "--user", "davuser", "--pass", "davpass"]
     ports:
       - "8090:8080"
 
   ntfy:
-    image: binwiederhier/ntfy:latest
+    image: binwiederhier/ntfy:v2.29.0
     command: ["serve"]
     ports:
       - "8091:80"
