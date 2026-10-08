@@ -19,7 +19,7 @@ import {
 import { motion } from 'framer-motion';
 import { GlowCard, CountUp, LiveDot, IconTile } from './ui';
 import { ink, gradient, monoText, labelText, ease } from '../theme';
-import { fetchGlobalAnalytics, getInstanceId } from '../services/analytics';
+import { fetchGlobalAnalytics } from '../services/analytics';
 
 const GlobalAnalytics = memo(() => {
   const [globalStats, setGlobalStats] = useState(null);
@@ -197,18 +197,13 @@ const GlobalAnalytics = memo(() => {
         }}
       >
         <Typography variant="body2" sx={{ color: 'text.primary' }}>
-          You're one of <strong>{globalStats.unique_instances}</strong> instances that together secured{' '}
-          <strong>{formatNumber(globalStats.successful_jobs)}</strong> backups
+          PiHoleVault users who share anonymous stats: <strong>{globalStats.unique_instances}</strong> instances,{' '}
+          <strong>{formatNumber(globalStats.successful_jobs)}</strong> successful backups
           {globalStats.total_backup_size ? (
             <span> totalling <strong>{formatSize(globalStats.total_backup_size)}</strong></span>
           ) : null}
           .
         </Typography>
-        <Tooltip title="Your unique PiHoleVault instance identifier">
-          <Box sx={{ ...monoText, fontSize: '0.6875rem', color: ink.faint, whiteSpace: 'nowrap' }}>
-            {getInstanceId()}
-          </Box>
-        </Tooltip>
       </Box>
     </GlowCard>
   );

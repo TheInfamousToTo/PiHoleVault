@@ -12,20 +12,14 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
   CircularProgress,
   AppBar,
   Toolbar,
   Stack,
   Tooltip,
-  FormControl,
-  InputLabel,
-  Select,
   MenuItem,
   Menu,
   Divider,
-  FormControlLabel,
-  Switch,
   useMediaQuery,
   useTheme
 } from '@mui/material';
@@ -37,7 +31,6 @@ import {
   DeleteOutline,
   Refresh,
   CheckCircle,
-  ErrorOutline,
   Shield,
   CloudOff,
   GitHub,
@@ -51,12 +44,25 @@ import {
   FolderOpen,
   WarningAmber,
   VolunteerActivism,
-  OpenInNew
+  OpenInNew,
+  PushPin,
+  PushPinOutlined,
+  SettingsBackupRestore,
+  CompareArrows,
+  Lock,
+  CloudDone,
+  CloudUpload,
+  VerifiedUser,
+  GppBad,
+  PrivacyTip
 } from '@mui/icons-material';
 import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-toastify';
 import api from '../services/api';
 import GlobalAnalytics from './GlobalAnalytics';
+import SettingsDialog from './SettingsDialog';
+import RestoreDialog from './RestoreDialog';
+import DiffDialog from './DiffDialog';
 import {
   MotionBox,
   GlowCard,
@@ -71,11 +77,6 @@ import {
 } from './ui';
 import { ink, monoText, labelText, ease } from '../theme';
 import { describeCron } from '../utils/cron';
-
-const TIMEZONES = Array.from({ length: 25 }, (_, i) => {
-  const offset = i - 12;
-  return `GMT${offset < 0 ? '' : '+'}${offset}`;
-});
 
 const SUPPORT_LINKS = [
   { label: 'GitHub', href: 'https://github.com/TheInfamousToTo', icon: <GitHub fontSize="small" /> },
@@ -230,21 +231,16 @@ const Dashboard = ({ onReconfigure }) => {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [runningBackup, setRunningBackup] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editConfig, setEditConfig] = useState({});
   const [refreshing, setRefreshing] = useState(false);
   const [settingsAnchorEl, setSettingsAnchorEl] = useState(null);
   const [supportAnchorEl, setSupportAnchorEl] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [scrolled, setScrolled] = useState(false);
-  const [discordDialogOpen, setDiscordDialogOpen] = useState(false);
-  const [discordConfig, setDiscordConfig] = useState({
-    enabled: false,
-    webhookUrl: '',
-    notifyOnSuccess: true,
-    notifyOnFailure: true
-  });
-  const [discordTesting, setDiscordTesting] = useState(false);
+  const [settingsTab, setSettingsTab] = useState(null);
+  const [restoreTarget, setRestoreTarget] = useState(null);
+  const [diffTarget, setDiffTarget] = useState(null);
+  const [instanceFilter, setInstanceFilter] = useState('all');
+  const [showAll, setShowAll] = useState(false);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -264,12 +260,6 @@ const Dashboard = ({ onReconfigure }) => {
 
   const handleSettingsClose = () => {
     setSettingsAnchorEl(null);
-  };
-
-  const handleEditConfig = () => {
-    setEditConfig({ ...config });
-    setEditDialogOpen(true);
-    handleSettingsClose();
   };
 
   const handleReconfigure = () => {
@@ -293,11 +283,7 @@ const Dashboard = ({ onReconfigure }) => {
         setConfig(configRes.value.data);
       } else {
         console.error('Failed to load configuration:', configRes.reason);
-        setConfig({
-          pihole: { host: '192.168.1.100', username: 'root', port: 22 },
-          backup: { destinationPath: '/app/backups', maxBackups: 10 },
-          schedule: { enabled: true, cronExpression: '0 3 * * *', timezone: 'GMT+3' }
-        });
+        setConfig({ instances: [], backup: {}, schedule: {} });
       }
 
       if (backupsRes.status === 'fulfilled') {
@@ -332,133 +318,107 @@ const Dashboard = ({ onReconfigure }) => {
     setRunningBackup(true);
 
     try {
-      await api.post('/backup/run');
-
-      toast.success('Backup started successfully!');
-      setTimeout(() => {
-        loadDashboardData();
-      }, 2000);
+      // Runs to completion (every enabled Pi-hole, verified, uploaded), so
+      // give it the time a slow SSH host or off-site upload needs.
+      const { data } = await api.post('/backup/run', {}, { timeout: 300000 });
+      const results = data.results || [];
+      if (results.length > 1) {
+        toast.success(`Backed up ${results.length} Pi-holes`);
+      } else {
+        toast.success('Backup completed');
+      }
     } catch (error) {
-      toast.error('Failed to start backup: ' + (error.response?.data?.message || error.message));
+      const results = error.response?.data?.results || [];
+      const failed = results.filter((r) => !r.success);
+      if (failed.length && failed.length < results.length) {
+        toast.warn(`${failed.length} of ${results.length} Pi-holes failed: ${failed.map((r) => `${r.instanceName}: ${r.error}`).join('; ')}`);
+      } else {
+        toast.error('Backup failed: ' + (error.response?.data?.error || error.message));
+      }
     } finally {
       setRunningBackup(false);
+      loadDashboardData();
+    }
+  };
+
+  const handlePin = async (backup) => {
+    try {
+      await api.patch(`/backups/${encodeURIComponent(backup.filename)}`, { pinned: !backup.pinned });
+      setBackups((prev) => prev.map((b) => (b.filename === backup.filename ? { ...b, pinned: !backup.pinned } : b)));
+      toast.success(backup.pinned ? 'Unpinned: retention may delete it now' : 'Pinned: retention will keep it');
+    } catch (error) {
+      toast.error('Could not update the backup: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const handleVerify = async (backup) => {
+    try {
+      const { data } = await api.post(`/backups/${encodeURIComponent(backup.filename)}/verify`, {}, { timeout: 60000 });
+      setBackups((prev) => prev.map((b) => (b.filename === backup.filename ? { ...b, integrity: data.integrity } : b)));
+      data.integrity?.ok
+        ? toast.success('Backup verified: pihole.toml and gravity.db are intact')
+        : toast.error(`Verification failed: ${data.integrity?.error || 'unknown error'}`);
+    } catch (error) {
+      toast.error('Verification failed: ' + (error.response?.data?.error || error.message));
     }
   };
 
   const handleDeleteBackup = async (backupId) => {
     try {
-      await api.delete(`/backups/${backupId}`);
+      await api.delete(`/backups/${encodeURIComponent(backupId)}`);
       // Drop the row straight away so its exit animation plays, then resync.
       setBackups((prev) => prev.filter((b) => (b.id || b.filename) !== backupId));
       toast.success('Backup deleted successfully');
       loadDashboardData();
     } catch (error) {
-      toast.error('Failed to delete backup: ' + (error.response?.data?.message || error.message));
+      toast.error('Failed to delete backup: ' + (error.response?.data?.error || error.message));
     }
   };
 
   const handleDownloadBackup = async (backupId) => {
     try {
-      const response = await api.get(`/backups/${backupId}/download`, {
+      const response = await api.get(`/backups/${encodeURIComponent(backupId)}/download`, {
         responseType: 'blob',
+        timeout: 60000
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      // The id is the file's own name on disk (a .zip); keep it rather than
-      // wrapping it in a made-up .tar.gz name.
-      link.setAttribute('download', String(backupId));
+      // Encrypted backups are decrypted by the server on download, so the
+      // file is a plain Teleporter zip whatever its name on disk.
+      link.setAttribute('download', String(backupId).replace(/\.enc$/, ''));
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      toast.error('Failed to download backup: ' + (error.response?.data?.message || error.message));
-    }
-  };
-
-  const handleDiscordOpen = async () => {
-    try {
-      const response = await api.get('/discord/config');
-      if (response.data.success) {
-        setDiscordConfig({
-          enabled: response.data.config.enabled,
-          webhookUrl: '', // Don't expose the webhook URL
-          notifyOnSuccess: response.data.config.notifyOnSuccess,
-          notifyOnFailure: response.data.config.notifyOnFailure
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load Discord config:', error);
-    }
-    setDiscordDialogOpen(true);
-    handleSettingsClose();
-  };
-
-  const handleDiscordClose = () => {
-    setDiscordDialogOpen(false);
-    setDiscordConfig({
-      enabled: false,
-      webhookUrl: '',
-      notifyOnSuccess: true,
-      notifyOnFailure: true
-    });
-  };
-
-  const handleDiscordSave = async () => {
-    try {
-      const response = await api.post('/discord/config', discordConfig);
-      if (response.data.success) {
-        toast.success('Discord configuration updated successfully!');
-        handleDiscordClose();
-      } else {
-        toast.error('Failed to update Discord configuration: ' + response.data.error);
-      }
-    } catch (error) {
-      toast.error('Failed to update Discord configuration: ' + (error.response?.data?.error || error.message));
-    }
-  };
-
-  const handleDiscordTest = async () => {
-    if (!discordConfig.webhookUrl) {
-      toast.error('Please enter a webhook URL first');
-      return;
-    }
-
-    setDiscordTesting(true);
-    try {
-      const response = await api.post('/discord/test', {
-        webhookUrl: discordConfig.webhookUrl
-      });
-
-      if (response.data.success) {
-        toast.success('Discord test notification sent successfully!');
-      } else {
-        toast.error('Discord test failed: ' + response.data.error);
-      }
-    } catch (error) {
-      toast.error('Discord test failed: ' + (error.response?.data?.error || error.message));
-    } finally {
-      setDiscordTesting(false);
-    }
-  };
-
-  const handleSaveConfig = async () => {
-    try {
-      await api.put('/config', editConfig);
-      setConfig(editConfig);
-      setEditDialogOpen(false);
-      toast.success('Configuration updated successfully');
-    } catch (error) {
-      toast.error('Failed to update configuration: ' + (error.response?.data?.message || error.message));
+      toast.error('Failed to download backup: ' + (error.response?.data?.error || error.message));
     }
   };
 
   // --- Derived state ---------------------------------------------------------
 
+  const instances = config?.instances || [];
+  const multi = instances.length > 1;
+  const instanceName = useCallback(
+    (id) => instances.find((i) => i.id === id)?.name || id,
+    [instances]
+  );
+  const enabledInstances = Math.max(1, instances.filter((i) => i.enabled !== false).length);
+  const retention = config?.backup?.retention || {};
+  const retentionMode = retention.mode === 'gfs' ? 'gfs' : 'count';
+  const keepLast = retention.keepLast || config?.backup?.maxBackups || 10;
+  // How many restore points retention will hold at most, across every Pi-hole.
+  const maxBackups = enabledInstances * (retentionMode === 'gfs'
+    ? keepLast + (retention.daily ?? 7) + (retention.weekly ?? 4) + (retention.monthly ?? 6)
+    : keepLast);
+  const pinnedCount = backups.filter((b) => b.pinned).length;
+  const visibleBackups = useMemo(
+    () => (instanceFilter === 'all' ? backups : backups.filter((b) => b.instanceId === instanceFilter)),
+    [backups, instanceFilter]
+  );
   const latestBackup = backups[0];
   const latestJob = jobs[0];
-  const maxBackups = config?.backup?.maxBackups || 10;
   const totalSize = useMemo(() => backups.reduce((sum, b) => sum + (b.size || 0), 0), [backups]);
   const runningJobs = jobs.filter((j) => j.status === 'running').length;
   const failedJobs = jobs.filter((j) => normaliseStatus(j.status) === 'failed').length;
@@ -471,7 +431,7 @@ const Dashboard = ({ onReconfigure }) => {
       : Infinity;
 
     if (runningJobs > 0 || runningBackup) {
-      return { tone: ink.accent2, title: 'Backup in progress', detail: 'Taking a fresh snapshot of your Pi-hole…', pulse: true };
+      return { tone: ink.accent2, title: 'Backup in progress', detail: multi ? 'Taking a fresh snapshot of every Pi-hole…' : 'Taking a fresh snapshot of your Pi-hole…', pulse: true };
     }
     if (latestJob && normaliseStatus(latestJob.status) === 'failed') {
       return { tone: ink.bad, title: 'Last backup failed', detail: latestJob.message || 'Check the job log for details.', pulse: true };
@@ -482,8 +442,8 @@ const Dashboard = ({ onReconfigure }) => {
     if (ageHours > 72) {
       return { tone: ink.warn, title: 'Backups are getting stale', detail: `Last restore point was ${relativeTime(latestBackup.timestamp || latestBackup.createdAt)}.`, pulse: true };
     }
-    return { tone: ink.ok, title: 'Your Pi-hole is protected', detail: `Last restore point ${relativeTime(latestBackup.timestamp || latestBackup.createdAt)}.`, pulse: true };
-  }, [latestBackup, latestJob, runningJobs, runningBackup]);
+    return { tone: ink.ok, title: multi ? 'Your Pi-holes are protected' : 'Your Pi-hole is protected', detail: `Last restore point ${relativeTime(latestBackup.timestamp || latestBackup.createdAt)}.`, pulse: true };
+  }, [latestBackup, latestJob, runningJobs, runningBackup, multi]);
 
   if (loading) {
     return (
@@ -616,18 +576,19 @@ const Dashboard = ({ onReconfigure }) => {
             anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
             transformOrigin={{ vertical: 'top', horizontal: 'right' }}
           >
-            <MenuItem onClick={handleEditConfig}>
-              <ListItemIcon sx={{ minWidth: 34 }}>
-                <Settings fontSize="small" />
-              </ListItemIcon>
-              Configure settings
-            </MenuItem>
-            <MenuItem onClick={handleDiscordOpen}>
-              <ListItemIcon sx={{ minWidth: 34, color: '#8B9BFF' }}>
-                <Notifications fontSize="small" />
-              </ListItemIcon>
-              Discord notifications
-            </MenuItem>
+            {[
+              { tab: 'piholes', label: 'Pi-holes', icon: <Dns fontSize="small" /> },
+              { tab: 'backups', label: 'Schedule & retention', icon: <Schedule fontSize="small" /> },
+              { tab: 'offsite', label: 'Off-site storage', icon: <CloudUpload fontSize="small" /> },
+              { tab: 'encryption', label: 'Encryption', icon: <Lock fontSize="small" /> },
+              { tab: 'notifications', label: 'Notifications', icon: <Notifications fontSize="small" /> },
+              { tab: 'privacy', label: 'Privacy', icon: <PrivacyTip fontSize="small" /> }
+            ].map((item) => (
+              <MenuItem key={item.tab} onClick={() => { setSettingsTab(item.tab); handleSettingsClose(); }}>
+                <ListItemIcon sx={{ minWidth: 34 }}>{item.icon}</ListItemIcon>
+                {item.label}
+              </MenuItem>
+            ))}
             {onReconfigure && <Divider sx={{ my: 0.5 }} />}
             {onReconfigure && (
               <MenuItem onClick={handleReconfigure}>
@@ -676,7 +637,7 @@ const Dashboard = ({ onReconfigure }) => {
               <Chip
                 size="small"
                 icon={<Box sx={{ display: 'inline-flex', ml: '8px !important' }}><LiveDot color={health.tone} pulse={health.pulse} size={7} /></Box>}
-                label={config?.pihole?.host ? `Watching ${config.pihole.host}` : 'Not connected'}
+                label={multi ? `Watching ${instances.filter((i) => i.enabled !== false).length} of ${instances.length} Pi-holes` : config?.pihole?.host ? `Watching ${config.pihole.host}` : 'Not connected'}
                 sx={{
                   mb: 2,
                   maxWidth: '100%',
@@ -720,7 +681,7 @@ const Dashboard = ({ onReconfigure }) => {
                     variant="outlined"
                     size="large"
                     startIcon={<Download />}
-                    onClick={() => handleDownloadBackup(latestBackup.id || latestBackup.filename)}
+                    onClick={() => handleDownloadBackup(latestBackup.filename)}
                     sx={{ px: 2.5, py: 1.25 }}
                   >
                     Download latest
@@ -730,13 +691,15 @@ const Dashboard = ({ onReconfigure }) => {
             </Box>
 
             <Stack direction="row" alignItems="center" spacing={3} sx={{ alignSelf: { xs: 'center', md: 'auto' } }}>
-              <Ring value={backups.length / maxBackups} size={156}>
+              <Ring value={Math.min(1, (backups.length - pinnedCount) / maxBackups)} size={156}>
                 <Box>
                   <Box sx={{ fontSize: '2rem', fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1 }}>
                     <CountUp value={backups.length} />
-                    <Box component="span" sx={{ fontSize: '1rem', color: ink.faint, fontWeight: 500 }}>
-                      /{maxBackups}
-                    </Box>
+                    {retentionMode === 'count' && (
+                      <Box component="span" sx={{ fontSize: '1rem', color: ink.faint, fontWeight: 500 }}>
+                        /{maxBackups + pinnedCount}
+                      </Box>
+                    )}
                   </Box>
                   <Typography sx={{ ...labelText, fontSize: '0.75rem', mt: 0.5 }}>restore points</Typography>
                 </Box>
@@ -762,17 +725,23 @@ const Dashboard = ({ onReconfigure }) => {
             note={runningJobs ? `${runningJobs} running` : failedJobs ? `${failedJobs} failed` : 'All healthy'}>
             <CountUp value={jobs.length} />
           </StatTile>
-          <StatTile icon={<Dns />} label="Pi-hole" tone="#A78BFA"
+          <StatTile icon={<Dns />} label={multi ? 'Pi-holes' : 'Pi-hole'} tone="#A78BFA"
             note={
-              config?.pihole?.host
-                ? config.pihole.connectionMethod === 'web'
-                  ? `web · ${config.pihole.useHttps ? 'https' : 'http'} :${config.pihole.webPort || (config.pihole.useHttps ? 443 : 80)}`
-                  : `${config.pihole.connectionMethod || 'ssh'} · ssh :${config.pihole.port || 22}`
-                : null
+              multi
+                ? instances.map((i) => i.name || i.host).join(' · ')
+                : config?.pihole?.host
+                  ? config.pihole.connectionMethod === 'web'
+                    ? `web · ${config.pihole.useHttps ? 'https' : 'http'} :${config.pihole.webPort || (config.pihole.useHttps ? 443 : 80)}`
+                    : `${config.pihole.connectionMethod || 'ssh'} · ssh :${config.pihole.port || 22}`
+                  : null
             }>
-            <Box component="span" sx={{ ...monoText, fontSize: '1.125rem' }} title={config?.pihole?.host}>
-              {config?.pihole?.host || 'Not configured'}
-            </Box>
+            {multi ? (
+              <CountUp value={instances.length} />
+            ) : (
+              <Box component="span" sx={{ ...monoText, fontSize: '1.125rem' }} title={config?.pihole?.host}>
+                {config?.pihole?.host || 'Not configured'}
+              </Box>
+            )}
           </StatTile>
           <StatTile
             icon={<Schedule />}
@@ -799,9 +768,36 @@ const Dashboard = ({ onReconfigure }) => {
         <Grid container spacing={3} sx={{ mb: 3 }}>
           <Grid item xs={12} lg={8}>
             <GlowCard sx={{ p: { xs: 2, md: 3 }, height: '100%' }} glow={false}>
-              <SectionHeader icon={<Inventory2 />} title="Restore points" meta={`${backups.length} stored`} />
+              <SectionHeader
+                icon={<Inventory2 />}
+                title="Restore points"
+                meta={`${visibleBackups.length} stored${pinnedCount ? ` · ${pinnedCount} pinned` : ''}`}
+              />
 
-              {backups.length === 0 ? (
+              {multi && (
+                <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                  {[{ id: 'all', name: 'All Pi-holes' }, ...instances].map((i) => {
+                    const active = instanceFilter === i.id;
+                    return (
+                      <Chip
+                        key={i.id}
+                        label={i.name || i.host}
+                        size="small"
+                        onClick={() => setInstanceFilter(i.id)}
+                        sx={{
+                          ml: '0 !important',
+                          color: active ? '#06101F' : ink.muted,
+                          background: active ? `linear-gradient(135deg, ${ink.accent}, ${ink.accent2})` : 'rgba(255,255,255,0.03)',
+                          border: `1px solid ${active ? 'transparent' : ink.line}`,
+                          fontWeight: active ? 650 : 500
+                        }}
+                      />
+                    );
+                  })}
+                </Stack>
+              )}
+
+              {visibleBackups.length === 0 ? (
                 <Box sx={{ textAlign: 'center', py: 8 }}>
                   <motion.div
                     animate={{ y: [0, -6, 0] }}
@@ -818,16 +814,17 @@ const Dashboard = ({ onReconfigure }) => {
               ) : (
                 <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
                   <AnimatePresence initial={true}>
-                    {backups.slice(0, 10).map((backup, index) => {
-                      const id = backup.id || backup.filename || index;
-                      const state = normaliseStatus(backup.status);
-                      const when = backup.timestamp || backup.createdAt;
+                    {visibleBackups.slice(0, showAll ? undefined : 10).map((backup, index) => {
+                      const id = backup.filename;
+                      const when = backup.timestamp;
+                      const verified = backup.integrity?.ok === true;
+                      const broken = backup.integrity && backup.integrity.ok === false;
                       return (
                         <motion.li
                           key={id}
                           layout
                           initial={{ opacity: 0, y: 12 }}
-                          animate={{ opacity: 1, y: 0, transition: { duration: 0.4, ease, delay: 0.15 + index * 0.05 } }}
+                          animate={{ opacity: 1, y: 0, transition: { duration: 0.4, ease, delay: 0.15 + Math.min(index, 10) * 0.05 } }}
                           exit={{ opacity: 0, x: -40, height: 0, marginBottom: 0, transition: { duration: 0.3, ease } }}
                           style={{ marginBottom: 8, overflow: 'hidden' }}
                         >
@@ -839,8 +836,8 @@ const Dashboard = ({ onReconfigure }) => {
                               px: { xs: 1.5, sm: 2 },
                               py: 1.5,
                               borderRadius: '12px',
-                              border: `1px solid ${ink.line}`,
-                              backgroundColor: 'rgba(255,255,255,0.015)',
+                              border: `1px solid ${backup.pinned ? 'rgba(245,180,81,0.3)' : ink.line}`,
+                              backgroundColor: backup.pinned ? 'rgba(245,180,81,0.035)' : 'rgba(255,255,255,0.015)',
                               transition: 'background-color 200ms, border-color 200ms, transform 200ms',
                               '&:hover': {
                                 backgroundColor: 'rgba(91,140,255,0.06)',
@@ -850,38 +847,89 @@ const Dashboard = ({ onReconfigure }) => {
                               '&:hover .row-actions': { opacity: 1 }
                             }}
                           >
-                            <Box sx={{ position: 'relative', display: 'grid', placeItems: 'center', width: 36, height: 36, borderRadius: '10px', backgroundColor: `${STATUS[state].color}14`, flexShrink: 0 }}>
-                              {state === 'running' ? (
-                                <CircularProgress size={16} thickness={5} sx={{ color: STATUS.running.color }} />
-                              ) : state === 'failed' ? (
-                                <ErrorOutline sx={{ fontSize: 18, color: STATUS.failed.color }} />
-                              ) : (
-                                <CheckCircle sx={{ fontSize: 18, color: STATUS.ok.color }} />
-                              )}
-                            </Box>
+                            <Tooltip
+                              title={
+                                broken
+                                  ? `Failed verification: ${backup.integrity.error}`
+                                  : verified
+                                    ? `Verified ${relativeTime(backup.integrity.checkedAt) || ''}: pihole.toml and gravity.db intact`
+                                    : 'Not verified yet: click to check'
+                              }
+                            >
+                              <Box
+                                component="button"
+                                onClick={() => handleVerify(backup)}
+                                aria-label="Verify backup"
+                                sx={{
+                                  all: 'unset',
+                                  cursor: 'pointer',
+                                  display: 'grid',
+                                  placeItems: 'center',
+                                  width: 36,
+                                  height: 36,
+                                  borderRadius: '10px',
+                                  flexShrink: 0,
+                                  backgroundColor: `${broken ? ink.bad : verified ? ink.ok : ink.faint}14`,
+                                  '&:focus-visible': { outline: `2px solid ${ink.accent}` }
+                                }}
+                              >
+                                {broken ? (
+                                  <GppBad sx={{ fontSize: 18, color: ink.bad }} />
+                                ) : verified ? (
+                                  <VerifiedUser sx={{ fontSize: 18, color: ink.ok }} />
+                                ) : (
+                                  <CheckCircle sx={{ fontSize: 18, color: ink.faint }} />
+                                )}
+                              </Box>
+                            </Tooltip>
 
                             <Box sx={{ minWidth: 0, flexGrow: 1 }}>
                               <Stack direction="row" alignItems="center" spacing={1} sx={{ minWidth: 0 }}>
-                                <Typography
-                                  sx={{ ...monoText, fontSize: '0.8125rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                                  title={backup.filename}
-                                >
-                                  {backup.filename || `Backup #${backup.id || index + 1}`}
-                                </Typography>
-                                {index === 0 && (
+                                <Tooltip title={when ? formatDate(when) : ''}>
+                                  <Typography sx={{ fontSize: '0.875rem', fontWeight: 550, whiteSpace: 'nowrap', color: ink.text }}>
+                                    {relativeTime(when) || '—'}
+                                  </Typography>
+                                </Tooltip>
+                                {multi && (
+                                  <Chip
+                                    label={instanceName(backup.instanceId)}
+                                    size="small"
+                                    sx={{ height: 20, fontSize: '0.6875rem', color: '#C4B5FD', backgroundColor: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.25)' }}
+                                  />
+                                )}
+                                {index === 0 && instanceFilter === 'all' && (
                                   <Chip
                                     label="Latest"
                                     size="small"
                                     sx={{ height: 20, fontSize: '0.6875rem', color: ink.accent2, backgroundColor: 'rgba(34,211,238,0.1)', border: '1px solid rgba(34,211,238,0.25)' }}
                                   />
                                 )}
+                                {backup.encrypted && (
+                                  <Tooltip title="Encrypted (AES-256-GCM)">
+                                    <Lock sx={{ fontSize: 15, color: ink.muted }} />
+                                  </Tooltip>
+                                )}
+                                {backup.offsite?.status === 'uploaded' && (
+                                  <Tooltip title={`Off-site copy at ${backup.offsite.target}`}>
+                                    <CloudDone sx={{ fontSize: 16, color: ink.accent2 }} />
+                                  </Tooltip>
+                                )}
+                                {backup.offsite?.status === 'failed' && (
+                                  <Tooltip title={`Off-site upload failed: ${backup.offsite.error}`}>
+                                    <CloudOff sx={{ fontSize: 16, color: ink.warn }} />
+                                  </Tooltip>
+                                )}
                               </Stack>
-                              <Stack direction="row" spacing={1.5} sx={{ mt: 0.25 }}>
-                                <Tooltip title={when ? formatDate(when) : ''}>
-                                  <Typography variant="caption">{relativeTime(when) || '—'}</Typography>
-                                </Tooltip>
+                              <Stack direction="row" spacing={1.5} sx={{ mt: 0.25, minWidth: 0 }}>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ ...monoText, color: ink.faint, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                  title={backup.filename}
+                                >
+                                  {backup.note || backup.filename}
+                                </Typography>
                                 {backup.size ? (
-                                  <Typography variant="caption" sx={{ ...monoText, color: ink.faint }}>
+                                  <Typography variant="caption" sx={{ ...monoText, color: ink.faint, whiteSpace: 'nowrap' }}>
                                     {formatBytes(backup.size)}
                                   </Typography>
                                 ) : null}
@@ -890,21 +938,35 @@ const Dashboard = ({ onReconfigure }) => {
 
                             <Stack
                               direction="row"
-                              spacing={0.5}
+                              spacing={0.25}
                               className="row-actions"
                               sx={{ opacity: { xs: 1, md: 0.55 }, transition: 'opacity 200ms' }}
                             >
-                              <Tooltip title="Download">
+                              <Tooltip title={backup.pinned ? 'Unpin' : 'Pin: never delete'}>
+                                <IconButton size="small" aria-label={backup.pinned ? 'Unpin' : 'Pin'} onClick={() => handlePin(backup)} sx={{ color: backup.pinned ? ink.warn : undefined, '&:hover': { color: ink.warn } }}>
+                                  {backup.pinned ? <PushPin fontSize="small" /> : <PushPinOutlined fontSize="small" />}
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Compare with another backup">
+                                <IconButton size="small" aria-label="Compare" onClick={() => setDiffTarget(backup)} sx={{ display: { xs: 'none', sm: 'inline-flex' }, '&:hover': { color: ink.accent2 } }}>
+                                  <CompareArrows fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Restore">
                                 <span>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleDownloadBackup(backup.id || backup.filename)}
-                                    disabled={state !== 'ok'}
-                                    sx={{ '&:hover': { color: ink.accent } }}
-                                  >
-                                    <Download fontSize="small" />
+                                  <IconButton size="small" aria-label="Restore" onClick={() => setRestoreTarget(backup)} disabled={broken} sx={{ '&:hover': { color: ink.warn } }}>
+                                    <SettingsBackupRestore fontSize="small" />
                                   </IconButton>
                                 </span>
+                              </Tooltip>
+                              <Tooltip title="Download">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleDownloadBackup(backup.filename)}
+                                  sx={{ '&:hover': { color: ink.accent } }}
+                                >
+                                  <Download fontSize="small" />
+                                </IconButton>
                               </Tooltip>
                               <Tooltip title="Delete">
                                 <IconButton
@@ -921,6 +983,11 @@ const Dashboard = ({ onReconfigure }) => {
                       );
                     })}
                   </AnimatePresence>
+                  {visibleBackups.length > 10 && (
+                    <Button size="small" onClick={() => setShowAll(!showAll)} sx={{ mt: 0.5 }}>
+                      {showAll ? 'Show fewer' : `Show all ${visibleBackups.length}`}
+                    </Button>
+                  )}
                 </Box>
               )}
             </GlowCard>
@@ -930,21 +997,47 @@ const Dashboard = ({ onReconfigure }) => {
             <Stack spacing={3} sx={{ height: '100%' }}>
               <GlowCard sx={{ p: { xs: 2, md: 3 } }}>
                 <SectionHeader icon={<FolderOpen />} title="Storage" tone={ink.accent2} />
-                <InfoRow label="Path" value={config?.backup?.destinationPath || 'Not configured'} mono />
+                <InfoRow label="Folder" value={config?.runtime?.backupDir || '/app/backups'} mono />
                 <Divider />
-                <InfoRow label="Retention" value={`${maxBackups} backups`} />
+                <InfoRow
+                  label="Retention"
+                  value={retentionMode === 'gfs'
+                    ? `${keepLast} + ${retention.daily ?? 7}d / ${retention.weekly ?? 4}w / ${retention.monthly ?? 6}m`
+                    : `Last ${keepLast}${multi ? ' per Pi-hole' : ''}`}
+                />
+                <Divider />
+                <InfoRow
+                  label="Off-site"
+                  value={
+                    <Box component="button" onClick={() => setSettingsTab('offsite')} sx={{ all: 'unset', cursor: 'pointer', color: config?.offsite?.enabled ? ink.accent2 : ink.faint }}>
+                      {config?.offsite?.enabled ? (config.offsite.type === 'webdav' ? 'WebDAV' : `S3 · ${config.offsite.s3?.bucket || '?'}`) : 'Off · set up'}
+                    </Box>
+                  }
+                />
+                <Divider />
+                <InfoRow
+                  label="Encryption"
+                  value={
+                    <Box component="button" onClick={() => setSettingsTab('encryption')} sx={{ all: 'unset', cursor: 'pointer', color: config?.encryption?.enabled ? ink.ok : ink.faint }}>
+                      {config?.encryption?.enabled ? 'AES-256-GCM' : 'Off · set up'}
+                    </Box>
+                  }
+                />
                 <Divider />
                 <InfoRow label="Used" value={formatBytes(totalSize)} mono />
                 <Box sx={{ mt: 1.5, height: 6, borderRadius: 999, backgroundColor: ink.line, overflow: 'hidden' }}>
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: `${Math.min(100, (backups.length / maxBackups) * 100)}%` }}
+                    animate={{ width: `${Math.min(100, ((backups.length - pinnedCount) / maxBackups) * 100)}%` }}
                     transition={{ duration: 1.2, ease, delay: 0.4 }}
                     style={{ height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${ink.accent}, ${ink.accent2})` }}
                   />
                 </Box>
                 <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
-                  {Math.max(0, maxBackups - backups.length)} slots left before the oldest is rotated out
+                  {retentionMode === 'gfs'
+                    ? 'Older backups thin out to one per day, week and month.'
+                    : `${Math.max(0, maxBackups - (backups.length - pinnedCount))} slots left before the oldest is rotated out.`}
+                  {pinnedCount ? ` ${pinnedCount} pinned ${pinnedCount === 1 ? 'backup is' : 'backups are'} kept regardless.` : ''}
                 </Typography>
               </GlowCard>
 
@@ -986,7 +1079,12 @@ const Dashboard = ({ onReconfigure }) => {
                           </Box>
                           <Stack direction="row" alignItems="baseline" justifyContent="space-between" spacing={1}>
                             <Typography sx={{ fontSize: '0.875rem', fontWeight: 550, color: STATUS[state].color }}>
-                              {STATUS[state].label}
+                              {job.type === 'restore'
+                                ? { ok: 'Restored', running: 'Restoring', failed: 'Restore failed' }[state]
+                                : STATUS[state].label}
+                              {multi && job.instanceName && (
+                                <Box component="span" sx={{ color: ink.faint, fontWeight: 500 }}> · {job.instanceName}</Box>
+                              )}
                             </Typography>
                             <Tooltip title={formatDate(job.timestamp || job.createdAt)}>
                               <Typography variant="caption" sx={{ whiteSpace: 'nowrap' }}>
@@ -1011,9 +1109,11 @@ const Dashboard = ({ onReconfigure }) => {
           </Grid>
         </Grid>
 
-        <MotionBox variants={rise}>
-          <GlobalAnalytics />
-        </MotionBox>
+        {config?.analytics?.enabled && (
+          <MotionBox variants={rise}>
+            <GlobalAnalytics />
+          </MotionBox>
+        )}
       </Container>
 
       {/* Delete confirmation ---------------------------------------------- */}
@@ -1026,7 +1126,8 @@ const Dashboard = ({ onReconfigure }) => {
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ mb: 1.5 }}>
-            This restore point will be removed from disk. This can't be undone.
+            {deleteTarget?.pinned ? 'This backup is pinned. ' : ''}
+            It will be removed from disk{config?.offsite?.enabled ? ' and from off-site storage' : ''}. This can't be undone.
           </Typography>
           <Box sx={{ p: 1.5, borderRadius: '10px', border: `1px solid ${ink.line}`, backgroundColor: 'rgba(0,0,0,0.25)', ...monoText, fontSize: '0.8125rem', wordBreak: 'break-all' }}>
             {deleteTarget?.filename || deleteTarget?.id}
@@ -1041,7 +1142,7 @@ const Dashboard = ({ onReconfigure }) => {
             onClick={() => {
               const target = deleteTarget;
               setDeleteTarget(null);
-              handleDeleteBackup(target.id || target.filename);
+              handleDeleteBackup(target.filename);
             }}
             sx={{ background: ink.bad, color: '#1A0705', '&:hover': { background: '#FF8A84' } }}
           >
@@ -1050,275 +1151,22 @@ const Dashboard = ({ onReconfigure }) => {
         </DialogActions>
       </Dialog>
 
-      {/* Configuration Edit Dialog ---------------------------------------- */}
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" spacing={1.5}>
-            <IconTile size={36}><Settings /></IconTile>
-            <Box>
-              <Typography variant="h4">Settings</Typography>
-              <Typography variant="caption">Connection, storage and schedule</Typography>
-            </Box>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <Typography sx={{ ...labelText, mt: 1, mb: 1.5 }}>Pi-hole connection</Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
-              <TextField
-                label="Pi-hole Host"
-                value={editConfig.pihole?.host || ''}
-                onChange={(e) => setEditConfig({
-                  ...editConfig,
-                  pihole: { ...editConfig.pihole, host: e.target.value }
-                })}
-                fullWidth
-              />
-            </Grid>
-            <Grid item xs={8} md={4}>
-              <TextField
-                label="Username"
-                value={editConfig.pihole?.username || ''}
-                onChange={(e) => setEditConfig({
-                  ...editConfig,
-                  pihole: { ...editConfig.pihole, username: e.target.value }
-                })}
-                fullWidth
-              />
-            </Grid>
-            <Grid item xs={4} md={2}>
-              <TextField
-                label="SSH Port"
-                type="number"
-                value={editConfig.pihole?.port || 22}
-                onChange={(e) => setEditConfig({
-                  ...editConfig,
-                  pihole: { ...editConfig.pihole, port: parseInt(e.target.value) }
-                })}
-                fullWidth
-              />
-            </Grid>
-          </Grid>
+      <SettingsDialog
+        open={Boolean(settingsTab)}
+        initialTab={settingsTab || 'piholes'}
+        config={config}
+        onClose={() => setSettingsTab(null)}
+        onSaved={(next) => setConfig(next)}
+      />
 
-          <Grid container spacing={2} sx={{ mt: 0 }}>
-            <Grid item xs={12} md={4}>
-              <FormControl fullWidth>
-                <InputLabel>Method</InputLabel>
-                <Select
-                  label="Method"
-                  value={editConfig.pihole?.connectionMethod || 'ssh'}
-                  onChange={(e) => setEditConfig({
-                    ...editConfig,
-                    pihole: { ...editConfig.pihole, connectionMethod: e.target.value }
-                  })}
-                >
-                  <MenuItem value="web">Web / API</MenuItem>
-                  <MenuItem value="hybrid">Hybrid (web, then SSH)</MenuItem>
-                  <MenuItem value="ssh">SSH only</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={4} md={2}>
-              <TextField
-                label="Web Port"
-                type="number"
-                value={editConfig.pihole?.webPort || 80}
-                onChange={(e) => setEditConfig({
-                  ...editConfig,
-                  pihole: { ...editConfig.pihole, webPort: parseInt(e.target.value) }
-                })}
-                fullWidth
-              />
-            </Grid>
-            <Grid item xs={8} md={6}>
-              <Stack direction="row" spacing={1} sx={{ height: '100%', alignItems: 'center', flexWrap: 'wrap' }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={Boolean(editConfig.pihole?.useHttps)}
-                      onChange={(e) => setEditConfig({
-                        ...editConfig,
-                        pihole: { ...editConfig.pihole, useHttps: e.target.checked }
-                      })}
-                    />
-                  }
-                  label="HTTPS"
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={Boolean(editConfig.pihole?.allowInsecureTls)}
-                      disabled={!editConfig.pihole?.useHttps}
-                      onChange={(e) => setEditConfig({
-                        ...editConfig,
-                        pihole: { ...editConfig.pihole, allowInsecureTls: e.target.checked }
-                      })}
-                    />
-                  }
-                  label="Allow self-signed cert"
-                />
-              </Stack>
-            </Grid>
-          </Grid>
+      <RestoreDialog
+        backup={restoreTarget}
+        instances={instances}
+        onClose={() => setRestoreTarget(null)}
+        onDone={() => loadDashboardData()}
+      />
 
-          <Typography sx={{ ...labelText, mt: 3, mb: 1.5 }}>Storage</Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={8}>
-              <TextField
-                label="Backup Path"
-                value={editConfig.backup?.destinationPath || ''}
-                onChange={(e) => setEditConfig({
-                  ...editConfig,
-                  backup: { ...editConfig.backup, destinationPath: e.target.value }
-                })}
-                fullWidth
-              />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <TextField
-                label="Max Backups"
-                type="number"
-                value={editConfig.backup?.maxBackups || 10}
-                onChange={(e) => setEditConfig({
-                  ...editConfig,
-                  backup: { ...editConfig.backup, maxBackups: parseInt(e.target.value) }
-                })}
-                fullWidth
-              />
-            </Grid>
-          </Grid>
-
-          <Typography sx={{ ...labelText, mt: 3, mb: 1.5 }}>Schedule</Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={8}>
-              <TextField
-                label="Cron Expression"
-                value={editConfig.schedule?.cronExpression || ''}
-                onChange={(e) => setEditConfig({
-                  ...editConfig,
-                  schedule: { ...editConfig.schedule, cronExpression: e.target.value }
-                })}
-                fullWidth
-                InputProps={{ sx: monoText }}
-                helperText={describeCron(editConfig.schedule?.cronExpression) || 'Example: 0 3 * * * (daily at 3 AM)'}
-              />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <FormControl fullWidth>
-                <InputLabel>Timezone</InputLabel>
-                <Select
-                  value={editConfig.schedule?.timezone || 'GMT+3'}
-                  onChange={(e) => setEditConfig({
-                    ...editConfig,
-                    schedule: { ...editConfig.schedule, timezone: e.target.value }
-                  })}
-                  label="Timezone"
-                >
-                  {TIMEZONES.map((tz) => (
-                    <MenuItem key={tz} value={tz}>{tz}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveConfig}>
-            Save changes
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Discord Configuration Dialog ------------------------------------- */}
-      <Dialog open={discordDialogOpen} onClose={handleDiscordClose} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" spacing={1.5}>
-            <IconTile size={36} tone="#8B9BFF"><Notifications /></IconTile>
-            <Box>
-              <Typography variant="h4">Discord notifications</Typography>
-              <Typography variant="caption">Get pinged when a backup finishes or fails</Typography>
-            </Box>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 1 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={discordConfig.enabled}
-                  onChange={(e) => setDiscordConfig(prev => ({ ...prev, enabled: e.target.checked }))}
-                  color="primary"
-                />
-              }
-              label="Enable Discord notifications"
-            />
-
-            <AnimatePresence initial={false}>
-              {discordConfig.enabled && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.35, ease }}
-                  style={{ overflow: 'hidden' }}
-                >
-                  <Stack spacing={2.5} sx={{ pt: 2.5 }}>
-                    <TextField
-                      fullWidth
-                      label="Discord Webhook URL"
-                      value={discordConfig.webhookUrl}
-                      onChange={(e) => setDiscordConfig(prev => ({ ...prev, webhookUrl: e.target.value }))}
-                      placeholder="https://discord.com/api/webhooks/..."
-                      helperText="Server settings → Integrations → Webhooks → Copy URL"
-                      type="url"
-                    />
-
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={discordConfig.notifyOnSuccess}
-                            onChange={(e) => setDiscordConfig(prev => ({ ...prev, notifyOnSuccess: e.target.checked }))}
-                            color="primary"
-                          />
-                        }
-                        label="On success"
-                      />
-                      <FormControlLabel
-                        control={
-                          <Switch
-                            checked={discordConfig.notifyOnFailure}
-                            onChange={(e) => setDiscordConfig(prev => ({ ...prev, notifyOnFailure: e.target.checked }))}
-                            color="primary"
-                          />
-                        }
-                        label="On failure"
-                      />
-                    </Stack>
-
-                    <Button
-                      variant="outlined"
-                      onClick={handleDiscordTest}
-                      disabled={discordTesting || !discordConfig.webhookUrl}
-                      startIcon={discordTesting ? <CircularProgress size={16} /> : <Notifications />}
-                      fullWidth
-                    >
-                      {discordTesting ? 'Sending…' : 'Send test notification'}
-                    </Button>
-                  </Stack>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button onClick={handleDiscordClose}>Cancel</Button>
-          <Button variant="contained" onClick={handleDiscordSave}>
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <DiffDialog backup={diffTarget} backups={backups} onClose={() => setDiffTarget(null)} />
     </Box>
   );
 };

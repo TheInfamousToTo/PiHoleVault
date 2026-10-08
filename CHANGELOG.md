@@ -2,6 +2,37 @@
 
 All notable changes to PiHoleVault will be documented in this file.
 
+## [2.1.0] - 2026-10-08
+
+Restore, more than one Pi-hole, off-site copies, encryption and six notification channels. Existing configurations upgrade in place: your Pi-hole becomes the first ("primary") entry in the new Pi-hole list, and a Discord webhook set up before 2.1 becomes a notification channel.
+
+### ⚠️ Changed behaviour
+
+- **Anonymous usage statistics are now opt-in, and send less.** Until now every backup reported, by default, to the project's analytics service, including the Pi-hole's address and the backup filename. It is now off unless you turn it on (setup wizard or Settings → Privacy). When on, it sends only a random install ID, whether the backup worked, its size and its duration. The community stats card is only shown while sharing is on.
+- **Backup files are named after the Pi-hole they came from**: `pi-hole_backup_<id>_<timestamp>.zip`. Backups made by earlier versions are listed under the primary Pi-hole.
+- **Retention counts per Pi-hole.** "Keep 10" keeps the newest 10 of each Pi-hole, not 10 in total.
+- **The `/api/discord` endpoints are removed.** Discord is configured as a notification channel like the others; `DISCORD_WEBHOOK_URL` still works.
+- **The backup folder is no longer shown as an editable setting.** It never was one: backups have always been written to `BACKUP_DIR` (the `/app/backups` volume), whatever the field said.
+
+### ✨ New
+
+- **One-click restore, all of it or just part of it.** Pick allow/deny domains, blocklists, groups, clients, settings and DHCP leases separately, and restore to the Pi-hole the backup came from or to another one. Before importing, PiHoleVault takes a backup of the current state and pins it, so every restore can be undone. It waits for Pi-hole's post-import restart before reporting success. Restoring over SSH imports the whole archive.
+- **Several Pi-holes.** Add as many as you run (up to 20) under Settings → Pi-holes, each with its own connection method and credentials. A backup run covers every enabled Pi-hole, one failing does not stop the others, and the dashboard filters restore points by Pi-hole.
+- **Off-site copies** to any S3-compatible store (AWS, Backblaze B2, Cloudflare R2, MinIO, Garage, Wasabi) or WebDAV (Nextcloud, ownCloud, Synology, rclone). Retention and deletes remove the remote copy too. For SMB or NFS, mount the share as the backups volume.
+- **Encrypted backups**: AES-256-GCM with a key derived from your passphrase (scrypt). Downloads are decrypted on the fly, so the file still imports straight into Pi-hole's Teleporter page.
+- **Notification channels**: ntfy, Gotify, Telegram, email (SMTP), a generic JSON webhook (n8n, Home Assistant, Node-RED) and Discord, each with its own on-success / on-failure switches and a test button.
+- **Smarter retention**: keep the last N, or keep the newest N plus one per day, week and month (GFS). **Pinned** backups are never deleted.
+- **Every backup is verified.** The archive must contain a readable `pihole.toml` and a valid SQLite `gravity.db`, or the backup is discarded and reported as failed. Re-check any backup from the dashboard.
+- **Compare two backups**: see which domains, blocklists, groups, clients and `pihole.toml` settings were added, removed or changed. Password hashes are never shown.
+- **Settings is one dialog with tabs** for Pi-holes, schedule & retention, off-site, encryption, notifications and privacy. Saved passwords show as "saved" and are kept unless you type a new one; a saved Pi-hole can be re-tested without re-entering its password (only while its address, port and user are unchanged).
+
+### 🧪 Tests
+
+- Unit tests (`npm test`) and integration tests against a real Pi-hole (`npm run test:integration`), run by a new CI workflow against `pihole/pihole:latest` on every pull request: connection errors, multi-Pi-hole encrypted backups, download, diff, selective restore with a safety backup, retention with pins, and 20 consecutive backups without exhausting Pi-hole's API sessions.
+- Verified end to end in the browser against Pi-hole FTL v6.7.1, SeaweedFS (S3), rclone (WebDAV), ntfy, Gotify and Mailpit (SMTP).
+
+---
+
 ## [2.0.1] - 2026-10-07
 
 Security and polish release. No configuration changes; upgrade in place.

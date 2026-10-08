@@ -64,19 +64,14 @@ class AnalyticsService {
     }
   }
 
-  async recordBackupStart(piholeServer) {
-    await this.recordBackupJob({
-      job_status: 'started',
-      pihole_server: piholeServer
-    });
-  }
 
+  // Community statistics are opt-in (config.analytics.enabled; callers check
+  // it). Only aggregate numbers are sent: never the Pi-hole's address, a
+  // filename or an error message, any of which can identify a network.
   async recordBackupSuccess(backupData) {
     await this.recordBackupJob({
       job_status: 'success',
-      backup_filename: backupData.filename,
       backup_size: backupData.size || 0,
-      pihole_server: backupData.piholeServer,
       job_duration: backupData.duration || 0
     });
   }
@@ -84,8 +79,6 @@ class AnalyticsService {
   async recordBackupFailure(errorData) {
     await this.recordBackupJob({
       job_status: 'failure',
-      error_message: errorData.message || 'Unknown error',
-      pihole_server: errorData.piholeServer,
       job_duration: errorData.duration || 0
     });
   }

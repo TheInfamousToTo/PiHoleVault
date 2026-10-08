@@ -17,8 +17,8 @@ const backupRoutes = require('./routes/backup');
 const sshRoutes = require('./routes/ssh');
 const scheduleRoutes = require('./routes/schedule');
 const jobRoutes = require('./routes/jobs');
-const discordRoutes = require('./routes/discord');
 const debugRoutes = require('./routes/debug');
+const integrationRoutes = require('./routes/integrations');
 
 // Import services
 const BackupService = require('./services/BackupService');
@@ -72,7 +72,7 @@ const logger = winston.createLogger({
           return log;
         })
       ),
-      level: process.env.DEBUG_MODE === 'true' ? 'debug' : 'info'
+      level: process.env.DEBUG_MODE === 'true' ? 'debug' : process.env.LOG_LEVEL || 'info'
     })
   ]
 });
@@ -238,7 +238,8 @@ app.use('/api', apiLimiter, requireAuth);
 // tighter limiter on top of the general one.
 app.use('/api/ssh', sensitiveLimiter);
 app.use('/api/pihole/test-connection', sensitiveLimiter);
-app.use('/api/discord/test', sensitiveLimiter);
+app.use('/api/integrations', sensitiveLimiter);
+app.use('/api/backups/:filename/restore', sensitiveLimiter);
 
 app.use('/api/config', configRoutes);
 app.use('/api/pihole', piholeRoutes);
@@ -247,8 +248,8 @@ app.use('/api/backups', backupRoutes);  // Add alias for backups endpoint
 app.use('/api/ssh', sshRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/jobs', jobRoutes);
-app.use('/api/discord', discordRoutes);
 app.use('/api/debug', debugRoutes);
+app.use('/api/integrations', integrationRoutes);
 
 // Health check endpoint.
 //
@@ -349,8 +350,8 @@ const scheduleService = new ScheduleService(backupService, DATA_DIR, logger);
 app.locals.backupService = backupService;
 app.locals.scheduleService = scheduleService;
 
-// Start the server
-app.listen(PORT, () => {
+// Start the server -- only when run directly, so tests can load the app.
+if (require.main === module) app.listen(PORT, () => {
   logger.info(`PiHoleVault server starting`, {
     port: PORT,
     nodeVersion: process.version,
@@ -369,7 +370,7 @@ app.listen(PORT, () => {
       port: PORT,
       routes: [
         '/api/config', '/api/pihole', '/api/backup', '/api/ssh',
-        '/api/schedule', '/api/jobs', '/api/discord', '/api/debug'
+        '/api/schedule', '/api/jobs', '/api/integrations', '/api/debug'
       ],
       debugEndpoints: [
         '/api/debug/status', '/api/debug/system-info', '/api/debug/health-check',

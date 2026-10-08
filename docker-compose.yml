@@ -8,6 +8,9 @@ services:
       - "3000:80"  # Single port for both frontend and backend
     volumes:
       - ./data:/app/data
+      # Backups land here. To keep them on a NAS, point this at a mounted
+      # SMB/NFS share (e.g. /mnt/nas/pihole:/app/backups) or use a CIFS/NFS
+      # named volume. S3 and WebDAV copies are set up in the UI.
       - ./backups:/app/backups
       - ./debug-logs:/app/data/debug  # Debug logs (only used when DEBUG_MODE=true)
       - ssh_keys:/root/.ssh

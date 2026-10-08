@@ -362,6 +362,90 @@ class PiHoleWebService {
     }
   }
 
+  /**
+   * Turn the restore checkboxes into Pi-hole's Teleporter import selection.
+   *
+   * Each list is imported together with its group assignments, otherwise a
+   * restored blocklist would come back attached to no group and do nothing.
+   */
+  static importSelection(parts = {}) {
+    const on = (key) => parts[key] !== false;
+    return {
+      config: on('settings'),
+      dhcp_leases: on('dhcpLeases'),
+      gravity: {
+        group: on('groups'),
+        adlist: on('adlists'),
+        adlist_by_group: on('adlists'),
+        domainlist: on('domains'),
+        domainlist_by_group: on('domains'),
+        client: on('clients'),
+        client_by_group: on('clients')
+      }
+    };
+  }
+
+  /**
+   * Upload a Teleporter archive to Pi-hole and import the selected parts.
+   * Returns the list of items Pi-hole reports it processed.
+   */
+  async restoreTeleporter(connection, zipBuffer, parts) {
+    if (!this.isZip(zipBuffer)) {
+      throw new Error('Refusing to upload something that is not a Teleporter zip');
+    }
+
+    return this.withSession(connection, async (api) => {
+      const form = new FormData();
+      form.append('file', new Blob([zipBuffer], { type: 'application/zip' }), 'piholevault-restore.zip');
+      form.append('import', JSON.stringify(PiHoleWebService.importSelection(parts)));
+
+      let response;
+      try {
+        response = await api.post('/api/teleporter', form, {
+          // Gravity databases with large blocklists run to hundreds of MB.
+          maxBodyLength: 512 * 1024 * 1024,
+          timeout: 300000
+        });
+      } catch (error) {
+        throw new Error(this.describeNetworkError(error, api));
+      }
+
+      if (response.status !== 200) {
+        throw new Error(this.describeApiRefusal(response, 'Restore'));
+      }
+
+      // FTL v6.7 answers with `files`; the published spec still says `processed`.
+      const files = response.data?.files || response.data?.processed;
+      return Array.isArray(files) ? files : [];
+    }).then(async (processed) => {
+      // Every Teleporter import restarts FTL about a second after it answers.
+      // Wait for it to go down and come back, so the caller -- or a scheduled
+      // backup straight after -- does not talk to a Pi-hole mid-restart.
+      const back = await this.waitForRestart(connection);
+      return { processed, restarted: back };
+    });
+  }
+
+  /**
+   * Give FTL time to start its restart, then poll until the API answers.
+   * Returns false if it is not back within the timeout.
+   */
+  async waitForRestart(connection, { graceMs = 3000, timeoutMs = 90000 } = {}) {
+    const api = this.clientFor(connection);
+    await new Promise((resolve) => setTimeout(resolve, graceMs));
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try {
+        const response = await api.get('/api/auth', { timeout: 3000 });
+        if (response.data && response.data.session) return true;
+      } catch (error) {
+        // Still restarting.
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    return false;
+  }
+
   isZip(data) {
     // Local file header signature "PK\x03\x04", and big enough to hold one.
     return Buffer.isBuffer(data) && data.length > 22 && data.readUInt32LE(0) === 0x04034b50;

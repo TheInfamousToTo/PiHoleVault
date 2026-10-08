@@ -1,0 +1,81 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      pihole:
+        image: pihole/pihole:latest
+        ports:
+          - 8080:80
+        env:
+          FTLCONF_webserver_api_password: ci-password
+          # No upstream DNS is reachable inside the runner network, and none
+          # is needed: the tests only touch the configuration API.
+          FTLCONF_dns_upstreams: 127.0.0.1
+        options: >-
+          --health-cmd "curl -sf http://localhost/api/info/login || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Wait for the Pi-hole API
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8080/api/info/login && exit 0
+            sleep 2
+          done
+          echo "Pi-hole API did not come up" >&2
+          exit 1
+
+      - name: Integration tests against pihole/pihole:latest
+        env:
+          PIHOLE_HOST: localhost
+          PIHOLE_PORT: 8080
+          PIHOLE_PASSWORD: ci-password
+          LOG_LEVEL: warn
+        run: npm run test:integration
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build

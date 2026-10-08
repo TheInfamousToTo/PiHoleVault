@@ -3,7 +3,8 @@ const fs = require('fs-extra');
 const path = require('path');
 const { NodeSSH } = require('node-ssh');
 const { buildConnectOptions } = require('../utils/sshSecurity');
-const { isValidHost, isValidUsername, parsePort, parsePiholeAddress } = require('../utils/validate');
+const { REDACTED, isValidHost, isValidUsername, parsePort, parsePiholeAddress } = require('../utils/validate');
+const { loadConfigOrEmpty, getInstance, isValidInstanceId } = require('../utils/configStore');
 const PiHoleWebService = require('../services/PiHoleWebService');
 const router = express.Router();
 
@@ -75,8 +76,59 @@ async function testSshConnection({ host, username, password, port }, { dataDir, 
   }
 }
 
+/**
+ * The settings screen only ever sees saved passwords as REDACTED. To let it
+ * re-test a saved Pi-hole, swap the saved secret back in -- but only when the
+ * request still points at the very same host, ports and user. Otherwise anyone
+ * able to call this endpoint could have the stored password sent to a host of
+ * their choosing.
+ */
+async function fillSavedSecrets(body, dataDir) {
+  const wantsSaved = body.webPassword === REDACTED || body.password === REDACTED;
+  if (!wantsSaved) return { body };
+
+  if (typeof body.instanceId !== 'string' || !isValidInstanceId(body.instanceId)) {
+    return { error: 'Enter the password again to test this connection' };
+  }
+  const saved = getInstance(await loadConfigOrEmpty(dataDir), body.instanceId);
+  if (!saved) {
+    return { error: 'Enter the password again to test this connection' };
+  }
+
+  const effective = (value) => {
+    const address = parsePiholeAddress(value.host);
+    if (!address) return null;
+    return {
+      hostname: address.hostname.toLowerCase(),
+      webPort: Number(address.port || value.webPort || 80),
+      port: Number(value.port || 22),
+      username: value.username || ''
+    };
+  };
+  const a = effective(body);
+  const b = effective(saved);
+  const same = a && b && a.hostname === b.hostname && a.webPort === b.webPort &&
+    a.port === b.port && a.username === b.username;
+  if (!same) {
+    return { error: 'The address or user changed since it was saved; enter the password again to test it' };
+  }
+
+  return {
+    body: {
+      ...body,
+      webPassword: body.webPassword === REDACTED ? saved.webPassword : body.webPassword,
+      password: body.password === REDACTED ? saved.password : body.password
+    }
+  };
+}
+
 // Test Pi-hole connection
 router.post('/test-connection', async (req, res) => {
+  const filled = await fillSavedSecrets(req.body || {}, req.app.locals.DATA_DIR);
+  if (filled.error) {
+    return res.json({ success: false, error: filled.error });
+  }
+
   const {
     host,
     username,
@@ -87,7 +139,7 @@ router.post('/test-connection', async (req, res) => {
     useHttps = false,
     allowInsecureTls = false,
     webPassword
-  } = req.body;
+  } = filled.body;
 
   if (!host) {
     return res.status(400).json({
