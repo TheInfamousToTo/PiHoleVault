@@ -216,7 +216,11 @@ const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
  * preserving any stored secret the client echoed back as REDACTED.
  */
 function mergePreservingSecrets(base, incoming) {
-  if (incoming === null || typeof incoming !== 'object' || Array.isArray(incoming)) {
+  if (Array.isArray(incoming)) {
+    return mergeArray(base, incoming);
+  }
+
+  if (incoming === null || typeof incoming !== 'object') {
     return incoming === REDACTED ? base : incoming;
   }
 
@@ -232,7 +236,7 @@ function mergePreservingSecrets(base, incoming) {
       continue;
     }
 
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
+    if (value && typeof value === 'object') {
       result[key] = mergePreservingSecrets(result[key], value);
     } else {
       result[key] = value;
@@ -240,6 +244,33 @@ function mergePreservingSecrets(base, incoming) {
   }
 
   return result;
+}
+
+/**
+ * Merge an incoming array over a stored one.
+ *
+ * Items that carry an `id` are matched to the stored item with the same id, so
+ * a list of Pi-holes edited in the UI -- which only ever sees their passwords
+ * as REDACTED -- keeps each one's real credentials. Items without a match are
+ * new and merged over nothing, which drops any REDACTED placeholder rather than
+ * storing it as a literal password.
+ */
+function mergeArray(base, incoming) {
+  const stored = Array.isArray(base) ? base : [];
+  const byId = new Map(
+    stored.filter((item) => item && typeof item === 'object' && item.id !== undefined).map((item) => [item.id, item])
+  );
+
+  return incoming.map((item, index) => {
+    if (item && typeof item === 'object' && !Array.isArray(item)) {
+      const match = item.id !== undefined ? byId.get(item.id) : undefined;
+      return mergePreservingSecrets(match, item);
+    }
+    if (item === REDACTED) {
+      return stored[index];
+    }
+    return item;
+  });
 }
 
 module.exports = {

@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs-extra');
 const path = require('path');
+const { normalizeConfig, syncPrimaryFromPihole, saveConfig } = require('../utils/configStore');
 const {
   redactSecrets,
   mergePreservingSecrets,
@@ -69,6 +70,44 @@ function validateConnectionFields(pihole) {
   return null;
 }
 
+/**
+ * Validate the incoming Pi-hole list, normalising each entry's host.
+ */
+function validateInstances(instances) {
+  if (instances === undefined) return null;
+  if (!Array.isArray(instances)) return 'instances must be a list';
+  if (instances.length > 20) return 'At most 20 Pi-holes are supported';
+  for (const [index, instance] of instances.entries()) {
+    if (!instance || typeof instance !== 'object') return `Pi-hole ${index + 1} is not an object`;
+    if (!instance.host) return `Pi-hole ${index + 1} has no host`;
+    const invalid = validateConnectionFields(instance);
+    if (invalid) return `${instance.name || instance.host}: ${invalid}`;
+  }
+  return null;
+}
+
+/**
+ * Settings sections the UI may write, with light shape checks. Deeper
+ * validation happens where each value is used (storage, notifications).
+ */
+function validateSections(body) {
+  if (body.encryption?.enabled === true && body.encryption.passphrase !== undefined &&
+      body.encryption.passphrase !== '***REDACTED***' && String(body.encryption.passphrase).length < 8) {
+    return 'The encryption passphrase must be at least 8 characters';
+  }
+  if (body.offsite && body.offsite.type && !['s3', 'webdav'].includes(body.offsite.type)) {
+    return 'Off-site storage type must be s3 or webdav';
+  }
+  if (body.notifications?.channels !== undefined && !Array.isArray(body.notifications.channels)) {
+    return 'notifications.channels must be a list';
+  }
+  const mode = body.backup?.retention?.mode;
+  if (mode !== undefined && !['count', 'gfs'].includes(mode)) {
+    return 'Retention mode must be count or gfs';
+  }
+  return null;
+}
+
 // Get configuration status
 router.get('/status', (req, res) => {
   try {
@@ -102,7 +141,7 @@ router.get('/', (req, res) => {
         // Redact every credential-bearing field, not just pihole.password.
         // webPassword, discord.webhookUrl and connections[].password were all
         // previously served in cleartext to any caller.
-        res.json(redactSecrets(config));
+        res.json(redactSecrets(normalizeConfig(config)));
       } catch (readError) {
         req.app.locals.logger.error('Error reading config file', { error: readError.message });
         
@@ -185,12 +224,20 @@ router.post('/save', async (req, res) => {
       }
     }
 
-    const merged = mergePreservingSecrets(existingConfig, config);
+    const sectionError = validateSections(config) || validateInstances(config.instances);
+    if (sectionError) {
+      return res.status(400).json({ success: false, error: sectionError });
+    }
+
+    const merged = syncPrimaryFromPihole(
+      mergePreservingSecrets(normalizeConfig(existingConfig), config),
+      config
+    );
 
     merged.createdAt = existingConfig.createdAt || new Date().toISOString();
     merged.updatedAt = new Date().toISOString();
 
-    await fs.writeJson(configPath, merged, { spaces: 2 });
+    await saveConfig(req.app.locals.DATA_DIR, merged);
     
     // Reinitialize scheduled jobs with new config
     if (req.app.locals.scheduleService) {
@@ -214,17 +261,18 @@ router.put('/', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Configuration not found' });
     }
 
-    const invalid = validateConnectionFields(req.body && req.body.pihole);
+    const body = req.body || {};
+    const invalid = validateConnectionFields(body.pihole) || validateInstances(body.instances) || validateSections(body);
 
     if (invalid) {
       return res.status(400).json({ success: false, error: invalid });
     }
 
-    const existingConfig = await fs.readJson(configPath);
-    const updatedConfig = mergePreservingSecrets(existingConfig, req.body);
+    const existingConfig = normalizeConfig(await fs.readJson(configPath));
+    const updatedConfig = syncPrimaryFromPihole(mergePreservingSecrets(existingConfig, body), body);
     updatedConfig.updatedAt = new Date().toISOString();
-    
-    await fs.writeJson(configPath, updatedConfig, { spaces: 2 });
+
+    await saveConfig(req.app.locals.DATA_DIR, updatedConfig);
     
     // Reinitialize scheduled jobs with new config
     if (req.app.locals.scheduleService) {
