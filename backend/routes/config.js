@@ -141,7 +141,11 @@ router.get('/', (req, res) => {
         // Redact every credential-bearing field, not just pihole.password.
         // webPassword, discord.webhookUrl and connections[].password were all
         // previously served in cleartext to any caller.
-        res.json(redactSecrets(normalizeConfig(config)));
+        // `runtime` is read-only information for the UI, never stored.
+        res.json({
+          ...redactSecrets(normalizeConfig(config)),
+          runtime: { backupDir: req.app.locals.BACKUP_DIR }
+        });
       } catch (readError) {
         req.app.locals.logger.error('Error reading config file', { error: readError.message });
         
@@ -180,7 +184,8 @@ router.get('/', (req, res) => {
 // Save configuration
 router.post('/save', async (req, res) => {
   try {
-    const config = req.body;
+    const config = { ...(req.body || {}) };
+    delete config.runtime;
     const configPath = path.join(req.app.locals.DATA_DIR, CONFIG_FILE);
     
     // Validate required fields based on connection method
@@ -261,7 +266,8 @@ router.put('/', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Configuration not found' });
     }
 
-    const body = req.body || {};
+    const body = { ...(req.body || {}) };
+    delete body.runtime;
     const invalid = validateConnectionFields(body.pihole) || validateInstances(body.instances) || validateSections(body);
 
     if (invalid) {

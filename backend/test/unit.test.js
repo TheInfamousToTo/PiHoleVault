@@ -167,3 +167,13 @@ test('legacy Discord settings migrate into the channel list once, keeping the UR
   assert.equal(saved.notifications.channels.length, 2);
   assert.equal(saved.notifications.channels[0].webhookUrl, 'https://discord.com/api/webhooks/1/x');
 });
+
+test('a Discord webhook from a re-run wizard replaces the migrated channel', () => {
+  const stored = normalizeConfig({ discord: { webhookUrl: 'https://discord.com/api/webhooks/1/old' } });
+  const next = normalizeConfig(mergePreservingSecrets(stored, { discord: { enabled: true, webhookUrl: 'https://discord.com/api/webhooks/2/new' } }));
+  assert.equal(next.notifications.channels.length, 1);
+  assert.equal(next.notifications.channels[0].webhookUrl, 'https://discord.com/api/webhooks/2/new');
+
+  const untouched = normalizeConfig(mergePreservingSecrets(stored, { discord: { enabled: false, webhookUrl: '' } }));
+  assert.equal(untouched.notifications.channels[0].webhookUrl, 'https://discord.com/api/webhooks/1/old');
+});
