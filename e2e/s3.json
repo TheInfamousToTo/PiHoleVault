@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "name": "e2e",
+      "credentials": [{ "accessKey": "e2ekey", "secretKey": "e2esecret123" }],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}

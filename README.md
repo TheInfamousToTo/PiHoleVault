@@ -183,7 +183,13 @@ docker run -d --name ph -p 8080:80 -e FTLCONF_webserver_api_password=test pihole
 PIHOLE_HOST=localhost PIHOLE_PORT=8080 PIHOLE_PASSWORD=test npm run test:integration
 ```
 
-CI runs both against `pihole/pihole:latest` on every pull request.
+End-to-end, in a browser, against the Docker image plus a real Pi-hole, S3,
+WebDAV and ntfy: see [`e2e/README.md`](e2e/README.md).
+
+Every pull request runs the full round (dependency audit, unit, integration,
+frontend build, end-to-end) in `.github/workflows/ci.yml`. Its `ci-passed`
+job is green only when all of them are, so it is the one check to require
+before merging.
 
 The frontend is built with [Vite](https://vite.dev/) and React. All of the
 styling lives in `frontend/src/theme.js`, so change the palette, the type scale
