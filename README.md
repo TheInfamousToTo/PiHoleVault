@@ -1,6 +1,6 @@
 # PiHoleVault
 
-A modern web-based Pi-hole backup manager with automated scheduling, Discord notifications, and support for Docker-based Pi-hole installations.
+A self-hosted backup manager for Pi-hole v6: scheduled, verified and optionally encrypted Teleporter backups of one or many Pi-holes, copied off-site, with one-click selective restore.
 
 <div align="center">
   <img src="https://raw.githubusercontent.com/TheInfamousToTo/PiHoleVault/main/frontend/public/logo.png" alt="PiHoleVault Logo" width="200"/>
@@ -10,19 +10,20 @@ A modern web-based Pi-hole backup manager with automated scheduling, Discord not
 
 ## 🚀 Key Features
 
-- **🌐 Web / API Mode**: No SSH required — full Teleporter backups through Pi-hole v6's API
-- **🎨 Considered interface**: a calm dark theme built on one accent colour, with
-  addresses, ports, cron expressions and filenames set in a monospace face so
-  they line up and read as machine values. Fonts ship with the app, so it looks
-  the same on a network with no route to the internet.
-- **⏰ Automated Backups**: Configurable cron-based scheduling with timezone support
-- **📊 Dashboard**: Real-time backup statistics and job history
+- **🌐 Web / API mode**: full Teleporter backups through Pi-hole v6's API, no SSH needed. SSH and hybrid modes too.
+- **♻️ One-click restore**: everything, or just the allow/deny lists, blocklists, groups, clients, settings or DHCP leases. A pinned safety backup is taken first, so every restore can be undone.
+- **🧩 Several Pi-holes**: back up your primary, secondary and lab Pi-holes from one place, and restore one's lists onto another.
+- **☁️ Off-site copies**: S3-compatible storage (AWS, B2, R2, MinIO, Garage, Wasabi) or WebDAV (Nextcloud, Synology, rclone). SMB/NFS via a volume mount.
+- **🔐 Encryption**: AES-256-GCM with your passphrase; downloads are decrypted so they import straight into Pi-hole.
+- **✅ Verified backups**: every archive is checked for a readable `pihole.toml` and a valid `gravity.db` before it is kept.
+- **🔍 Compare backups**: see which domains, blocklists, groups, clients and settings changed between two backups.
+- **🗓️ Retention that makes sense**: keep the last N, or daily/weekly/monthly (GFS). Pin backups to keep them forever.
+- **🔔 Notifications**: ntfy, Gotify, Telegram, email, generic webhook (n8n, Home Assistant) and Discord.
 - **🔒 Secured by default where it matters**: SSH host keys are verified, Pi-hole
   TLS certificates are checked, secrets never leave the server in plaintext, and
-  the API can require a token
-- **🔔 Discord Notifications**: Rich webhook notifications for backup events
-- **🔧 Easy Setup**: Step-by-step configuration wizard
-- **🐳 Docker Ready**: Single-container deployment with nginx + Node.js
+  the API can require a token.
+- **🙈 Private by default**: anonymous usage statistics are opt-in and never include your Pi-hole's address.
+- **🐳 Docker ready**: one container, nginx + Node.js, multi-arch.
 
 ## 📦 Quick Start
 
@@ -41,7 +42,7 @@ docker-compose up -d
 Create a `.env` file for optional configuration:
 
 ```bash
-# Discord notifications (optional)
+# Discord notifications (optional; more channels under Settings -> Notifications)
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your-webhook-url
 
 # Debug mode (optional)
@@ -76,11 +77,39 @@ Pi-hole and its host key changes, delete that host's entry to pin the new one.
 ## 🔧 Configuration
 
 1. **Open** http://localhost:3000
-2. **Follow** the setup wizard to configure:
-   - Pi-hole connection (Web-only, SSH, or Hybrid)
-   - Backup settings and retention
-   - Schedule configuration
-   - Discord notifications (optional)
+2. **Follow** the setup wizard to connect your first Pi-hole, pick a schedule
+   and, optionally, a Discord webhook.
+3. Everything else lives under **Settings** (the gear icon): more Pi-holes,
+   retention, off-site storage, encryption, notification channels and privacy.
+
+### Restoring
+
+Click the restore icon on any backup, choose the Pi-hole to restore to and
+which parts to import. Pi-hole restarts after every Teleporter import; the
+restore waits until it answers again. If you restore blocklists, run *Update
+gravity* in Pi-hole afterwards so the lists are downloaded.
+
+Restoring over SSH always imports the whole archive; use the web or hybrid
+method for a selective restore.
+
+### Off-site storage
+
+| Target | What to enter |
+| --- | --- |
+| AWS S3 | Region and bucket; leave the endpoint empty |
+| Backblaze B2, Cloudflare R2, Wasabi | The provider's S3 endpoint URL, bucket and an application key |
+| MinIO, Garage, SeaweedFS | `http(s)://host:port`, bucket, keys; keep *path-style URLs* on |
+| Nextcloud | `https://cloud.example.com/remote.php/dav/files/<user>` and an app password |
+| SMB / NFS share | No settings: mount the share at `/app/backups` in `docker-compose.yml` |
+
+*Save and test* writes, reads back and deletes a small probe file.
+
+### Encryption
+
+When on, new backups are stored as `.zip.enc`. Keep the passphrase somewhere
+safe: without it nobody can open them, including you. Changing it only affects
+new backups. Downloads from the dashboard are decrypted for you; with
+`?raw=1` the API returns the encrypted file.
 
 ### Compatibility
 
@@ -109,10 +138,20 @@ instead of your login password.
 
 ## 📋 API Endpoints
 
-- `GET /health` - Health check
-- `POST /api/backup/run` - Manual backup
-- `GET /api/backups/` - List backups
-- `POST /api/pihole/test-connection` - Test Pi-hole connection
+| Method | Path | |
+| --- | --- | --- |
+| `GET` | `/health` | Health check (unauthenticated) |
+| `POST` | `/api/backup/run` | Back up every enabled Pi-hole, or `{ "instanceId": "…" }` for one |
+| `GET` | `/api/backups` | List backups with Pi-hole, integrity, encryption, off-site and pin status |
+| `GET` | `/api/backups/:file/download` | Download (decrypted; `?raw=1` for the stored file) |
+| `POST` | `/api/backups/:file/restore` | `{ instanceId, parts: { domains, adlists, groups, clients, settings, dhcpLeases }, backupFirst }` |
+| `POST` | `/api/backups/:file/verify` | Re-run the integrity check |
+| `PATCH` | `/api/backups/:file` | `{ pinned, note }` |
+| `DELETE` | `/api/backups/:file` | Delete locally and off-site |
+| `GET` | `/api/backups/diff?from=&to=` | Compare two backups |
+| `POST` | `/api/pihole/test-connection` | Test a Pi-hole connection |
+| `POST` | `/api/integrations/storage/test` | Test the saved off-site storage |
+| `POST` | `/api/integrations/notifications/test` | `{ channelId }`: send a test notification |
 
 ## 🛠️ Development
 
@@ -133,6 +172,18 @@ cd backend && npm ci && npm run dev
 # Frontend on :3000, proxying /api and /health to the backend
 cd frontend && npm ci && npm run dev
 ```
+
+Tests:
+
+```bash
+cd backend
+npm test                      # unit tests, no network
+# integration tests against a real Pi-hole v6
+docker run -d --name ph -p 8080:80 -e FTLCONF_webserver_api_password=test pihole/pihole:latest
+PIHOLE_HOST=localhost PIHOLE_PORT=8080 PIHOLE_PASSWORD=test npm run test:integration
+```
+
+CI runs both against `pihole/pihole:latest` on every pull request.
 
 The frontend is built with [Vite](https://vite.dev/) and React. All of the
 styling lives in `frontend/src/theme.js`, so change the palette, the type scale
