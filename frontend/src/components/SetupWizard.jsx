@@ -48,7 +48,7 @@ const steps = [
   'Pi-hole Server Configuration',
   'Backup Settings',
   'Schedule Configuration',
-  'Discord Notifications',
+  'Notifications & Privacy',
   'SSH Key Setup'
 ];
 
@@ -56,7 +56,7 @@ const STEP_META = [
   { short: 'Connect', icon: <Computer />, subtitle: 'Point PiHoleVault at your Pi-hole' },
   { short: 'Storage', icon: <Storage />, subtitle: 'Where backups live and how many to keep' },
   { short: 'Schedule', icon: <Schedule />, subtitle: 'When backups run on their own' },
-  { short: 'Notify', icon: <Notifications />, subtitle: 'Optional Discord pings (skip if you like)' },
+  { short: 'Notify', icon: <Notifications />, subtitle: 'Optional Discord pings, and whether to share anonymous stats' },
   { short: 'Finish', icon: <Key />, subtitle: 'Secure the connection and save' }
 ];
 
@@ -232,6 +232,10 @@ const SetupWizard = ({ onComplete }) => {
       webhookUrl: '',
       notifyOnSuccess: true,
       notifyOnFailure: true,
+    },
+    // Off unless the user opts in on the notifications step.
+    analytics: {
+      enabled: false,
     }
   });
 
@@ -316,34 +320,21 @@ const SetupWizard = ({ onComplete }) => {
   };
 
   const validateDiscordConfig = async () => {
-    if (!formData.discord.enabled) {
-      // Discord is optional, proceed to next step
-      setActiveStep((prevActiveStep) => prevActiveStep + 1);
-      return;
-    }
-
-    if (!formData.discord.webhookUrl) {
-      toast.error('Please enter a Discord webhook URL or disable Discord notifications');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await api.post('/discord/test', {
-        webhookUrl: formData.discord.webhookUrl
-      });
-      
-      if (response.data.success) {
-        toast.success('Discord webhook test successful!');
-        setActiveStep((prevActiveStep) => prevActiveStep + 1);
-      } else {
-        toast.error('Discord webhook test failed: ' + response.data.error);
+    if (formData.discord.enabled) {
+      let url = null;
+      try {
+        url = new URL(formData.discord.webhookUrl);
+      } catch (error) {
+        // handled below
       }
-    } catch (error) {
-      toast.error('Discord webhook test failed: ' + error.message);
-    } finally {
-      setLoading(false);
+      if (!url || url.protocol !== 'https:' || !/(^|\.)discord(app)?\.com$/.test(url.hostname) || !url.pathname.startsWith('/api/webhooks/')) {
+        toast.error('Enter a Discord webhook URL (https://discord.com/api/webhooks/…) or turn Discord off');
+        return;
+      }
     }
+    // Other channels (ntfy, Gotify, Telegram, email, webhooks) and a test
+    // message are in Settings -> Notifications once setup is done.
+    setActiveStep((prevActiveStep) => prevActiveStep + 1);
   };
 
   const setupSSHKey = async () => {
@@ -698,11 +689,10 @@ const SetupWizard = ({ onComplete }) => {
               <F>
                 <TextField
                   fullWidth
-                  label="Backup Destination Path"
+                  label="Backup folder"
                   value={formData.backup.destinationPath}
-                  onChange={(e) => handleInputChange('backup', 'destinationPath', e.target.value)}
-                  InputProps={{ sx: monoText }}
-                  helperText="Path inside the container where backups are written"
+                  InputProps={{ sx: monoText, readOnly: true }}
+                  helperText="Set by the backups volume in docker-compose; mount an SMB or NFS share there to store backups on a NAS"
                 />
               </F>
             </Grid>
@@ -895,6 +885,29 @@ const SetupWizard = ({ onComplete }) => {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            <F>
+              <Typography variant="caption" sx={{ display: 'block', mt: 2 }}>
+                ntfy, Gotify, Telegram, email and generic webhooks can be added later under Settings → Notifications.
+              </Typography>
+            </F>
+
+            <F>
+              <Panel sx={{ mt: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+                <Box>
+                  <Typography sx={{ fontWeight: 600, color: ink.text }}>Share anonymous usage statistics</Typography>
+                  <Typography variant="body2">
+                    Off by default. When on, each backup reports only its size, duration and whether it worked, with a random
+                    install ID. Never your Pi-hole's address or anything inside the backup.
+                  </Typography>
+                </Box>
+                <Switch
+                  checked={formData.analytics.enabled}
+                  onChange={(e) => handleInputChange('analytics', 'enabled', e.target.checked)}
+                  inputProps={{ 'aria-label': 'Share anonymous usage statistics' }}
+                />
+              </Panel>
+            </F>
           </>
         );
       case 4:

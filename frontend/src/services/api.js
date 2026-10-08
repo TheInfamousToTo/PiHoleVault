@@ -66,8 +66,7 @@ const PROBE_ENDPOINTS = [
   '/ssh/test-key',
   '/ssh/debug',
   '/ssh/setup-key',
-  '/discord/test',
-  '/discord/test-notification',
+  '/integrations/',
   '/backup/run'
 ];
 
