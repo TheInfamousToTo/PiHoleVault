@@ -5,9 +5,11 @@
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 
-# Use conditional platform specification - only use if BUILDPLATFORM is set
-# This allows the Dockerfile to work with both regular docker build and docker buildx
-FROM node:22-alpine AS frontend-build
+# The frontend compiles to static HTML, JS and CSS that are the same on every
+# architecture, so build it once on the runner's own platform. Without
+# --platform, buildx ran this stage once per target, and `npm ci` under QEMU
+# emulation for arm64 could hang until the job hit GitHub's 6-hour limit.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend-build
 
 # Build the React frontend
 WORKDIR /app/frontend
