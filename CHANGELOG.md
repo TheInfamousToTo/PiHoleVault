@@ -2,6 +2,15 @@
 
 All notable changes to PiHoleVault will be documented in this file.
 
+## [Unreleased]
+
+### 🐛 Bug Fixes
+
+- **Scheduled backups stopped after any settings change.** Saving settings reloads the schedule, which called `task.destroy()`, a method node-cron 3 no longer has. It threw after the old task was stopped and before the new one was created, so scheduled backups silently stopped until the container restarted. This dates from before 2.0; manual backups were not affected.
+- **A backup still being written could appear in the list.** For a moment during each web backup, the raw download showed up as an unencrypted restore point of the first Pi-hole, which could be compared, restored or deleted. Downloads now use a working name the list ignores, and the finished file is written only after its catalog entry.
+
+---
+
 ## [2.1.0] - 2026-10-08
 
 Restore, more than one Pi-hole, off-site copies, encryption and six notification channels. Existing configurations upgrade in place: your Pi-hole becomes the first ("primary") entry in the new Pi-hole list, and a Discord webhook set up before 2.1 becomes a notification channel.

@@ -87,6 +87,19 @@ async function settingsTab(name) {
 
 const dialog = () => page.getByRole('dialog');
 
+// Click "Run backup now" and wait for that run to finish. Waiting for its
+// toast is not enough: the previous run's identical toast can still be on
+// screen and would match at once, while this run is still writing files.
+async function runBackup(expectedToast) {
+  const done = page.waitForResponse((r) => r.url().endsWith('/api/backup/run') && r.request().method() === 'POST', { timeout: 300000 });
+  await page.getByRole('button', { name: /Run backup now/ }).click();
+  const res = await done;
+  assert.equal(res.status(), 200, `backup run failed: ${await res.text()}`);
+  await toast(expectedToast);
+  // Let the list refresh land before the next step reads it.
+  await page.waitForLoadState('networkidle');
+}
+
 async function main() {
   const browser = await chromium.launch();
   page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
@@ -120,8 +133,7 @@ async function main() {
     }],
 
     ['first backup', async () => {
-      await page.getByRole('button', { name: /Run backup now/ }).click();
-      await toast(/Backup completed/);
+      await runBackup(/Backup completed/);
       const list = (await api('GET', '/api/backups')).data;
       assert.equal(list.length, 1);
       assert.equal(list[0].integrity.ok, true);
@@ -198,8 +210,7 @@ async function main() {
     }],
 
     ['backup of both Pi-holes: encrypted, verified, copied off-site, notified', async () => {
-      await page.getByRole('button', { name: /Run backup now/ }).click();
-      await toast(/Backed up 2 Pi-holes/);
+      await runBackup(/Backed up 2 Pi-holes/);
       const fresh = (await api('GET', '/api/backups')).data.filter((b) => b.encrypted);
       assert.equal(fresh.length, 2);
       for (const b of fresh) {
@@ -220,8 +231,7 @@ async function main() {
 
     ['diff shows a domain added on Pi-hole', async () => {
       await pihole('POST', '/api/domains/deny/exact', { domain: DOMAIN, groups: [0], enabled: true });
-      await page.getByRole('button', { name: /Run backup now/ }).click();
-      await toast(/Backed up 2 Pi-holes/);
+      await runBackup(/Backed up 2 Pi-holes/);
       await page.mouse.move(5, 5);
       await shot('dashboard');
 

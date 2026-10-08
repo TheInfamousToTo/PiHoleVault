@@ -1,4 +1,5 @@
 const axios = require('axios');
+const crypto = require('crypto');
 const https = require('https');
 const fs = require('fs-extra');
 const path = require('path');
@@ -346,8 +347,11 @@ class PiHoleWebService {
         throw new Error('Pi-hole returned something other than a Teleporter zip archive');
       }
 
+      // A working name the backup list ignores: BackupService verifies,
+      // optionally encrypts and renames it, and until then it must not show
+      // up as a restore point.
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const filename = `pi-hole_backup_${timestamp}.zip`;
+      const filename = `incoming_${crypto.randomBytes(6).toString('hex')}_${timestamp}.zip`;
       const filePath = path.join(backupDir, filename);
 
       await fs.writeFile(filePath, data);
