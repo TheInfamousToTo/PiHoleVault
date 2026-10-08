@@ -2,7 +2,9 @@
 
 All notable changes to PiHoleVault will be documented in this file.
 
-## [Unreleased]
+## [2.1.1] - 2026-10-08
+
+Bug-fix release. Upgrade in place; no configuration changes. **If scheduled backups matter to you, upgrade now:** on earlier versions they stop after any settings change until the container restarts.
 
 ### 🐛 Bug Fixes
 
