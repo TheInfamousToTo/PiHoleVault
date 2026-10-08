@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # Pinned test fixtures for the end-to-end job (e2e/docker-compose.yml).
+  # Each bump is a pull request that runs the full CI round before merging.
+  - package-ecosystem: docker-compose
+    directory: /e2e
+    schedule:
+      interval: monthly
+    groups:
+      e2e-fixtures:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci(e2e)"
