@@ -20,6 +20,9 @@ permissions:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    # A normal multi-arch build takes about 7 minutes. Fail a hung build fast
+    # rather than letting it run to GitHub's 6-hour job limit.
+    timeout-minutes: 45
     
     steps:
       - name: Checkout code
