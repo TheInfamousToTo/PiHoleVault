@@ -1,0 +1,11 @@
+{
+  "name": "piholevault-e2e",
+  "private": true,
+  "description": "Browser end-to-end test against a real Pi-hole, S3, WebDAV and ntfy",
+  "scripts": {
+    "test": "node full.e2e.cjs"
+  },
+  "dependencies": {
+    "playwright": "1.56.1"
+  }
+}

@@ -516,7 +516,7 @@ const OffsiteTab = ({ draft, setDraft, saveAnd }) => {
           <Typography sx={{ fontWeight: 600, color: ink.text }}>Copy every backup off this machine</Typography>
           <Typography variant="body2">If the disk dies, the backups survive. Retention deletes the off-site copy too.</Typography>
         </Box>
-        <Switch checked={offsite.enabled === true} onChange={(e) => set({ enabled: e.target.checked })} />
+        <Switch checked={offsite.enabled === true} onChange={(e) => set({ enabled: e.target.checked })} inputProps={{ 'aria-label': 'Copy backups off-site' }} />
       </Card>
 
       <Reveal when={offsite.enabled === true}>
@@ -613,7 +613,7 @@ const EncryptionTab = ({ draft, setDraft, savedEnabled, confirm, setConfirm }) =
             archive holds your password hash, DHCP leases and client list.
           </Typography>
         </Box>
-        <Switch checked={encryption.enabled === true} onChange={(e) => set({ enabled: e.target.checked })} />
+        <Switch checked={encryption.enabled === true} onChange={(e) => set({ enabled: e.target.checked })} inputProps={{ 'aria-label': 'Encrypt new backups' }} />
       </Card>
 
       <Reveal when={encryption.enabled === true}>
@@ -808,7 +808,7 @@ const PrivacyTab = ({ draft, setDraft }) => {
           <Typography sx={{ fontWeight: 600, color: ink.text }}>Share anonymous usage statistics</Typography>
           <Typography variant="body2">Off by default. Helps show the project is used, which keeps it maintained.</Typography>
         </Box>
-        <Switch checked={enabled} onChange={(e) => setDraft({ ...draft, analytics: { enabled: e.target.checked } })} />
+        <Switch checked={enabled} onChange={(e) => setDraft({ ...draft, analytics: { enabled: e.target.checked } })} inputProps={{ 'aria-label': 'Share anonymous usage statistics' }} />
       </Card>
       <Typography sx={{ ...labelText, mb: 1 }}>When on, after each backup this instance sends</Typography>
       <Box component="ul" sx={{ m: 0, pl: 2.5, color: ink.muted, fontSize: '0.875rem', lineHeight: 1.8 }}>

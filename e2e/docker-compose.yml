@@ -1,0 +1,65 @@
+# Everything the end-to-end test talks to: a real Pi-hole, S3 and WebDAV
+# targets, an ntfy server, and PiHoleVault itself built from this checkout.
+#
+#   docker compose -f e2e/docker-compose.yml --profile app up -d --build --wait
+#
+# Without `--profile app` only the services start, for running PiHoleVault from
+# source against them (see e2e/README.md).
+name: piholevault-e2e
+
+services:
+  pihole:
+    image: pihole/pihole:latest
+    environment:
+      FTLCONF_webserver_api_password: e2e-password
+      # No upstream DNS is needed: the tests only use the configuration API.
+      FTLCONF_dns_upstreams: 127.0.0.1
+    ports:
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost/api/info/login"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+
+  s3:
+    image: chrislusf/seaweedfs:latest
+    command: ["server", "-s3", "-s3.port=8333", "-s3.config=/etc/s3cfg/s3.json"]
+    volumes:
+      - ./s3.json:/etc/s3cfg/s3.json:ro
+    ports:
+      - "8333:8333"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8333/healthz || wget -S -q -O /dev/null http://127.0.0.1:8333/ 2>&1 | grep -q 'HTTP/'"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+
+  webdav:
+    image: rclone/rclone:latest
+    command: ["serve", "webdav", "/data", "--addr", ":8080", "--user", "davuser", "--pass", "davpass"]
+    ports:
+      - "8090:8080"
+
+  ntfy:
+    image: binwiederhier/ntfy:latest
+    command: ["serve"]
+    ports:
+      - "8091:80"
+
+  app:
+    profiles: ["app"]
+    build:
+      context: ..
+    environment:
+      LOG_LEVEL: info
+    ports:
+      - "3000:80"
+    depends_on:
+      pihole:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost/health"]
+      interval: 3s
+      timeout: 5s
+      retries: 40

@@ -1,0 +1,192 @@
+name: CI
+
+# The full test round a change must pass before it can be merged:
+#
+#   audit     known-vulnerable production dependencies
+#   backend   unit tests, then integration tests against a real Pi-hole
+#   frontend  production build
+#   e2e       the Docker image as users run it, driven in a browser against a
+#             real Pi-hole, S3 and WebDAV storage and an ntfy server
+#   ci-passed one status that is green only when all of the above are
+#
+# Make "ci-passed" a required status check on main (Settings -> Branches ->
+# branch protection rule, or Rules -> Rulesets) and nothing merges without the
+# whole round passing.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same PR makes the running round obsolete.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm audit (production dependencies, high and critical)
+        run: |
+          status=0
+          for dir in backend frontend; do
+            echo "::group::$dir"
+            (cd "$dir" && npm audit --omit=dev --audit-level=high) || status=1
+            echo "::endgroup::"
+          done
+          exit $status
+
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      pihole:
+        image: pihole/pihole:latest
+        ports:
+          - 8080:80
+        env:
+          FTLCONF_webserver_api_password: ci-password
+          # No upstream DNS is reachable inside the runner network, and none
+          # is needed: the tests only touch the configuration API.
+          FTLCONF_dns_upstreams: 127.0.0.1
+        options: >-
+          --health-cmd "curl -sf http://localhost/api/info/login || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 30
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Wait for the Pi-hole API
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:8080/api/info/login && exit 0
+            sleep 2
+          done
+          echo "Pi-hole API did not come up" >&2
+          exit 1
+
+      - name: Integration tests against pihole/pihole:latest
+        env:
+          PIHOLE_HOST: localhost
+          PIHOLE_PORT: 8080
+          PIHOLE_PASSWORD: ci-password
+          LOG_LEVEL: warn
+        run: npm run test:integration
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  e2e:
+    # Only worth the ~5 minutes once the quick checks pass.
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: e2e
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build the image and start Pi-hole, S3, WebDAV, ntfy and PiHoleVault
+        run: docker compose --profile app up -d --build --wait --wait-timeout 300
+
+      - name: Create the S3 bucket
+        run: |
+          for i in $(seq 1 20); do
+            docker compose exec -T s3 sh -c 'echo "s3.bucket.create -name pihole-backups" | weed shell' \
+              | grep -q "created bucket\|already exist" && exit 0
+            sleep 3
+          done
+          echo "Could not create the S3 bucket" >&2
+          exit 1
+
+      - name: End-to-end test
+        run: npm test
+
+      - name: Service logs
+        if: failure()
+        run: docker compose --profile app logs --no-color --tail 300
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: e2e/artifacts
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose --profile app down -v
+
+  ci-passed:
+    # The single check to require in branch protection. It runs even when a
+    # job above failed or was skipped, so a red round can never look green.
+    if: always()
+    needs: [audit, backend, frontend, e2e]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: All checks passed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          if echo "$RESULTS" | jq -e 'to_entries | any(.value.result != "success")' >/dev/null; then
+            echo "::error::The full test round did not pass"
+            exit 1
+          fi
