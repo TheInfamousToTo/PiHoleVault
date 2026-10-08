@@ -87,7 +87,10 @@ class ScheduleService {
   clearAllTasks() {
     this.scheduledTasks.forEach((task, name) => {
       task.stop();
-      task.destroy();
+      // node-cron 3 dropped destroy(); stop() is how a task ends. Calling it
+      // anyway threw here, before the new schedule was set up, so every
+      // settings save silently switched scheduled backups off.
+      if (typeof task.destroy === 'function') task.destroy();
       this.logger.info('Stopped scheduled task', { name });
     });
     this.scheduledTasks.clear();

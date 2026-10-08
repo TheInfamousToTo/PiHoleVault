@@ -150,8 +150,6 @@ class BackupService {
         filename += Archive.ENCRYPTED_SUFFIX;
       }
 
-      await fs.writeFile(path.join(this.backupDir, filename), stored);
-
       await this.catalog.upsert(filename, {
         instanceId: instance.id,
         instanceName,
@@ -162,6 +160,10 @@ class BackupService {
         pinned,
         note
       });
+
+      // Write the file only once its catalog entry exists, so a listing in
+      // between never shows it without its Pi-hole, pin and integrity.
+      await fs.writeFile(path.join(this.backupDir, filename), stored);
 
       let offsite = null;
       const storage = new StorageService(config.offsite, this.logger);

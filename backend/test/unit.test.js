@@ -191,3 +191,43 @@ test('trimming slashes and dashes is linear on hostile input', () => {
   assert.ok(Date.now() - started < 500);
   assert.equal(readToml('[dns]\nother = 2 # note').get('dns.other'), '2');
 });
+
+test('re-initialising the schedule after a settings save keeps a backup task scheduled', async () => {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const ScheduleService = require('../services/ScheduleService');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pv-sched-'));
+  fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify({
+    schedule: { enabled: true, cronExpression: '0 3 * * *', timezone: 'GMT+0' }
+  }));
+  const errors = [];
+  const logger = { info() {}, warn() {}, debug() {}, error: (msg, meta) => errors.push(meta?.error || msg) };
+  const service = new ScheduleService({ runBackup: async () => ({ success: true }) }, dir, logger);
+  try {
+    await service.initializeScheduledJobs();
+    await service.initializeScheduledJobs(); // what every config save does
+    assert.deepEqual(errors, []);
+    assert.ok(service.scheduledTasks.get('backup'), 'a backup task is still scheduled');
+  } finally {
+    service.clearAllTasks();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('backups still being processed are not listed as restore points', async () => {
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const CatalogService = require('../services/CatalogService');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pv-cat-'));
+  try {
+    fs.writeFileSync(path.join(dir, 'incoming_ab12cd_2026-10-08T18-20-12-905Z.zip'), 'x');
+    fs.writeFileSync(path.join(dir, 'pi-hole_backup_2026-01-01T00-00-00-000Z.zip'), 'x'); // pre-2.1 backup
+    const catalog = new CatalogService(dir, dir);
+    const names = (await catalog.list()).map((b) => b.filename);
+    assert.deepEqual(names, ['pi-hole_backup_2026-01-01T00-00-00-000Z.zip']);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
