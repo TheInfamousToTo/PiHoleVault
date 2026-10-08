@@ -1,6 +1,7 @@
 const axios = require('axios');
 const nodemailer = require('nodemailer');
 const { parseHttpUrl } = require('./StorageService');
+const { trimEndChar } = require('../utils/text');
 
 /**
  * Backup notifications over several channels.
@@ -125,14 +126,14 @@ class NotificationService {
         else if (channel.username) {
           headers.Authorization = `Basic ${Buffer.from(`${channel.username}:${channel.password || ''}`).toString('base64')}`;
         }
-        const base = server.toString().replace(/\/+$/, '');
+        const base = trimEndChar(server.toString(), '/');
         return post(`${base}/${channel.topic}`, message.text, headers);
       }
 
       case 'gotify': {
         const server = parseHttpUrl(channel.server, 'Gotify server');
         if (!channel.appToken) throw new Error('Gotify needs an application token');
-        const base = server.toString().replace(/\/+$/, '');
+        const base = trimEndChar(server.toString(), '/');
         return post(
           `${base}/message`,
           { title: message.title, message: message.text, priority: message.event === 'failure' ? 8 : 4 },

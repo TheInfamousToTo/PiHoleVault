@@ -1,5 +1,6 @@
 const fs = require('fs-extra');
 const path = require('path');
+const { trimChar } = require('./text');
 
 const CONFIG_FILE = 'config.json';
 const PRIMARY_ID = 'primary';
@@ -108,11 +109,10 @@ function isValidInstanceId(id) {
  */
 function makeInstanceId(name, existing) {
   const taken = new Set(existing.map((instance) => instance.id));
-  const base = String(name || 'pihole')
+  const slug = String(name || 'pihole')
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 24) || 'pihole';
+    .replace(/[^a-z0-9]+/g, '-');
+  const base = trimChar(slug, '-').slice(0, 24) || 'pihole';
   let id = base === PRIMARY_ID ? `${base}-2` : base;
   for (let n = 2; taken.has(id); n += 1) {
     id = `${base}-${n}`;

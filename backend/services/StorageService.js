@@ -1,5 +1,6 @@
 const axios = require('axios');
 const aws4 = require('aws4');
+const { trimChar, trimEndChar } = require('../utils/text');
 
 /**
  * Off-site copies of backups.
@@ -36,7 +37,7 @@ function parseHttpUrl(value, label) {
 function joinKey(...parts) {
   return parts
     .filter(Boolean)
-    .map((p) => String(p).replace(/^\/+|\/+$/g, ''))
+    .map((p) => trimChar(p, '/'))
     .filter(Boolean)
     .join('/');
 }
@@ -82,7 +83,7 @@ class StorageService {
     const objectKey = encodeKey(joinKey(s3.prefix, key));
 
     const host = pathStyle ? endpoint.host : `${s3.bucket}.${endpoint.host}`;
-    const basePath = endpoint.pathname.replace(/\/+$/, '');
+    const basePath = trimEndChar(endpoint.pathname, '/');
     const requestPath = pathStyle
       ? `${basePath}/${encodeURIComponent(s3.bucket)}/${objectKey}`
       : `${basePath}/${objectKey}`;

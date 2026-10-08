@@ -177,3 +177,17 @@ test('a Discord webhook from a re-run wizard replaces the migrated channel', () 
   const untouched = normalizeConfig(mergePreservingSecrets(stored, { discord: { enabled: false, webhookUrl: '' } }));
   assert.equal(untouched.notifications.channels[0].webhookUrl, 'https://discord.com/api/webhooks/1/old');
 });
+
+test('trimming slashes and dashes is linear on hostile input', () => {
+  const { trimChar, trimEndChar } = require('../utils/text');
+  assert.equal(trimChar('//a/b//', '/'), 'a/b');
+  assert.equal(trimEndChar('https://x//', '/'), 'https://x');
+  assert.equal(makeInstanceId('--Lab  Pi--', []), 'lab-pi');
+  const hostile = `a${'/'.repeat(200000)}b`;
+  const started = Date.now();
+  trimChar(hostile, '/');
+  makeInstanceId(`a${'-'.repeat(200000)}!`, []);
+  readToml(`[dns]\nkey = 1${' '.repeat(200000)}x\nother = 2 # note`);
+  assert.ok(Date.now() - started < 500);
+  assert.equal(readToml('[dns]\nother = 2 # note').get('dns.other'), '2');
+});

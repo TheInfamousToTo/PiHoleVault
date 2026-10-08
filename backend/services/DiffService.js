@@ -62,6 +62,13 @@ async function readGravity(buffer) {
  * [section] headers, with comments on their own lines, which is all this needs
  * to report a setting as changed.
  */
+// Drop a trailing "  # comment". A plain search, not /\s+#.*$/, which
+// backtracks polynomially on long runs of whitespace in the archive's text.
+function stripComment(value) {
+  const at = value.search(/\s#/);
+  return (at === -1 ? value : value.slice(0, at)).trim();
+}
+
 function readToml(text) {
   const settings = new Map();
   let section = '';
@@ -73,7 +80,7 @@ function readToml(text) {
     if (pending) {
       pending.value += ` ${line}`;
       if (/\]\s*(#.*)?$/.test(line)) {
-        settings.set(pending.key, pending.value.replace(/\s+#.*$/, '').trim());
+        settings.set(pending.key, stripComment(pending.value));
         pending = null;
       }
       continue;
@@ -99,7 +106,7 @@ function readToml(text) {
       continue;
     }
 
-    settings.set(key, value.replace(/\s+#.*$/, '').trim());
+    settings.set(key, stripComment(value));
   }
 
   return settings;
