@@ -1,11 +1,19 @@
+const crypto = require('crypto');
 const fs = require('fs-extra');
 const path = require('path');
 const { NodeSSH } = require('node-ssh');
 const { buildConnectOptions } = require('../utils/sshSecurity');
 const { isValidHost, parsePort, resolveWithin, parsePiholeAddress } = require('../utils/validate');
-const DiscordService = require('./DiscordService');
+const { loadConfig, getInstances, getInstance, PRIMARY_ID } = require('../utils/configStore');
 const AnalyticsService = require('./AnalyticsService');
 const PiHoleWebService = require('./PiHoleWebService');
+const CatalogService = require('./CatalogService');
+const NotificationService = require('./NotificationService');
+const StorageService = require('./StorageService');
+const Archive = require('./ArchiveService');
+const { selectForDeletion } = require('./RetentionService');
+
+const SSH_KEY_PATH = path.join(process.env.HOME || '/root', '.ssh', 'id_rsa');
 
 class BackupService {
   /**
@@ -27,232 +35,334 @@ class BackupService {
     this.dataDir = dataDir;
     this.backupDir = backupDir;
     this.logger = logger;
-    this.discordService = new DiscordService(logger);
     this.analyticsService = new AnalyticsService(logger, dataDir);
     this.webService = new PiHoleWebService(logger);
+    this.catalog = new CatalogService(dataDir, backupDir);
+    this.notifier = new NotificationService(logger);
+    // One backup or restore at a time: a scheduled run must not collide with
+    // a manual restore that is restarting the same Pi-hole.
+    this.busy = null;
   }
 
-  async runBackup() {
-    const jobId = `backup_${Date.now()}`;
-    const startTime = Date.now();
-    
+  async loadConfig() {
+    return loadConfig(this.dataDir);
+  }
+
+  // Used to open encrypted backups even after encryption is switched off for
+  // new ones, so older .enc files stay restorable.
+  passphrase(config) {
+    return config.encryption?.passphrase || '';
+  }
+
+  async exclusive(label, fn) {
+    if (this.busy) {
+      throw new Error(`Another operation is already running (${this.busy}); try again when it finishes`);
+    }
+    this.busy = label;
     try {
-      this.logger.info('Starting backup process', { jobId });
-      
-      // Log job start
-      await this.logJob(jobId, 'running', 'Backup started');
-      
-      // Load configuration
-      const config = await this.loadConfig();
-      
-      if (!config.pihole) {
-        throw new Error('Pi-hole configuration not found');
-      }
-
-      // Record backup start for analytics - DISABLED TO PREVENT DOUBLE COUNTING
-      // await this.analyticsService.recordBackupStart(config.pihole.host);
-      
-      const connectionMethod = config.pihole.connectionMethod || 'ssh';
-      const backupResult = await this.performBackup(config, config.pihole, jobId);
-
-      // Clean up old backups
-      await this.cleanupOldBackups(config.backup?.maxBackups || 10);
-      
-      // Log successful completion
-      await this.logJob(jobId, 'success', `Backup completed successfully: ${backupResult.filename}`, {
-        filename: backupResult.filename,
-        size: backupResult.size,
-        method: backupResult.method || connectionMethod
-      });
-      
-      this.logger.info('Backup process completed successfully', { 
-        filename: backupResult.filename,
-        size: backupResult.size,
-        method: backupResult.method || connectionMethod,
-        jobId 
-      });
-
-      // Record backup success for analytics - RE-ENABLED (SINGLE CALL APPROACH)
-      const duration = (Date.now() - startTime) / 1000; // seconds
-      await this.analyticsService.recordBackupSuccess({
-        filename: backupResult.filename,
-        size: backupResult.size,
-        piholeServer: config.pihole.host,
-        duration: duration
-      });
-
-      // Send Discord notification for successful backup
-      const discordConfig = this.getDiscordConfig(config);
-      if (discordConfig && discordConfig.enabled && discordConfig.notifyOnSuccess) {
-        try {
-          await this.discordService.sendBackupSuccess(discordConfig.webhookUrl, {
-            filename: backupResult.filename,
-            size: backupResult.size,
-            jobId,
-            pihole: config.pihole
-          });
-          this.logger.info('Discord notification sent for successful backup', { jobId });
-        } catch (discordError) {
-          this.logger.error('Failed to send Discord notification for successful backup', { 
-            error: discordError.message,
-            jobId 
-          });
-        }
-      }
-      
-      return {
-        success: true,
-        filename: backupResult.filename,
-        size: backupResult.size,
-        method: backupResult.method || connectionMethod,
-        jobId
-      };
-      
-    } catch (error) {
-      this.logger.error('Backup process failed', { 
-        error: error.message,
-        jobId 
-      });
-      
-      // Log failed job
-      await this.logJob(jobId, 'error', `Backup failed: ${error.message}`);
-
-      // Record backup failure for analytics - RE-ENABLED (SINGLE CALL APPROACH)
-      try {
-        const config = await this.loadConfig();
-        const duration = (Date.now() - startTime) / 1000; // seconds
-        await this.analyticsService.recordBackupFailure({
-          message: error.message,
-          piholeServer: config?.pihole?.host || 'unknown',
-          duration: duration
-        });
-      } catch (analyticsError) {
-        this.logger.debug('Failed to record backup failure for analytics', { 
-          error: analyticsError.message 
-        });
-      }
-
-      // Send Discord notification for backup failure
-      try {
-        const config = await this.loadConfig();
-        const discordConfig = this.getDiscordConfig(config);
-        if (discordConfig && discordConfig.enabled && discordConfig.notifyOnFailure) {
-          await this.discordService.sendBackupFailure(discordConfig.webhookUrl, {
-            error: error.message,
-            jobId,
-            pihole: config.pihole
-          });
-          this.logger.info('Discord notification sent for backup failure', { jobId });
-        }
-      } catch (discordError) {
-        this.logger.error('Failed to send Discord notification for backup failure', { 
-          error: discordError.message,
-          jobId 
-        });
-      }
-      
-      return {
-        success: false,
-        error: error.message,
-        jobId
-      };
+      return await fn();
+    } finally {
+      this.busy = null;
     }
   }
 
   /**
-   * Run backup with a specific connection (instead of using config)
+   * Back up every enabled Pi-hole, or only `instanceId`.
+   *
+   * Keeps the single-result shape older callers expect (success, filename,
+   * size, jobId, error) and adds `results` with one entry per Pi-hole.
    */
-  async runBackupWithConnection(connection, customName = null, description = null) {
-    const jobId = `backup_${Date.now()}`;
-    const startTime = Date.now();
-    
+  async runBackup({ instanceId } = {}) {
+    let config;
     try {
-      this.logger.info('Starting backup with custom connection', { 
-        jobId, 
-        host: connection.host?.substring(0, 50) // Truncate for logging
-      });
-      
-      // Log job start
-      await this.logJob(jobId, 'running', 'Backup started with custom connection');
-      
-      const connectionMethod = connection.connectionMethod || 'ssh';
-      const config = await this.loadConfig();
-      const backupResult = await this.performBackup(config, connection, jobId);
-
-      // customName arrives from the request body. Interpolating it straight into
-      // a path let a caller write the downloaded backup anywhere the process
-      // could reach (for example "../../root/.ssh/authorized_keys"), so it is
-      // reduced to a safe basename and the result is confined to backupDir.
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const baseName = BackupService.sanitiseBaseName(customName);
-      const filename = `${baseName}_${timestamp}.zip`;
-      const filePath = resolveWithin(this.backupDir, filename);
-      const sourcePath = resolveWithin(this.backupDir, backupResult.filename);
-
-      if (!filePath || !sourcePath) {
-        throw new Error('Refusing to write a backup outside the backup directory');
-      }
-
-      await fs.move(sourcePath, filePath);
-
-      const size = (await fs.stat(filePath)).size;
-      const duration = Date.now() - startTime;
-
-      await this.logJob(jobId, 'completed', 'Backup completed successfully', {
-        filename,
-        size,
-        duration,
-        method: backupResult.method || connectionMethod,
-        description
-      });
-
-      await this.analyticsService.recordBackupSuccess({
-        filename,
-        size,
-        piholeServer: connection.host,
-        duration: duration / 1000
-      });
-
-      this.logger.info('Backup completed successfully with custom connection', {
-        jobId,
-        filename,
-        size,
-        duration,
-        method: backupResult.method || connectionMethod
-      });
-
-      return {
-        success: true,
-        filename,
-        size,
-        duration,
-        jobId,
-        method: backupResult.method || connectionMethod
-      };
-
+      config = await this.loadConfig();
     } catch (error) {
-      this.logger.error('Backup failed with custom connection', { 
-        jobId, 
-        error: error.message, 
-        stack: error.stack 
-      });
+      return { success: false, error: error.message, results: [] };
+    }
 
-      // Update job to failed
-      await this.logJob(jobId, 'failed', error.message);
-
-      // Update analytics
-      await this.analyticsService.recordBackupFailure({
-        message: error.message,
-        piholeServer: connection.host,
-        duration: (Date.now() - startTime) / 1000
-      });
-
+    const targets = getInstances(config).filter((i) => (instanceId ? i.id === instanceId : i.enabled));
+    if (targets.length === 0) {
       return {
         success: false,
-        error: error.message,
-        jobId
+        error: instanceId ? `No Pi-hole with id "${instanceId}"` : 'No Pi-hole is configured',
+        results: []
       };
     }
+
+    let results;
+    try {
+      results = await this.exclusive('backup', async () => {
+        const out = [];
+        for (const instance of targets) {
+          out.push(await this.backupInstance(config, instance));
+        }
+        await this.applyRetention(config);
+        return out;
+      });
+    } catch (error) {
+      return { success: false, error: error.message, results: [] };
+    }
+
+    const failed = results.filter((r) => !r.success);
+    const first = results.find((r) => r.success) || results[0];
+    return {
+      success: failed.length === 0,
+      error: failed.length ? failed.map((r) => `${r.instanceName}: ${r.error}`).join(' — ') : undefined,
+      filename: first?.filename,
+      size: first?.size,
+      jobId: first?.jobId,
+      results
+    };
+  }
+
+  /**
+   * One Pi-hole: fetch, verify, optionally encrypt, record, copy off-site,
+   * notify. Never throws; the outcome is in the returned object.
+   */
+  async backupInstance(config, instance, { note = '', pinned = false } = {}) {
+    const jobId = `backup_${Date.now()}_${instance.id}`;
+    const startTime = Date.now();
+    const instanceName = instance.name || instance.host;
+    const base = { jobId, instanceId: instance.id, instanceName };
+
+    await this.logJob(jobId, 'running', `Backup started for ${instanceName}`, { instanceId: instance.id, instanceName });
+
+    try {
+      const raw = await this.performBackup(config, instance, jobId);
+      const rawPath = resolveWithin(this.backupDir, raw.filename);
+      if (!rawPath) throw new Error('Backup was written outside the backup directory');
+
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      let filename = `pi-hole_backup_${instance.id}_${stamp}.zip`;
+      const zip = await fs.readFile(rawPath);
+      await fs.remove(rawPath);
+
+      const integrity = Archive.verifyZip(zip);
+      if (!integrity.ok) {
+        throw new Error(`Backup failed verification and was discarded: ${integrity.error}`);
+      }
+
+      let stored = zip;
+      const passphrase = this.passphrase(config);
+      if (config.encryption?.enabled) {
+        if (!passphrase) throw new Error('Encryption is on but no passphrase is set');
+        stored = Archive.encrypt(zip, passphrase);
+        filename += Archive.ENCRYPTED_SUFFIX;
+      }
+
+      await fs.writeFile(path.join(this.backupDir, filename), stored);
+
+      await this.catalog.upsert(filename, {
+        instanceId: instance.id,
+        instanceName,
+        createdAt: new Date().toISOString(),
+        method: raw.method,
+        integrity,
+        encrypted: Boolean(config.encryption?.enabled),
+        pinned,
+        note
+      });
+
+      let offsite = null;
+      const storage = new StorageService(config.offsite, this.logger);
+      if (storage.enabled) {
+        try {
+          const uploaded = await storage.upload(filename, stored);
+          offsite = { status: 'uploaded', target: uploaded.target, at: new Date().toISOString() };
+        } catch (error) {
+          offsite = { status: 'failed', target: storage.describe(), error: error.message, at: new Date().toISOString() };
+          await this.notifier.notify(config, 'warning', {
+            title: 'Off-site copy failed',
+            instance: instanceName,
+            filename,
+            error: error.message
+          });
+        }
+        await this.catalog.upsert(filename, { offsite });
+      }
+
+      const duration = Date.now() - startTime;
+      await this.logJob(jobId, 'success', `Backup completed successfully: ${filename}`, {
+        instanceId: instance.id,
+        instanceName,
+        filename,
+        size: stored.length,
+        method: raw.method,
+        duration
+      });
+
+      await this.notifier.notify(config, 'success', {
+        instance: instanceName,
+        filename,
+        size: stored.length,
+        offsite: offsite ? (offsite.status === 'uploaded' ? `copied to ${offsite.target}` : `failed: ${offsite.error}`) : undefined
+      });
+
+      if (config.analytics?.enabled) {
+        await this.analyticsService.recordBackupSuccess({ size: stored.length, duration: duration / 1000 });
+      }
+
+      return { ...base, success: true, filename, size: stored.length, method: raw.method, integrity, offsite };
+    } catch (error) {
+      this.logger.error('Backup failed', { jobId, instance: instance.id, error: error.message });
+      await this.logJob(jobId, 'error', `Backup failed: ${error.message}`, { instanceId: instance.id, instanceName });
+      await this.notifier.notify(config, 'failure', { instance: instanceName, error: error.message });
+
+      if (config.analytics?.enabled) {
+        await this.analyticsService.recordBackupFailure({ duration: (Date.now() - startTime) / 1000 });
+      }
+
+      return { ...base, success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Back up with a connection supplied by the caller rather than the saved
+   * Pi-hole list (POST /api/backup with a connectionId).
+   */
+  async runBackupWithConnection(connection, customName = null, description = null) {
+    let config;
+    try {
+      config = await this.loadConfig();
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+
+    const instance = { id: connection.id || PRIMARY_ID, name: customName || connection.name || connection.host, ...connection };
+    const result = await this.exclusive('backup', () => this.backupInstance(config, instance, { note: description || '' }));
+    return result;
+  }
+
+  // --- Retention -------------------------------------------------------------
+
+  async applyRetention(config) {
+    try {
+      await this.catalog.prune();
+      const backups = await this.catalog.list();
+      const doomed = selectForDeletion(backups, config.backup);
+      if (!doomed.length) return [];
+
+      const storage = new StorageService(config.offsite, this.logger);
+      for (const filename of doomed) {
+        const filePath = resolveWithin(this.backupDir, filename);
+        if (!filePath) continue;
+        await fs.remove(filePath);
+        await this.catalog.remove(filename);
+        if (storage.enabled) {
+          await storage.remove(filename).catch((error) =>
+            this.logger.warn('Could not delete off-site copy', { filename, error: error.message })
+          );
+        }
+      }
+
+      this.logger.info('Retention applied', { removed: doomed.length });
+      return doomed;
+    } catch (error) {
+      this.logger.error('Error applying retention', { error: error.message });
+      return [];
+    }
+  }
+
+  // --- Restore ---------------------------------------------------------------
+
+  /**
+   * Restore a stored backup to a Pi-hole.
+   *
+   * @param filename   backup to restore
+   * @param instanceId target Pi-hole; defaults to the one the backup came from
+   * @param parts      which parts to import (see PiHoleWebService.importSelection)
+   * @param backupFirst take a pinned safety backup of the target before
+   *                    overwriting it (default true)
+   */
+  async restore({ filename, instanceId, parts = {}, backupFirst = true }) {
+    const config = await this.loadConfig();
+    const filePath = resolveWithin(this.backupDir, filename);
+    if (!filePath || !(await fs.pathExists(filePath))) {
+      throw new Error('Backup file not found');
+    }
+
+    const meta = (await this.catalog.get(filename)) || {};
+    const instance = getInstance(config, instanceId || meta.instanceId || PRIMARY_ID);
+    if (!instance) throw new Error('Target Pi-hole not found');
+    const instanceName = instance.name || instance.host;
+
+    return this.exclusive('restore', async () => {
+      const zip = await Archive.readZip(filePath, this.passphrase(config));
+      const integrity = Archive.verifyZip(zip);
+      if (!integrity.ok) {
+        throw new Error(`This backup failed verification and will not be restored: ${integrity.error}`);
+      }
+
+      const jobId = `restore_${Date.now()}_${instance.id}`;
+      await this.logJob(jobId, 'running', `Restoring ${filename} to ${instanceName}`, {
+        type: 'restore', instanceId: instance.id, instanceName, filename
+      });
+
+      let safety = null;
+      if (backupFirst) {
+        safety = await this.backupInstance(config, instance, {
+          pinned: true,
+          note: `Before restoring ${filename}`
+        });
+        if (!safety.success) {
+          const message = `Restore cancelled: the safety backup of the current state failed (${safety.error})`;
+          await this.logJob(jobId, 'error', message, { type: 'restore', instanceId: instance.id, instanceName });
+          throw new Error(message);
+        }
+      }
+
+      try {
+        const method = instance.connectionMethod || 'ssh';
+        let outcome;
+        if (method === 'ssh') {
+          outcome = await this.restoreViaSSH(config, instance, zip);
+        } else {
+          outcome = await this.webService.restoreTeleporter(instance, zip, parts);
+          outcome.method = 'web';
+        }
+
+        await this.logJob(jobId, 'success', `Restored ${filename} to ${instanceName}`, {
+          type: 'restore', instanceId: instance.id, instanceName, filename, processed: outcome.processed
+        });
+        await this.notifier.notify(config, 'success', {
+          title: 'Pi-hole restore completed',
+          instance: instanceName,
+          filename
+        });
+
+        return {
+          success: true,
+          instanceId: instance.id,
+          instanceName,
+          processed: outcome.processed,
+          restarted: outcome.restarted,
+          method: outcome.method,
+          safetyBackup: safety?.filename || null
+        };
+      } catch (error) {
+        await this.logJob(jobId, 'error', `Restore failed: ${error.message}`, {
+          type: 'restore', instanceId: instance.id, instanceName, filename
+        });
+        await this.notifier.notify(config, 'failure', {
+          title: 'Pi-hole restore failed',
+          instance: instanceName,
+          filename,
+          error: error.message
+        });
+        throw error;
+      }
+    });
+  }
+
+  // --- Verification ----------------------------------------------------------
+
+  async verify(filename) {
+    const config = await this.loadConfig().catch(() => ({}));
+    const filePath = resolveWithin(this.backupDir, filename);
+    if (!filePath || !(await fs.pathExists(filePath))) throw new Error('Backup file not found');
+    const integrity = await Archive.verifyFile(filePath, this.passphrase(config));
+    await this.catalog.upsert(filename, { integrity });
+    return integrity;
   }
 
   /**
@@ -362,170 +472,123 @@ class BackupService {
   /**
    * Perform backup using SSH-only method (legacy)
    */
-  async performSSHBackup(config, pihole, jobId) {
-    const ssh = new NodeSSH();
-    
-    try {
-      // Configs saved before 2.0.0 may hold the admin page URL; SSH needs the
-      // bare hostname inside it.
-      const sshHost = parsePiholeAddress(pihole.host)?.hostname;
+  /**
+   * Open an SSH connection to a Pi-hole.
+   *
+   * The primary Pi-hole uses the deployed key when there is one. Pi-holes added
+   * later use their stored password, or the same key when they have none.
+   * Host-key verification and the algorithm policy always come from
+   * buildConnectOptions.
+   */
+  async connectSSH(config, pihole) {
+    const sshHost = parsePiholeAddress(pihole.host)?.hostname;
+    if (!sshHost || !isValidHost(sshHost)) {
+      throw new Error('Configured Pi-hole host is not a valid hostname or IP address');
+    }
 
-      if (!sshHost || !isValidHost(sshHost)) {
-        throw new Error('Configured Pi-hole host is not a valid hostname or IP address');
-      }
+    const port = parsePort(pihole.port, 22);
+    if (port === null) {
+      throw new Error('Configured Pi-hole SSH port is out of range');
+    }
 
-      const port = parsePort(pihole.port, 22);
+    const isPrimary = !pihole.id || pihole.id === PRIMARY_ID;
+    const keyPath = config.sshKeyPath || SSH_KEY_PATH;
+    const useKey = isPrimary ? Boolean(config.sshKeyDeployed) : !pihole.password && (await fs.pathExists(keyPath));
 
-      if (port === null) {
-        throw new Error('Configured Pi-hole SSH port is out of range');
-      }
-
-      // Prefer the deployed key; fall back to the stored password. Host key
-      // verification and the algorithm policy come from buildConnectOptions so
-      // that no connection can silently opt out of them.
-      const auth = {};
-
-      if (config.sshKeyDeployed && config.sshKeyPath) {
-        try {
-          auth.privateKey = await fs.readFile(config.sshKeyPath, 'utf8');
-        } catch (error) {
-          this.logger.error('Failed to read SSH key, falling back to password', {
-            keyPath: config.sshKeyPath,
-            error: error.message
-          });
-          auth.password = pihole.password;
-        }
-      } else {
+    const auth = {};
+    if (useKey) {
+      try {
+        auth.privateKey = await fs.readFile(keyPath, 'utf8');
+      } catch (error) {
+        this.logger.error('Failed to read SSH key, falling back to password', { keyPath, error: error.message });
         auth.password = pihole.password;
       }
+    } else {
+      auth.password = pihole.password;
+    }
 
-      const connectOptions = buildConnectOptions({
-        dataDir: this.dataDir,
-        host: sshHost,
-        port,
-        username: pihole.username,
-        logger: this.logger,
-        auth,
-        readyTimeout: 30000
-      });
+    const ssh = new NodeSSH();
+    await ssh.connect(buildConnectOptions({
+      dataDir: this.dataDir,
+      host: sshHost,
+      port,
+      username: pihole.username,
+      logger: this.logger,
+      auth,
+      readyTimeout: 30000
+    }));
+    return ssh;
+  }
 
-      await ssh.connect(connectOptions);
-      
-      this.logger.info('Connected to Pi-hole server via SSH', { 
-        host: pihole.host,
-        jobId 
-      });
-      
+  async performSSHBackup(config, pihole, jobId) {
+    const ssh = await this.connectSSH(config, pihole);
+
+    try {
+      this.logger.info('Connected to Pi-hole server via SSH', { host: pihole.host, jobId });
+
       const remoteBackupFile = await this.createRemoteTeleporter(ssh, jobId);
 
-      // Generate local filename with timestamp
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      const localFilename = `pi-hole_backup_${timestamp}.zip`;
+      const localFilename = `incoming_${crypto.randomBytes(6).toString('hex')}_${timestamp}.zip`;
       const localPath = path.join(this.backupDir, localFilename);
-      
-      // Download the backup file
+
       await ssh.getFile(localPath, remoteBackupFile);
-      
-      this.logger.info('Backup file downloaded via SSH', { 
-        localPath,
-        jobId 
-      });
-      
+
       // Clean up the remote archive. The name was checked against a strict
       // basename pattern, and it is still read from stdin into a quoted
       // variable rather than interpolated, so the shell never parses it as
       // code. sudo covers an archive root created in sticky /tmp.
       await ssh.execCommand('f=$(cat); rm -f -- "$f" 2>/dev/null || sudo -n rm -f -- "$f"', { stdin: remoteBackupFile });
-      
-      // Verify local file exists and has content
+
       const stats = await fs.stat(localPath);
       if (stats.size === 0) {
         throw new Error('Downloaded backup file is empty');
       }
-      
-      await ssh.dispose();
-      
-      return {
-        filename: localFilename,
-        size: stats.size,
-        method: 'ssh'
-      };
-      
-    } catch (sshError) {
-      if (ssh) {
-        try {
-          await ssh.dispose();
-        } catch (e) {
-          // Ignore disposal errors
-        }
+
+      return { filename: localFilename, size: stats.size, method: 'ssh' };
+    } finally {
+      try {
+        ssh.dispose();
+      } catch (e) {
+        // Ignore disposal errors
       }
-      throw sshError;
     }
   }
 
-  async cleanupOldBackups(maxBackups) {
+  /**
+   * Restore over SSH: upload the zip and import it with pihole-FTL. The CLI
+   * imports the whole archive; selective restore needs the web API.
+   */
+  async restoreViaSSH(config, pihole, zip) {
+    const ssh = await this.connectSSH(config, pihole);
+    const remote = `/tmp/piholevault-restore-${crypto.randomBytes(8).toString('hex')}.zip`;
+    const local = path.join(this.backupDir, `.restore-${crypto.randomBytes(6).toString('hex')}.zip`);
+
     try {
-      const files = await fs.readdir(this.backupDir);
-      const backupFiles = files
-        .filter(file => file.endsWith('.zip') && file.includes('pi-hole'))
-        .map(file => ({
-          name: file,
-          path: path.join(this.backupDir, file),
-          stats: null
-        }));
-      
-      // Get file stats
-      for (const file of backupFiles) {
-        file.stats = await fs.stat(file.path);
+      await fs.writeFile(local, zip, { mode: 0o600 });
+      await ssh.putFile(local, remote);
+
+      let result = await ssh.execCommand(`pihole-FTL --teleporter ${remote}`, { cwd: '/tmp' });
+      if (result.code !== 0) {
+        result = await ssh.execCommand(`sudo -n pihole-FTL --teleporter ${remote}`, { cwd: '/tmp' });
       }
-      
-      // Sort by modification time (newest first)
-      backupFiles.sort((a, b) => b.stats.mtime - a.stats.mtime);
-      
-      // Remove old backups
-      if (backupFiles.length > maxBackups) {
-        const filesToDelete = backupFiles.slice(maxBackups);
-        
-        for (const file of filesToDelete) {
-          await fs.remove(file.path);
-          this.logger.info('Old backup file removed', { filename: file.name });
-        }
-        
-        this.logger.info('Cleanup completed', { 
-          kept: maxBackups,
-          removed: filesToDelete.length 
-        });
+      await ssh.execCommand(`rm -f -- ${remote} 2>/dev/null || sudo -n rm -f -- ${remote}`);
+
+      if (result.code !== 0) {
+        const last = `${result.stderr || ''}\n${result.stdout || ''}`.trim().split('\n').filter(Boolean).slice(-1)[0];
+        throw new Error(`pihole-FTL could not import the backup: ${last || `exit code ${result.code}`}`);
       }
-      
-    } catch (error) {
-      this.logger.error('Error during backup cleanup', { error: error.message });
-    }
-  }
 
-  async loadConfig() {
-    const configPath = path.join(this.dataDir, 'config.json');
-    
-    if (!await fs.pathExists(configPath)) {
-      throw new Error('Configuration file not found');
+      const restarted = await this.webService.waitForRestart(pihole).catch(() => false);
+      return { processed: ['(entire archive)'], restarted, method: 'ssh' };
+    } finally {
+      await fs.remove(local).catch(() => {});
+      try {
+        ssh.dispose();
+      } catch (e) {
+        // Ignore disposal errors
+      }
     }
-    
-    return await fs.readJson(configPath);
-  }
-
-  getDiscordConfig(config) {
-    // Check environment variable first, then fall back to config file
-    const webhookUrl = process.env.DISCORD_WEBHOOK_URL || config.discord?.webhookUrl;
-    
-    if (!webhookUrl) {
-      return null;
-    }
-
-    return {
-      enabled: config.discord?.enabled !== false, // Default to true if webhook URL is provided
-      webhookUrl: webhookUrl,
-      notifyOnSuccess: config.discord?.notifyOnSuccess !== false, // Default to true
-      notifyOnFailure: config.discord?.notifyOnFailure !== false, // Default to true
-    };
   }
 
   async logJob(jobId, status, message, extra = {}) {
