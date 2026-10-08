@@ -154,3 +154,16 @@ test('legacy Discord settings appear as a notification channel', () => {
   assert.match(message.text, /Pi-hole: Pi/);
   assert.match(message.text, /Error: boom/);
 });
+
+test('legacy Discord settings migrate into the channel list once, keeping the URL across a save', () => {
+  const stored = normalizeConfig({ discord: { enabled: true, webhookUrl: 'https://discord.com/api/webhooks/1/x' } });
+  assert.equal(stored.discord, undefined);
+  assert.equal(stored.notifications.channels[0].id, 'discord-legacy');
+
+  // The UI sends the redacted channel back with a new one appended.
+  const fromUi = redactSecrets(stored);
+  fromUi.notifications.channels.push({ id: 'n1', type: 'ntfy', topic: 'pv' });
+  const saved = normalizeConfig(mergePreservingSecrets(stored, fromUi));
+  assert.equal(saved.notifications.channels.length, 2);
+  assert.equal(saved.notifications.channels[0].webhookUrl, 'https://discord.com/api/webhooks/1/x');
+});

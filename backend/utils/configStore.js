@@ -51,6 +51,26 @@ function normalizeConfig(config) {
 
   next.analytics = { enabled: next.analytics?.enabled === true };
 
+  // Before 2.1 the only notification target was one Discord webhook in
+  // config.discord. Carry it over as an ordinary channel so it shows up, and
+  // can be edited, alongside the new ones.
+  if (next.discord && next.discord.webhookUrl) {
+    const channels = Array.isArray(next.notifications?.channels) ? [...next.notifications.channels] : [];
+    if (!channels.some((c) => c && c.id === 'discord-legacy')) {
+      channels.unshift({
+        id: 'discord-legacy',
+        type: 'discord',
+        name: 'Discord',
+        enabled: next.discord.enabled !== false,
+        webhookUrl: next.discord.webhookUrl,
+        notifyOnSuccess: next.discord.notifyOnSuccess !== false,
+        notifyOnFailure: next.discord.notifyOnFailure !== false
+      });
+    }
+    next.notifications = { ...(next.notifications || {}), channels };
+    delete next.discord;
+  }
+
   return next;
 }
 

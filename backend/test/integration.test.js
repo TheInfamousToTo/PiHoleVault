@@ -115,6 +115,19 @@ test('save two Pi-holes with encryption and a webhook channel', { skip }, async 
   assert.equal(config.data.analytics.enabled, false, 'analytics is off unless opted in');
 });
 
+test('a saved password is reused for the same Pi-hole only', { skip }, async () => {
+  const same = await api('POST', '/api/pihole/test-connection', {
+    instanceId: 'second', host: HOST, webPort: PORT, connectionMethod: 'web', webPassword: '***REDACTED***'
+  });
+  assert.equal(same.data.success, true, JSON.stringify(same.data));
+
+  const elsewhere = await api('POST', '/api/pihole/test-connection', {
+    instanceId: 'second', host: '203.0.113.9', webPort: PORT, connectionMethod: 'web', webPassword: '***REDACTED***'
+  });
+  assert.equal(elsewhere.data.success, false);
+  assert.match(elsewhere.data.error, /enter the password again/);
+});
+
 test('back up every Pi-hole: verified, encrypted, catalogued, notified', { skip }, async () => {
   const run = await api('POST', '/api/backup/run', {});
   assert.equal(run.data.success, true, JSON.stringify(run.data));

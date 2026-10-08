@@ -17,7 +17,6 @@ const backupRoutes = require('./routes/backup');
 const sshRoutes = require('./routes/ssh');
 const scheduleRoutes = require('./routes/schedule');
 const jobRoutes = require('./routes/jobs');
-const discordRoutes = require('./routes/discord');
 const debugRoutes = require('./routes/debug');
 const integrationRoutes = require('./routes/integrations');
 
@@ -239,7 +238,6 @@ app.use('/api', apiLimiter, requireAuth);
 // tighter limiter on top of the general one.
 app.use('/api/ssh', sensitiveLimiter);
 app.use('/api/pihole/test-connection', sensitiveLimiter);
-app.use('/api/discord/test', sensitiveLimiter);
 app.use('/api/integrations', sensitiveLimiter);
 app.use('/api/backups/:filename/restore', sensitiveLimiter);
 
@@ -250,7 +248,6 @@ app.use('/api/backups', backupRoutes);  // Add alias for backups endpoint
 app.use('/api/ssh', sshRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/jobs', jobRoutes);
-app.use('/api/discord', discordRoutes);
 app.use('/api/debug', debugRoutes);
 app.use('/api/integrations', integrationRoutes);
 
@@ -373,7 +370,7 @@ if (require.main === module) app.listen(PORT, () => {
       port: PORT,
       routes: [
         '/api/config', '/api/pihole', '/api/backup', '/api/ssh',
-        '/api/schedule', '/api/jobs', '/api/discord', '/api/debug'
+        '/api/schedule', '/api/jobs', '/api/integrations', '/api/debug'
       ],
       debugEndpoints: [
         '/api/debug/status', '/api/debug/system-info', '/api/debug/health-check',
