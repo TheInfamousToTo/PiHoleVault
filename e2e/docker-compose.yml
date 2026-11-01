@@ -29,7 +29,7 @@ services:
       retries: 40
 
   s3:
-    image: chrislusf/seaweedfs:4.48
+    image: chrislusf/seaweedfs:4.50
     command: ["server", "-s3", "-s3.port=8333", "-s3.config=/etc/s3cfg/s3.json"]
     volumes:
       - ./s3.json:/etc/s3cfg/s3.json:ro
@@ -42,13 +42,13 @@ services:
       retries: 40
 
   webdav:
-    image: rclone/rclone:1.75.1
+    image: rclone/rclone:1.75.2
     command: ["serve", "webdav", "/data", "--addr", ":8080", "--user", "davuser", "--pass", "davpass"]
     ports:
       - "8090:8080"
 
   ntfy:
-    image: binwiederhier/ntfy:v2.29.0
+    image: binwiederhier/ntfy:v2.34.0
     command: ["serve"]
     ports:
       - "8091:80"
